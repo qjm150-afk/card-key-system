@@ -265,11 +265,11 @@
                         type="text" 
                         id="cardKey" 
                         class="input" 
-                        placeholder="CSS-XXXX-XXXX"
-                        maxlength="14"
+                        placeholder="CSS-XXXX-XXXX-XXXX"
+                        maxlength="18"
                         autocomplete="off"
                     >
-                    <p class="hint">示例: CSS-A1B2-C3D4</p>
+                    <p class="hint">示例: CSS-A1B2-C3D4-E5F6</p>
                 </div>
 
                 <div id="errorBox" class="error-box" style="display: none;">
@@ -318,15 +318,18 @@
         const passwordInfo = document.getElementById('passwordInfo');
         const passwordValue = document.getElementById('passwordValue');
 
-        // 自动格式化输入（支持 CSS-XXXX-XXXX 格式）
+        // 自动格式化输入（支持 CSS-XXXX-XXXX-XXXX 格式）
         cardKeyInput.addEventListener('input', function(e) {
             let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            // 格式化为 XXX-XXXX-XXXX
+            // 格式化为 CSS-XXXX-XXXX-XXXX
             if (value.length > 3) {
                 value = value.slice(0, 3) + '-' + value.slice(3);
             }
             if (value.length > 8) {
-                value = value.slice(0, 8) + '-' + value.slice(8, 12);
+                value = value.slice(0, 8) + '-' + value.slice(8);
+            }
+            if (value.length > 13) {
+                value = value.slice(0, 13) + '-' + value.slice(13, 17);
             }
             e.target.value = value;
         });
@@ -364,8 +367,8 @@
                 return;
             }
 
-            if (!cardKey.match(/^CSS-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
-                showError('卡密格式不正确，示例：CSS-A1B2-C3D4');
+            if (!cardKey.match(/^CSS-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
+                showError('卡密格式不正确，示例：CSS-A1B2-C3D4-E5F6');
                 return;
             }
 
