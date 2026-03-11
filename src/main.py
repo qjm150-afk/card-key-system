@@ -98,7 +98,7 @@ async def validate_card_key(request: ValidateRequest):
         # 获取 Supabase 客户端
         client = get_supabase_client()
 
-        # 查询卡密
+        # 查询卡密 (实际表名: card_keys)
         response = client.table('card_keys').select('*').eq('key_value', card_key).execute()
 
         if not response.data:
