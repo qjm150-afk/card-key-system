@@ -2,9 +2,9 @@
 requires = ["python-3.11"]
 
 [dev]
-build = ["pip", "install", "-r", "requirements.txt"]
-run = ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
+build = ["bash", "./scripts/build.sh"]
+run = ["bash", "./scripts/dev.sh"]
 
 [deploy]
-build = ["pip", "install", "-r", "requirements.txt"]
-run = ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
+build = ["bash", "./scripts/build.sh"]
+run = ["bash", "./scripts/start.sh"]
