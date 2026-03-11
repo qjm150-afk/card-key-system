@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, index, unique, varchar, integer, text, uniqueIndex } from "drizzle-orm/pg-core"
+import { pgTable, serial, timestamp, index, unique, varchar, integer, text, uniqueIndex, foreignKey, boolean } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -34,6 +34,30 @@ export const cardKeysTable = pgTable("card_keys_table", {
 	userNote: varchar("user_note", { length: 200 }),
 	feishuUrl: text("feishu_url"),
 	feishuPassword: varchar("feishu_password", { length: 100 }),
+	expireAt: timestamp("expire_at", { withTimezone: true, mode: 'string' }),
+	usedCount: integer("used_count").default(0).notNull(),
+	lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: 'string' }),
+	maxUses: integer("max_uses").default(1).notNull(),
 }, (table) => [
 	uniqueIndex("card_keys_table_key_value_idx").using("btree", table.keyValue.asc().nullsLast().op("text_ops")),
+]);
+
+export const accessLogs = pgTable("access_logs", {
+	id: serial().primaryKey().notNull(),
+	cardKeyId: integer("card_key_id"),
+	keyValue: varchar("key_value", { length: 50 }).notNull(),
+	ipAddress: varchar("ip_address", { length: 50 }),
+	userAgent: varchar("user_agent", { length: 500 }),
+	success: boolean().default(false).notNull(),
+	errorMsg: varchar("error_msg", { length: 200 }),
+	accessTime: timestamp("access_time", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("ix_access_logs_access_time").using("btree", table.accessTime.asc().nullsLast().op("timestamptz_ops")),
+	index("ix_access_logs_card_key_id").using("btree", table.cardKeyId.asc().nullsLast().op("int4_ops")),
+	index("ix_access_logs_key_value").using("btree", table.keyValue.asc().nullsLast().op("text_ops")),
+	foreignKey({
+			columns: [table.cardKeyId],
+			foreignColumns: [cardKeysTable.id],
+			name: "access_logs_card_key_id_fkey"
+		}),
 ]);

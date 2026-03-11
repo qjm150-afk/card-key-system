@@ -18,7 +18,7 @@
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
             padding: 24px;
         }
@@ -92,6 +92,15 @@
             background-color: #047857;
         }
 
+        .btn-warning {
+            background-color: #D97706;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #B45309;
+        }
+
         .btn-sm {
             padding: 6px 12px;
             font-size: 12px;
@@ -141,6 +150,47 @@
             appearance: none;
         }
 
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 24px;
+            background: white;
+            padding: 4px;
+            border-radius: 12px;
+            width: fit-content;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .tab {
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            color: #A89070;
+            background: transparent;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: #D4A574;
+            color: white;
+        }
+
+        .tab:hover:not(.active) {
+            background: #FFF8F0;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
         /* 表格容器 */
         .table-container {
             background: white;
@@ -155,6 +205,8 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
         }
 
         .selected-info {
@@ -165,12 +217,18 @@
         .batch-actions {
             display: flex;
             gap: 8px;
+            flex-wrap: wrap;
         }
 
         /* 表格 */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
+            min-width: 900px;
         }
 
         th, td {
@@ -186,6 +244,7 @@
             font-size: 13px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
+            white-space: nowrap;
         }
 
         td {
@@ -219,6 +278,11 @@
         .status-inactive {
             background-color: #FEE2E2;
             color: #991B1B;
+        }
+
+        .status-expired {
+            background-color: #FEF3C7;
+            color: #92400E;
         }
 
         .actions-cell {
@@ -368,6 +432,12 @@
             min-height: 80px;
         }
 
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
         .modal-footer {
             padding: 16px 24px;
             border-top: 1px solid #F5E6D3;
@@ -434,39 +504,48 @@
             color: #991B1B;
         }
 
-        /* Loading */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 248, 240, 0.9);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 3000;
-        }
-
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 3px solid #F5E6D3;
-            border-top-color: #D4A574;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
         /* 截断文本 */
         .truncate {
             max-width: 200px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-small {
+            font-size: 12px;
+            color: #A89070;
+        }
+
+        /* 统计卡片 */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .stat-card h3 {
+            font-size: 14px;
+            color: #A89070;
+            margin-bottom: 8px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #5D4E37;
         }
 
         /* 响应式 */
@@ -485,12 +564,8 @@
                 flex-direction: column;
             }
 
-            .table-container {
-                overflow-x: auto;
-            }
-
-            table {
-                min-width: 600px;
+            .form-row {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -508,51 +583,104 @@
                     </svg>
                     添加卡密
                 </button>
+                <button class="btn btn-success" onclick="openBatchGenerateModal()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    批量生成
+                </button>
             </div>
         </div>
 
-        <!-- 搜索栏 -->
-        <div class="search-bar">
-            <input type="text" class="search-input" id="searchInput" placeholder="搜索卡密或备注...">
-            <select class="filter-select" id="statusFilter">
-                <option value="">全部状态</option>
-                <option value="1">有效</option>
-                <option value="0">无效</option>
-            </select>
-            <button class="btn btn-primary" onclick="searchCards()">搜索</button>
+        <!-- 标签页 -->
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('cards')">卡密管理</button>
+            <button class="tab" onclick="switchTab('logs')">访问日志</button>
         </div>
 
-        <!-- 表格 -->
-        <div class="table-container">
-            <div class="table-toolbar">
-                <span class="selected-info" id="selectedInfo">已选择 0 项</span>
-                <div class="batch-actions">
-                    <button class="btn btn-success btn-sm" onclick="batchAction('activate')" id="btnActivate">批量激活</button>
-                    <button class="btn btn-secondary btn-sm" onclick="batchAction('deactivate')" id="btnDeactivate">批量停用</button>
-                    <button class="btn btn-danger btn-sm" onclick="batchAction('delete')" id="btnDelete">批量删除</button>
+        <!-- 卡密管理 -->
+        <div id="cards-tab" class="tab-content active">
+            <!-- 统计卡片 -->
+            <div class="stats-row" id="statsRow">
+                <div class="stat-card">
+                    <h3>总卡密数</h3>
+                    <div class="value" id="statTotal">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>有效卡密</h3>
+                    <div class="value" id="statActive">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>已使用</h3>
+                    <div class="value" id="statUsed">0</div>
                 </div>
             </div>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
-                        <th>ID</th>
-                        <th>卡密</th>
-                        <th>状态</th>
-                        <th>备注</th>
-                        <th>飞书链接</th>
-                        <th>创建时间</th>
-                        <th>操作</th>
-                    </tr>
-                </thead>
-                <tbody id="tableBody">
-                    <!-- 动态加载 -->
-                </tbody>
-            </table>
 
-            <div class="pagination" id="pagination">
-                <!-- 动态加载 -->
+            <!-- 搜索栏 -->
+            <div class="search-bar">
+                <input type="text" class="search-input" id="searchInput" placeholder="搜索卡密或备注...">
+                <select class="filter-select" id="statusFilter">
+                    <option value="">全部状态</option>
+                    <option value="1">有效</option>
+                    <option value="0">无效</option>
+                </select>
+                <button class="btn btn-primary" onclick="searchCards()">搜索</button>
+                <button class="btn btn-secondary" onclick="exportCards()">导出卡密</button>
+            </div>
+
+            <!-- 表格 -->
+            <div class="table-container">
+                <div class="table-toolbar">
+                    <span class="selected-info" id="selectedInfo">已选择 0 项</span>
+                    <div class="batch-actions">
+                        <button class="btn btn-success btn-sm" onclick="batchAction('activate')">批量激活</button>
+                        <button class="btn btn-secondary btn-sm" onclick="batchAction('deactivate')">批量停用</button>
+                        <button class="btn btn-danger btn-sm" onclick="batchAction('delete')">批量删除</button>
+                    </div>
+                </div>
+                
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
+                                <th>ID</th>
+                                <th>卡密</th>
+                                <th>状态</th>
+                                <th>使用次数</th>
+                                <th>过期时间</th>
+                                <th>备注</th>
+                                <th>飞书链接</th>
+                                <th>创建时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+
+        <!-- 访问日志 -->
+        <div id="logs-tab" class="tab-content">
+            <div class="table-container">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>卡密</th>
+                                <th>IP地址</th>
+                                <th>结果</th>
+                                <th>错误信息</th>
+                                <th>访问时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logsTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="logsPagination"></div>
             </div>
         </div>
     </div>
@@ -569,14 +697,24 @@
                     <input type="hidden" id="cardId">
                     <div class="form-group">
                         <label>卡密 *</label>
-                        <input type="text" class="form-input" id="keyValue" placeholder="如: CSS-2024-XXXX" required>
+                        <input type="text" class="form-input" id="keyValue" placeholder="如: CSS-A7B2-C9D3-E5F1" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>状态</label>
+                            <select class="form-select" id="cardStatus">
+                                <option value="1">有效</option>
+                                <option value="0">无效</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>最大使用次数</label>
+                            <input type="number" class="form-input" id="maxUses" value="1" min="1">
+                        </div>
                     </div>
                     <div class="form-group">
-                        <label>状态</label>
-                        <select class="form-select" id="cardStatus">
-                            <option value="1">有效</option>
-                            <option value="0">无效</option>
-                        </select>
+                        <label>过期时间</label>
+                        <input type="datetime-local" class="form-input" id="expireAt">
                     </div>
                     <div class="form-group">
                         <label>备注</label>
@@ -599,6 +737,56 @@
         </div>
     </div>
 
+    <!-- 批量生成模态框 -->
+    <div class="modal-overlay" id="batchModalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>批量生成卡密</h2>
+                <button class="modal-close" onclick="closeBatchGenerateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="batchForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>生成数量 *</label>
+                            <input type="number" class="form-input" id="generateCount" value="10" min="1" max="1000" required>
+                        </div>
+                        <div class="form-group">
+                            <label>卡密前缀</label>
+                            <input type="text" class="form-input" id="generatePrefix" value="CSS" maxlength="10">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>有效期（天）</label>
+                            <input type="number" class="form-input" id="generateExpireDays" placeholder="不填则永不过期" min="1">
+                        </div>
+                        <div class="form-group">
+                            <label>最大使用次数</label>
+                            <input type="number" class="form-input" id="generateMaxUses" value="1" min="1">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>飞书链接（所有卡密共用）</label>
+                        <input type="text" class="form-input" id="generateFeishuUrl" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label>访问密码</label>
+                        <input type="text" class="form-input" id="generateFeishuPassword" placeholder="可选">
+                    </div>
+                    <div class="form-group">
+                        <label>备注</label>
+                        <input type="text" class="form-input" id="generateNote" placeholder="可选">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBatchGenerateModal()">取消</button>
+                <button class="btn btn-success" onclick="generateCards()">生成</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Toast 容器 -->
     <div class="toast-container" id="toastContainer"></div>
 
@@ -607,16 +795,50 @@
         let currentPage = 1;
         let pageSize = 20;
         let selectedIds = new Set();
+        let logPage = 1;
+        let logPageSize = 50;
 
         // 初始化
         document.addEventListener('DOMContentLoaded', () => {
             loadCards();
+            loadStats();
             
-            // 搜索回车事件
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchCards();
             });
         });
+
+        // 切换标签页
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tab}-tab`).classList.add('active');
+            
+            if (tab === 'logs') {
+                loadLogs();
+            }
+        }
+
+        // 加载统计
+        async function loadStats() {
+            try {
+                const response = await fetch('/api/admin/cards?page=1&page_size=1');
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('statTotal').textContent = result.total || 0;
+                    
+                    // 获取有效数量
+                    const activeResponse = await fetch('/api/admin/cards?page=1&page_size=1&status=1');
+                    const activeResult = await activeResponse.json();
+                    document.getElementById('statActive').textContent = activeResult.total || 0;
+                }
+            } catch (error) {
+                console.error('加载统计失败:', error);
+            }
+        }
 
         // 加载卡密列表
         async function loadCards() {
@@ -652,7 +874,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8">
+                        <td colspan="10">
                             <div class="empty-state">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M20 13V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7m16 0v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5m16 0h-2.586a1 1 0 0 0-.707.293l-2.414 2.414a1 1 0 0 1-.707.293h-3.172a1 1 0 0 1-.707-.293l-2.414-2.414A1 1 0 0 0 6.586 13H4"/>
@@ -665,7 +887,11 @@
                 return;
             }
 
-            tbody.innerHTML = data.map(card => `
+            tbody.innerHTML = data.map(card => {
+                const statusClass = getStatusClass(card);
+                const statusText = getStatusText(card);
+                
+                return `
                 <tr>
                     <td>
                         <input type="checkbox" class="checkbox card-checkbox" 
@@ -676,13 +902,13 @@
                     <td>${card.id}</td>
                     <td><strong>${card.key_value}</strong></td>
                     <td>
-                        <span class="status-badge ${card.status === 1 ? 'status-active' : 'status-inactive'}">
-                            ${card.status === 1 ? '有效' : '无效'}
-                        </span>
+                        <span class="status-badge ${statusClass}">${statusText}</span>
                     </td>
+                    <td>${card.used_count || 0} / ${card.max_uses || 1}</td>
+                    <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
                     <td>${card.user_note || '-'}</td>
                     <td class="truncate" title="${card.feishu_url || ''}">${card.feishu_url || '-'}</td>
-                    <td>${formatDate(card.bstudio_create_time)}</td>
+                    <td class="text-small">${formatDate(card.bstudio_create_time)}</td>
                     <td>
                         <div class="actions-cell">
                             <button class="btn btn-secondary btn-sm" onclick="editCard(${card.id})">编辑</button>
@@ -690,9 +916,31 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
             
             updateSelectedInfo();
+        }
+
+        // 获取状态样式
+        function getStatusClass(card) {
+            if (card.status !== 1) return 'status-inactive';
+            if (card.expire_at) {
+                const expireTime = new Date(card.expire_at);
+                if (new Date() > expireTime) return 'status-expired';
+            }
+            if ((card.used_count || 0) >= (card.max_uses || 1)) return 'status-inactive';
+            return 'status-active';
+        }
+
+        // 获取状态文本
+        function getStatusText(card) {
+            if (card.status !== 1) return '已停用';
+            if (card.expire_at) {
+                const expireTime = new Date(card.expire_at);
+                if (new Date() > expireTime) return '已过期';
+            }
+            if ((card.used_count || 0) >= (card.max_uses || 1)) return '已用完';
+            return '有效';
         }
 
         // 渲染分页
@@ -781,25 +1029,40 @@
             document.getElementById('modalOverlay').classList.remove('active');
         }
 
+        // 打开批量生成模态框
+        function openBatchGenerateModal() {
+            document.getElementById('batchForm').reset();
+            document.getElementById('batchModalOverlay').classList.add('active');
+        }
+
+        // 关闭批量生成模态框
+        function closeBatchGenerateModal() {
+            document.getElementById('batchModalOverlay').classList.remove('active');
+        }
+
         // 编辑卡密
         async function editCard(id) {
             try {
-                const response = await fetch(`/api/admin/cards?page=1&page_size=1`);
+                const response = await fetch(`/api/admin/cards?page=1&page_size=1000`);
                 const result = await response.json();
                 
                 if (result.success) {
-                    // 获取单个卡密详情
-                    const allResponse = await fetch(`/api/admin/cards?page=1&page_size=1000`);
-                    const allResult = await allResponse.json();
-                    const card = allResult.data.find(c => c.id === id);
+                    const card = result.data.find(c => c.id === id);
                     
                     if (card) {
                         document.getElementById('cardId').value = card.id;
                         document.getElementById('keyValue').value = card.key_value;
                         document.getElementById('cardStatus').value = card.status;
+                        document.getElementById('maxUses').value = card.max_uses || 1;
                         document.getElementById('userNote').value = card.user_note || '';
                         document.getElementById('feishuUrl').value = card.feishu_url || '';
                         document.getElementById('feishuPassword').value = card.feishu_password || '';
+                        
+                        if (card.expire_at) {
+                            const date = new Date(card.expire_at);
+                            document.getElementById('expireAt').value = date.toISOString().slice(0, 16);
+                        }
+                        
                         openModal(id);
                     }
                 }
@@ -814,10 +1077,16 @@
             const data = {
                 key_value: document.getElementById('keyValue').value.toUpperCase(),
                 status: parseInt(document.getElementById('cardStatus').value),
+                max_uses: parseInt(document.getElementById('maxUses').value) || 1,
                 user_note: document.getElementById('userNote').value,
                 feishu_url: document.getElementById('feishuUrl').value,
                 feishu_password: document.getElementById('feishuPassword').value
             };
+
+            const expireAt = document.getElementById('expireAt').value;
+            if (expireAt) {
+                data.expire_at = new Date(expireAt).toISOString();
+            }
 
             if (!data.key_value) {
                 showToast('请输入卡密', 'error');
@@ -840,11 +1109,51 @@
                     showToast(result.msg, 'success');
                     closeModal();
                     loadCards();
+                    loadStats();
                 } else {
                     showToast(result.msg, 'error');
                 }
             } catch (error) {
                 showToast('保存失败: ' + error.message, 'error');
+            }
+        }
+
+        // 批量生成卡密
+        async function generateCards() {
+            const data = {
+                count: parseInt(document.getElementById('generateCount').value) || 10,
+                prefix: document.getElementById('generatePrefix').value || 'CSS',
+                feishu_url: document.getElementById('generateFeishuUrl').value,
+                feishu_password: document.getElementById('generateFeishuPassword').value,
+                expire_days: parseInt(document.getElementById('generateExpireDays').value) || null,
+                max_uses: parseInt(document.getElementById('generateMaxUses').value) || 1,
+                user_note: document.getElementById('generateNote').value
+            };
+
+            if (data.count < 1 || data.count > 1000) {
+                showToast('生成数量必须在 1-1000 之间', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/cards/batch-generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.msg, 'success');
+                    closeBatchGenerateModal();
+                    loadCards();
+                    loadStats();
+                } else {
+                    showToast(result.msg, 'error');
+                }
+            } catch (error) {
+                showToast('生成失败: ' + error.message, 'error');
             }
         }
 
@@ -859,6 +1168,7 @@
                 if (result.success) {
                     showToast(result.msg, 'success');
                     loadCards();
+                    loadStats();
                 } else {
                     showToast(result.msg, 'error');
                 }
@@ -898,12 +1208,87 @@
                     showToast(result.msg, 'success');
                     selectedIds.clear();
                     loadCards();
+                    loadStats();
                 } else {
                     showToast(result.msg, 'error');
                 }
             } catch (error) {
                 showToast('操作失败: ' + error.message, 'error');
             }
+        }
+
+        // 导出卡密
+        function exportCards() {
+            const ids = selectedIds.size > 0 ? Array.from(selectedIds).join(',') : '';
+            const status = document.getElementById('statusFilter').value;
+            
+            let url = `/api/admin/cards/export?format=csv`;
+            if (ids) url += `&ids=${ids}`;
+            if (status) url += `&status=${status}`;
+            
+            window.open(url, '_blank');
+        }
+
+        // 加载访问日志
+        async function loadLogs() {
+            try {
+                const response = await fetch(`/api/admin/logs?page=${logPage}&page_size=${logPageSize}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderLogsTable(result.data);
+                    renderLogsPagination(result.total);
+                }
+            } catch (error) {
+                showToast('加载日志失败', 'error');
+            }
+        }
+
+        // 渲染日志表格
+        function renderLogsTable(data) {
+            const tbody = document.getElementById('logsTableBody');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:40px">暂无日志</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.map(log => `
+                <tr>
+                    <td><strong>${log.key_value}</strong></td>
+                    <td>${log.ip_address || '-'}</td>
+                    <td>
+                        <span class="status-badge ${log.success ? 'status-active' : 'status-inactive'}">
+                            ${log.success ? '成功' : '失败'}
+                        </span>
+                    </td>
+                    <td>${log.error_msg || '-'}</td>
+                    <td class="text-small">${formatDate(log.access_time)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // 渲染日志分页
+        function renderLogsPagination(total) {
+            const totalPages = Math.ceil(total / logPageSize);
+            const pagination = document.getElementById('logsPagination');
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = `<span class="page-info">共 ${total} 条记录</span>`;
+                return;
+            }
+
+            let html = `<button class="page-btn" onclick="goToLogPage(${logPage - 1})" ${logPage === 1 ? 'disabled' : ''}>上一页</button>`;
+            html += `<span class="page-info">第 ${logPage} 页 / 共 ${totalPages} 页</span>`;
+            html += `<button class="page-btn" onclick="goToLogPage(${logPage + 1})" ${logPage === totalPages ? 'disabled' : ''}>下一页</button>`;
+            
+            pagination.innerHTML = html;
+        }
+
+        // 跳转日志页面
+        function goToLogPage(page) {
+            logPage = page;
+            loadLogs();
         }
 
         // 显示提示
@@ -933,6 +1318,10 @@
         // 点击模态框外部关闭
         document.getElementById('modalOverlay').addEventListener('click', (e) => {
             if (e.target.id === 'modalOverlay') closeModal();
+        });
+        
+        document.getElementById('batchModalOverlay').addEventListener('click', (e) => {
+            if (e.target.id === 'batchModalOverlay') closeBatchGenerateModal();
         });
     </script>
 </body>
