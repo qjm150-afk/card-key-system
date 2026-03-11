@@ -305,14 +305,15 @@
         const passwordInfo = document.getElementById('passwordInfo');
         const passwordValue = document.getElementById('passwordValue');
 
-        // 自动格式化输入
+        // 自动格式化输入（支持 CSS-XXXX-XXXX 格式）
         cardKeyInput.addEventListener('input', function(e) {
             let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
-            if (value.length > 4) {
-                value = value.slice(0, 4) + '-' + value.slice(4);
+            // 格式化为 XXX-XXXX-XXXX
+            if (value.length > 3) {
+                value = value.slice(0, 3) + '-' + value.slice(3);
             }
-            if (value.length > 9) {
-                value = value.slice(0, 9) + '-' + value.slice(9, 13);
+            if (value.length > 8) {
+                value = value.slice(0, 8) + '-' + value.slice(8, 12);
             }
             e.target.value = value;
         });
