@@ -98,8 +98,8 @@ async def validate_card_key(request: ValidateRequest):
         # 获取 Supabase 客户端
         client = get_supabase_client()
 
-        # 查询卡密 (实际表名: card_keys)
-        response = client.table('card_keys').select('*').eq('key_value', card_key).execute()
+        # 查询卡密 (使用资源库数据库表: card_keys_table)
+        response = client.table('card_keys_table').select('*').eq('key_value', card_key).execute()
 
         if not response.data:
             logger.info(f"卡密不存在: {card_key}")
