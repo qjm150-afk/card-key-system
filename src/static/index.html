@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内容解锁</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #FFF8F0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 32px;
+            border: 1px solid #F5E6D3;
+        }
+
+        .icon-wrapper {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+
+        .icon {
+            width: 64px;
+            height: 64px;
+            background-color: #D4A574;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .icon svg {
+            width: 32px;
+            height: 32px;
+            color: white;
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #5D4E37;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: #A89070;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input {
+            width: 100%;
+            height: 48px;
+            padding: 0 16px;
+            font-size: 18px;
+            text-align: center;
+            border: 2px solid #F5E6D3;
+            border-radius: 12px;
+            background-color: #FFF8F0;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input:focus {
+            border-color: #D4A574;
+        }
+
+        .input::placeholder {
+            color: #C4B5A0;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #A89070;
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        .error-box {
+            background-color: #FEF2F2;
+            border: 1px solid #FECACA;
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 16px;
+        }
+
+        .error-text {
+            color: #DC2626;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .button {
+            width: 100%;
+            height: 48px;
+            background-color: #D4A574;
+            color: white;
+            font-size: 18px;
+            font-weight: 500;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .button:hover {
+            background-color: #C49464;
+        }
+
+        .button:disabled {
+            background-color: #D4A574;
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            margin-top: 32px;
+            padding-top: 24px;
+            border-top: 1px solid #F5E6D3;
+        }
+
+        .footer-text {
+            font-size: 12px;
+            color: #A89070;
+            text-align: center;
+        }
+
+        .footer-text + .footer-text {
+            margin-top: 4px;
+        }
+
+        /* 成功页面样式 */
+        .success-page {
+            min-height: 100vh;
+            background-color: #FFF8F0;
+        }
+
+        .success-header {
+            background-color: #F5E6D3;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .success-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .success-icon {
+            width: 32px;
+            height: 32px;
+            background-color: #D4A574;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-icon svg {
+            width: 16px;
+            height: 16px;
+            color: white;
+        }
+
+        .success-text {
+            color: #5D4E37;
+            font-weight: 500;
+        }
+
+        .password-info {
+            font-size: 14px;
+            color: #8B7355;
+        }
+
+        .password-value {
+            font-weight: 500;
+            color: #5D4E37;
+        }
+
+        .feishu-frame {
+            width: 100%;
+            height: calc(100vh - 64px);
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- 验证页面 -->
+    <div id="validatePage" class="container">
+        <div class="card">
+            <div class="icon-wrapper">
+                <div class="icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                    </svg>
+                </div>
+            </div>
+
+            <h1 class="title">内容解锁</h1>
+            <p class="subtitle">请输入您的专属卡密</p>
+
+            <form id="validateForm">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="cardKey" 
+                        class="input" 
+                        placeholder="CSS-XXXX-XXXX"
+                        maxlength="14"
+                        autocomplete="off"
+                    >
+                    <p class="hint">示例: CSS-A1B2-C3D4</p>
+                </div>
+
+                <div id="errorBox" class="error-box" style="display: none;">
+                    <p id="errorText" class="error-text"></p>
+                </div>
+
+                <button type="submit" id="submitBtn" class="button">
+                    立即解锁
+                </button>
+            </form>
+
+            <div class="footer">
+                <p class="footer-text">验证通过后可访问专属内容</p>
+                <p class="footer-text">如需帮助请联系客服</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 成功页面 -->
+    <div id="successPage" class="success-page" style="display: none;">
+        <div class="success-header">
+            <div class="success-info">
+                <div class="success-icon">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+                <span class="success-text">验证成功</span>
+            </div>
+            <div id="passwordInfo" class="password-info" style="display: none;">
+                访问密码：<span id="passwordValue" class="password-value"></span>
+            </div>
+        </div>
+        <iframe id="feishuFrame" class="feishu-frame" allowfullscreen></iframe>
+    </div>
+
+    <script>
+        const form = document.getElementById('validateForm');
+        const cardKeyInput = document.getElementById('cardKey');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorBox = document.getElementById('errorBox');
+        const errorText = document.getElementById('errorText');
+        const validatePage = document.getElementById('validatePage');
+        const successPage = document.getElementById('successPage');
+        const feishuFrame = document.getElementById('feishuFrame');
+        const passwordInfo = document.getElementById('passwordInfo');
+        const passwordValue = document.getElementById('passwordValue');
+
+        // 自动格式化输入
+        cardKeyInput.addEventListener('input', function(e) {
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+            if (value.length > 4) {
+                value = value.slice(0, 4) + '-' + value.slice(4);
+            }
+            if (value.length > 9) {
+                value = value.slice(0, 9) + '-' + value.slice(9, 13);
+            }
+            e.target.value = value;
+        });
+
+        // 显示错误
+        function showError(message) {
+            errorText.textContent = message;
+            errorBox.style.display = 'block';
+        }
+
+        // 隐藏错误
+        function hideError() {
+            errorBox.style.display = 'none';
+        }
+
+        // 设置加载状态
+        function setLoading(loading) {
+            submitBtn.disabled = loading;
+            if (loading) {
+                submitBtn.innerHTML = '<div class="spinner"></div>验证中...';
+            } else {
+                submitBtn.innerHTML = '立即解锁';
+            }
+        }
+
+        // 表单提交
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideError();
+
+            const cardKey = cardKeyInput.value.trim();
+            
+            if (!cardKey) {
+                showError('请输入卡密');
+                return;
+            }
+
+            if (!cardKey.match(/^CSS-[A-Z0-9]{4}-[A-Z0-9]{4}$/)) {
+                showError('卡密格式不正确，示例：CSS-A1B2-C3D4');
+                return;
+            }
+
+            setLoading(true);
+
+            try {
+                const response = await fetch('/api/validate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ card_key: cardKey }),
+                });
+
+                const data = await response.json();
+
+                if (data.can_access) {
+                    // 显示成功页面
+                    validatePage.style.display = 'none';
+                    successPage.style.display = 'block';
+                    feishuFrame.src = data.url;
+                    
+                    if (data.password) {
+                        passwordValue.textContent = data.password;
+                        passwordInfo.style.display = 'block';
+                    }
+                } else {
+                    showError(data.msg || '验证失败');
+                }
+            } catch (err) {
+                showError('验证失败，请稍后重试');
+            } finally {
+                setLoading(false);
+            }
+        });
+    </script>
+</body>
+</html>
