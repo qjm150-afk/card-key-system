@@ -286,16 +286,16 @@
             width: 100%;
         }
 
-        /* 飞书底部操作栏遮罩 */
+        /* 飞书底部操作栏遮罩 - 阻止点击进入原应用 */
         .feishu-bottom-mask {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 60px;
-            background: linear-gradient(to top, rgba(255, 248, 240, 1) 0%, rgba(255, 248, 240, 0.95) 50%, transparent 100%);
-            pointer-events: none;
+            height: 52px;
+            background: #FFF8F0;
             z-index: 10;
+            cursor: default;
         }
 
         /* 隐私提示 */
