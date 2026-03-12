@@ -596,6 +596,9 @@ async def batch_update_cards(request: BatchUpdateRequest):
             update_data['sale_status'] = updates['sale_status']
             if updates['sale_status'] == 'sold':
                 update_data['sold_at'] = datetime.now().isoformat()
+            # 已退款/有纠纷时自动停用（如果没有明确设置status）
+            if updates['sale_status'] in ['refunded', 'disputed'] and 'status' not in updates:
+                update_data['status'] = 0
         
         if 'feishu_url' in updates:
             update_data['feishu_url'] = updates['feishu_url'] or ''

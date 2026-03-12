@@ -1941,16 +1941,12 @@
 
         // 获取激活状态样式
         function getStatusClass(card) {
-            // 优先检查status字段：status=0表示手动停用
+            // status是最终控制字段：status=0表示手动停用
             if (card.status === 0) {
                 return 'status-inactive';
             }
             
-            // 已停用：退款或有纠纷
-            if (card.sale_status === 'refunded' || card.sale_status === 'disputed') {
-                return 'status-inactive';
-            }
-            
+            // status=1时，显示激活状态（不再被sale_status覆盖）
             // 检查是否已使用过（有绑定设备或使用次数>0）
             let hasUsed = false;
             try {
@@ -1960,7 +1956,7 @@
                 hasUsed = (card.used_count || 0) > 0;
             }
             
-            // 已激活：已使用过且状态正常
+            // 已激活：已使用过
             if (hasUsed) {
                 return 'status-active';
             }
@@ -1971,16 +1967,12 @@
 
         // 获取激活状态文本
         function getStatusText(card) {
-            // 优先检查status字段：status=0表示手动停用
+            // status是最终控制字段：status=0表示手动停用
             if (card.status === 0) {
                 return '已停用';
             }
             
-            // 已停用：退款或有纠纷
-            if (card.sale_status === 'refunded' || card.sale_status === 'disputed') {
-                return '已停用';
-            }
-            
+            // status=1时，显示激活状态（不再被sale_status覆盖）
             // 检查是否已使用过（有绑定设备或使用次数>0）
             let hasUsed = false;
             try {
@@ -1990,7 +1982,7 @@
                 hasUsed = (card.used_count || 0) > 0;
             }
             
-            // 已激活：已使用过且状态正常
+            // 已激活：已使用过
             if (hasUsed) {
                 return '已激活';
             }
