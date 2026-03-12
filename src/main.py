@@ -330,8 +330,9 @@ async def get_card_keys(
     feishu_url: Optional[str] = None,
     created_start: Optional[str] = None,
     created_end: Optional[str] = None,
-    expire_status: Optional[str] = None,
-    sale_status: Optional[str] = None
+    expire_days: Optional[str] = None,
+    sale_status: Optional[str] = None,
+    device_filter: Optional[str] = None
 ):
     """获取卡密列表"""
     try:
@@ -339,8 +340,9 @@ async def get_card_keys(
         
         query = client.table('card_keys_table').select('*', count='exact')
         
+        # 搜索支持卡密、备注、订单号
         if search:
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
         
         if status is not None:
             query = query.eq('status', status)
@@ -349,24 +351,48 @@ async def get_card_keys(
             query = query.eq('feishu_url', feishu_url)
         
         if sale_status:
-            query = query.eq('sale_status', sale_status)
+            # 映射中文值到英文
+            sale_status_map = {
+                '未销售': 'unsold',
+                '已售出': 'sold',
+                '已核销': 'used',
+                '已退款': 'refunded',
+                '有纠纷': 'disputed'
+            }
+            mapped_status = sale_status_map.get(sale_status, sale_status)
+            query = query.eq('sale_status', mapped_status)
         
         if created_start:
             query = query.gte('bstudio_create_time', created_start)
         if created_end:
             query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
         
-        if expire_status:
-            now = datetime.now().isoformat()
-            if expire_status == 'expired':
+        # 绑定设备筛选
+        if device_filter:
+            if device_filter == 'none':
+                # 未绑定：devices为空数组字符串
+                query = query.eq('devices', '[]')
+            elif device_filter == 'has_device':
+                # 已绑定：devices不为空数组
+                query = query.neq('devices', '[]')
+        
+        # 过期时间筛选（未来天数）
+        if expire_days:
+            now = datetime.now()
+            if expire_days == 'expired':
                 # 已过期：过期时间不为空且小于当前时间
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
-            elif expire_status == 'not_expired':
-                # 未过期：过期时间为空或大于当前时间
-                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
-            elif expire_status == 'permanent':
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+            elif expire_days == 'permanent':
                 # 永久有效：过期时间为空
                 query = query.is_('expire_at', 'null')
+            else:
+                # 未来N天内过期：过期时间在当前时间和N天后之间
+                try:
+                    days = int(expire_days)
+                    future_date = (now + timedelta(days=days)).isoformat()
+                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                except ValueError:
+                    pass
         
         start = (page - 1) * page_size
         end = start + page_size - 1
@@ -422,23 +448,47 @@ async def batch_update_cards(request: BatchUpdateRequest):
             query = query.eq('status', int(filters['status']))
         
         if filters.get('sale_status') and filters.get('sale_status') != '':
-            query = query.eq('sale_status', filters['sale_status'])
+            # 映射中文值到英文
+            sale_status_map = {
+                '未销售': 'unsold',
+                '已售出': 'sold',
+                '已核销': 'used',
+                '已退款': 'refunded',
+                '有纠纷': 'disputed'
+            }
+            mapped_status = sale_status_map.get(filters['sale_status'], filters['sale_status'])
+            query = query.eq('sale_status', mapped_status)
         
         if filters.get('feishu_url') and filters.get('feishu_url') != '':
             query = query.eq('feishu_url', filters['feishu_url'])
         
-        if filters.get('expire_status') and filters.get('expire_status') != '':
-            now = datetime.now().isoformat()
-            if filters['expire_status'] == 'expired':
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
-            elif filters['expire_status'] == 'not_expired':
-                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
-            elif filters['expire_status'] == 'permanent':
+        # 绑定设备筛选
+        device_filter = filters.get('device_filter')
+        if device_filter and device_filter != '':
+            if device_filter == 'none':
+                query = query.eq('devices', '[]')
+            elif device_filter == 'has_device':
+                query = query.neq('devices', '[]')
+        
+        # 过期时间筛选（未来天数）
+        expire_days = filters.get('expire_days')
+        if expire_days and expire_days != '':
+            now = datetime.now()
+            if expire_days == 'expired':
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+            elif expire_days == 'permanent':
                 query = query.is_('expire_at', 'null')
+            else:
+                try:
+                    days = int(expire_days)
+                    future_date = (now + timedelta(days=days)).isoformat()
+                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                except ValueError:
+                    pass
         
         if filters.get('search') and filters.get('search') != '':
             search = filters['search']
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
         
         if filters.get('created_start') and filters.get('created_start') != '':
             query = query.gte('bstudio_create_time', filters['created_start'])
@@ -514,7 +564,8 @@ async def count_by_filters(
     status: Optional[str] = None,
     sale_status: Optional[str] = None,
     feishu_url: Optional[str] = None,
-    expire_status: Optional[str] = None,
+    expire_days: Optional[str] = None,
+    device_filter: Optional[str] = None,
     search: Optional[str] = None,
     created_start: Optional[str] = None,
     created_end: Optional[str] = None
@@ -529,22 +580,44 @@ async def count_by_filters(
             query = query.eq('status', int(status))
         
         if sale_status and sale_status != '':
-            query = query.eq('sale_status', sale_status)
+            # 映射中文值到英文
+            sale_status_map = {
+                '未销售': 'unsold',
+                '已售出': 'sold',
+                '已核销': 'used',
+                '已退款': 'refunded',
+                '有纠纷': 'disputed'
+            }
+            mapped_status = sale_status_map.get(sale_status, sale_status)
+            query = query.eq('sale_status', mapped_status)
         
         if feishu_url and feishu_url != '':
             query = query.eq('feishu_url', feishu_url)
         
-        if expire_status and expire_status != '':
-            now = datetime.now().isoformat()
-            if expire_status == 'expired':
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
-            elif expire_status == 'not_expired':
-                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
-            elif expire_status == 'permanent':
+        # 绑定设备筛选
+        if device_filter and device_filter != '':
+            if device_filter == 'none':
+                query = query.eq('devices', '[]')
+            elif device_filter == 'has_device':
+                query = query.neq('devices', '[]')
+        
+        # 过期时间筛选（未来天数）
+        if expire_days and expire_days != '':
+            now = datetime.now()
+            if expire_days == 'expired':
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+            elif expire_days == 'permanent':
                 query = query.is_('expire_at', 'null')
+            else:
+                try:
+                    days = int(expire_days)
+                    future_date = (now + timedelta(days=days)).isoformat()
+                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                except ValueError:
+                    pass
         
         if search and search != '':
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
         
         if created_start and created_start != '':
             query = query.gte('bstudio_create_time', created_start)

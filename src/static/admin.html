@@ -184,6 +184,28 @@
             margin-bottom: 0;
         }
 
+        .filter-row-second {
+            justify-content: space-between;
+        }
+
+        .search-input-wide {
+            min-width: 200px;
+            flex: 1;
+            max-width: 280px;
+        }
+
+        .filter-label {
+            color: #A89070;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        .filter-date-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
         .filter-date {
             height: 40px;
             padding: 0 12px;
@@ -1101,9 +1123,9 @@
             <!-- 高级筛选区域 -->
             <div class="filter-section">
                 <div class="filter-row">
-                    <input type="text" class="search-input" id="searchInput" placeholder="搜索卡密或备注...">
+                    <input type="text" class="search-input search-input-wide" id="searchInput" placeholder="搜索卡密/备注/订单号...">
                     <select class="filter-select" id="statusFilter">
-                        <option value="">全部状态</option>
+                        <option value="">激活状态</option>
                         <option value="1">有效</option>
                         <option value="0">无效</option>
                     </select>
@@ -1115,22 +1137,36 @@
                         <option value="disputed">有纠纷</option>
                     </select>
                     <select class="filter-select" id="feishuUrlFilter">
-                        <option value="">全部链接</option>
+                        <option value="">飞书链接</option>
                     </select>
-                    <select class="filter-select" id="expireStatusFilter">
-                        <option value="">过期状态</option>
-                        <option value="not_expired">未过期</option>
+                    <select class="filter-select" id="deviceFilter">
+                        <option value="">绑定设备</option>
+                        <option value="none">未绑定</option>
+                        <option value="has_device">已绑定</option>
+                    </select>
+                    <select class="filter-select" id="expireDaysFilter">
+                        <option value="">过期时间</option>
                         <option value="expired">已过期</option>
+                        <option value="1">未来1天</option>
+                        <option value="3">未来3天</option>
+                        <option value="7">未来7天</option>
+                        <option value="15">未来15天</option>
+                        <option value="30">未来30天</option>
                         <option value="permanent">永久有效</option>
                     </select>
-                    <input type="date" class="filter-date" id="createdStart" title="创建开始日期">
-                    <span class="date-separator">至</span>
-                    <input type="date" class="filter-date" id="createdEnd" title="创建结束日期">
                 </div>
-                <div class="filter-actions">
-                    <button class="btn btn-primary" onclick="searchCards()">搜索</button>
-                    <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
-                    <button class="btn btn-secondary" onclick="exportCards()">导出卡密</button>
+                <div class="filter-row filter-row-second">
+                    <div class="filter-date-group">
+                        <span class="filter-label">创建时间</span>
+                        <input type="date" class="filter-date" id="createdStart" title="创建开始日期">
+                        <span class="date-separator">至</span>
+                        <input type="date" class="filter-date" id="createdEnd" title="创建结束日期">
+                    </div>
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="searchCards()">搜索</button>
+                        <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
+                        <button class="btn btn-secondary" onclick="exportCards()">导出卡密</button>
+                    </div>
                 </div>
             </div>
 
@@ -1600,7 +1636,8 @@
             const status = document.getElementById('statusFilter').value;
             const saleStatus = document.getElementById('saleStatusFilter').value;
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
-            const expireStatus = document.getElementById('expireStatusFilter').value;
+            const deviceFilter = document.getElementById('deviceFilter').value;
+            const expireDays = document.getElementById('expireDaysFilter').value;
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
             
@@ -1612,7 +1649,8 @@
             if (status) params.append('status', status);
             if (saleStatus) params.append('sale_status', saleStatus);
             if (feishuUrl) params.append('feishu_url', feishuUrl);
-            if (expireStatus) params.append('expire_status', expireStatus);
+            if (deviceFilter) params.append('device_filter', deviceFilter);
+            if (expireDays) params.append('expire_days', expireDays);
             if (createdStart) params.append('created_start', createdStart);
             if (createdEnd) params.append('created_end', createdEnd);
 
@@ -1644,7 +1682,7 @@
                     const currentValue = select.value;
                     
                     // 保留第一个option
-                    select.innerHTML = '<option value="">全部链接</option>';
+                    select.innerHTML = '<option value="">飞书链接</option>';
                     
                     result.data.forEach(item => {
                         const option = document.createElement('option');
@@ -1693,30 +1731,37 @@
             
             const saleStatus = document.getElementById('saleStatusFilter').value;
             if (saleStatus) {
-                const textMap = { '未销售': '未销售', '已售出': '已售出', '已核销': '已核销' };
-                tags.push({ field: 'saleStatus', label: `销售状态: ${textMap[saleStatus]}`, value: saleStatus });
+                const textMap = { 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
+                tags.push({ field: 'saleStatus', label: `销售状态: ${textMap[saleStatus] || saleStatus}`, value: saleStatus });
             }
             
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
             if (feishuUrl) {
                 const displayUrl = feishuUrl.length > 20 ? feishuUrl.substring(0, 20) + '...' : feishuUrl;
-                tags.push({ field: 'feishuUrl', label: `链接: ${displayUrl}`, value: feishuUrl });
+                tags.push({ field: 'feishuUrl', label: `飞书链接: ${displayUrl}`, value: feishuUrl });
             }
             
-            const expireStatus = document.getElementById('expireStatusFilter').value;
-            if (expireStatus) {
-                const textMap = { 'not_expired': '未过期', 'expired': '已过期', 'permanent': '永久有效' };
-                tags.push({ field: 'expireStatus', label: `过期: ${textMap[expireStatus]}`, value: expireStatus });
+            const deviceFilter = document.getElementById('deviceFilter').value;
+            if (deviceFilter) {
+                const textMap = { 'none': '未绑定', 'has_device': '已绑定' };
+                tags.push({ field: 'deviceFilter', label: `绑定设备: ${textMap[deviceFilter]}`, value: deviceFilter });
+            }
+            
+            const expireDays = document.getElementById('expireDaysFilter').value;
+            if (expireDays) {
+                const textMap = { 'expired': '已过期', 'permanent': '永久有效' };
+                const label = textMap[expireDays] || `未来${expireDays}天`;
+                tags.push({ field: 'expireDays', label: `过期时间: ${label}`, value: expireDays });
             }
             
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
             if (createdStart || createdEnd) {
                 const label = createdStart && createdEnd 
-                    ? `时间: ${createdStart} ~ ${createdEnd}`
+                    ? `创建时间: ${createdStart} ~ ${createdEnd}`
                     : createdStart 
-                        ? `时间: ${createdStart} 起`
-                        : `时间: 至 ${createdEnd}`;
+                        ? `创建时间: ${createdStart} 起`
+                        : `创建时间: 至 ${createdEnd}`;
                 tags.push({ field: 'date', label, value: 'date' });
             }
             
@@ -1741,8 +1786,10 @@
                 document.getElementById('saleStatusFilter').value = '';
             } else if (field === 'feishuUrl') {
                 document.getElementById('feishuUrlFilter').value = '';
-            } else if (field === 'expireStatus') {
-                document.getElementById('expireStatusFilter').value = '';
+            } else if (field === 'deviceFilter') {
+                document.getElementById('deviceFilter').value = '';
+            } else if (field === 'expireDays') {
+                document.getElementById('expireDaysFilter').value = '';
             } else if (field === 'date') {
                 document.getElementById('createdStart').value = '';
                 document.getElementById('createdEnd').value = '';
@@ -1757,7 +1804,8 @@
             document.getElementById('statusFilter').value = '';
             document.getElementById('saleStatusFilter').value = '';
             document.getElementById('feishuUrlFilter').value = '';
-            document.getElementById('expireStatusFilter').value = '';
+            document.getElementById('deviceFilter').value = '';
+            document.getElementById('expireDaysFilter').value = '';
             document.getElementById('createdStart').value = '';
             document.getElementById('createdEnd').value = '';
             
@@ -1773,7 +1821,8 @@
             const status = document.getElementById('statusFilter').value;
             const saleStatus = document.getElementById('saleStatusFilter').value;
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
-            const expireStatus = document.getElementById('expireStatusFilter').value;
+            const deviceFilter = document.getElementById('deviceFilter').value;
+            const expireDays = document.getElementById('expireDaysFilter').value;
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
             
@@ -1782,7 +1831,8 @@
             if (status) params.append('status', status);
             if (saleStatus) params.append('sale_status', saleStatus);
             if (feishuUrl) params.append('feishu_url', feishuUrl);
-            if (expireStatus) params.append('expire_status', expireStatus);
+            if (deviceFilter) params.append('device_filter', deviceFilter);
+            if (expireDays) params.append('expire_days', expireDays);
             if (createdStart) params.append('created_start', createdStart);
             if (createdEnd) params.append('created_end', createdEnd);
 
@@ -2745,18 +2795,20 @@
         async function openBatchUpdateModal() {
             // 收集当前筛选条件
             const search = document.getElementById('searchInput').value;
-            const status = document.getElementById('statusFilter').value || headerFilters.status || '';
-            const feishuUrl = document.getElementById('feishuUrlFilter').value || headerFilters.feishu_url || '';
-            const expireStatus = document.getElementById('expireStatusFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const feishuUrl = document.getElementById('feishuUrlFilter').value;
+            const deviceFilter = document.getElementById('deviceFilter').value;
+            const expireDays = document.getElementById('expireDaysFilter').value;
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
-            const saleStatus = headerFilters.sale_status || '';
+            const saleStatus = document.getElementById('saleStatusFilter').value;
             
             batchUpdateData.filters = {
                 search,
                 status,
                 feishu_url: feishuUrl,
-                expire_status: expireStatus,
+                device_filter: deviceFilter,
+                expire_days: expireDays,
                 created_start: createdStart,
                 created_end: createdEnd,
                 sale_status: saleStatus
@@ -2770,9 +2822,14 @@
                 summaryHtml += `<div class="filter-summary-item">销售状态: ${saleStatusText[saleStatus] || saleStatus}</div>`;
             }
             if (feishuUrl) summaryHtml += `<div class="filter-summary-item">飞书链接: ${feishuUrl.substring(0, 30)}...</div>`;
-            if (expireStatus) {
-                const expireText = { not_expired: '未过期', expired: '已过期', permanent: '永久有效' };
-                summaryHtml += `<div class="filter-summary-item">过期状态: ${expireText[expireStatus] || expireStatus}</div>`;
+            if (deviceFilter) {
+                const deviceText = { none: '未绑定', has_device: '已绑定' };
+                summaryHtml += `<div class="filter-summary-item">绑定设备: ${deviceText[deviceFilter] || deviceFilter}</div>`;
+            }
+            if (expireDays) {
+                const expireText = { expired: '已过期', permanent: '永久有效' };
+                const label = expireText[expireDays] || `未来${expireDays}天`;
+                summaryHtml += `<div class="filter-summary-item">过期时间: ${label}</div>`;
             }
             if (search) summaryHtml += `<div class="filter-summary-item">搜索: ${search}</div>`;
             if (createdStart || createdEnd) summaryHtml += `<div class="filter-summary-item">创建时间: ${createdStart || '...'} 至 ${createdEnd || '...'}</div>`;
@@ -2789,7 +2846,8 @@
                 if (status) params.append('status', status);
                 if (saleStatus) params.append('sale_status', saleStatus);
                 if (feishuUrl) params.append('feishu_url', feishuUrl);
-                if (expireStatus) params.append('expire_status', expireStatus);
+                if (deviceFilter) params.append('device_filter', deviceFilter);
+                if (expireDays) params.append('expire_days', expireDays);
                 if (search) params.append('search', search);
                 if (createdStart) params.append('created_start', createdStart);
                 if (createdEnd) params.append('created_end', createdEnd);
