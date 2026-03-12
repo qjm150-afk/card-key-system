@@ -154,6 +154,122 @@
             appearance: none;
         }
 
+        /* 高级筛选区域 */
+        .filter-section {
+            background: white;
+            border-radius: 16px;
+            padding: 16px 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .filter-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .filter-date {
+            height: 40px;
+            padding: 0 12px;
+            border: 1px solid #E8D5C4;
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        .filter-date:focus {
+            border-color: #D4A574;
+        }
+
+        .date-separator {
+            color: #A89070;
+            font-size: 14px;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        /* 筛选标签 */
+        .filter-tags {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            background: #FFF9F0;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tags-label {
+            color: #A89070;
+            font-size: 13px;
+        }
+
+        .filter-tags-list {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            background: white;
+            border: 1px solid #D4A574;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #5D4E37;
+        }
+
+        .filter-tag-remove {
+            cursor: pointer;
+            color: #A89070;
+            font-size: 16px;
+            line-height: 1;
+        }
+
+        .filter-tag-remove:hover {
+            color: #8B4513;
+        }
+
+        /* 工具栏左侧 */
+        .toolbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .filter-result-info {
+            color: #A89070;
+            font-size: 13px;
+        }
+
+        .btn-link {
+            background: none;
+            border: none;
+            color: #D4A574;
+            padding: 0;
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+
+        .btn-link:hover {
+            color: #8B4513;
+        }
+
         /* 标签页 */
         .tabs {
             display: flex;
@@ -774,26 +890,53 @@
                 </div>
             </div>
 
-            <!-- 搜索栏 -->
-            <div class="search-bar">
-                <input type="text" class="search-input" id="searchInput" placeholder="搜索卡密或备注...">
-                <select class="filter-select" id="statusFilter">
-                    <option value="">全部状态</option>
-                    <option value="1">有效</option>
-                    <option value="0">无效</option>
-                </select>
-                <button class="btn btn-primary" onclick="searchCards()">搜索</button>
-                <button class="btn btn-secondary" onclick="exportCards()">导出卡密</button>
+            <!-- 高级筛选区域 -->
+            <div class="filter-section">
+                <div class="filter-row">
+                    <input type="text" class="search-input" id="searchInput" placeholder="搜索卡密或备注...">
+                    <select class="filter-select" id="statusFilter">
+                        <option value="">全部状态</option>
+                        <option value="1">有效</option>
+                        <option value="0">无效</option>
+                    </select>
+                    <select class="filter-select" id="feishuUrlFilter">
+                        <option value="">全部链接</option>
+                    </select>
+                    <select class="filter-select" id="expireStatusFilter">
+                        <option value="">过期状态</option>
+                        <option value="not_expired">未过期</option>
+                        <option value="expired">已过期</option>
+                        <option value="permanent">永久有效</option>
+                    </select>
+                    <input type="date" class="filter-date" id="createdStart" title="创建开始日期">
+                    <span class="date-separator">至</span>
+                    <input type="date" class="filter-date" id="createdEnd" title="创建结束日期">
+                </div>
+                <div class="filter-actions">
+                    <button class="btn btn-primary" onclick="searchCards()">搜索</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
+                    <button class="btn btn-secondary" onclick="exportCards()">导出卡密</button>
+                </div>
+            </div>
+
+            <!-- 已选筛选条件标签 -->
+            <div class="filter-tags" id="filterTags" style="display: none;">
+                <span class="filter-tags-label">已选条件：</span>
+                <div class="filter-tags-list" id="filterTagsList"></div>
             </div>
 
             <!-- 表格 -->
             <div class="table-container">
                 <div class="table-toolbar">
-                    <span class="selected-info" id="selectedInfo">已选择 0 项</span>
+                    <div class="toolbar-left">
+                        <span class="selected-info" id="selectedInfo">已选择 0 项</span>
+                        <span class="filter-result-info" id="filterResultInfo"></span>
+                        <button class="btn btn-link btn-sm" id="selectAllFiltered" onclick="selectAllFiltered()" style="display: none;">全选筛选结果</button>
+                    </div>
                     <div class="batch-actions">
                         <button class="btn btn-success btn-sm" onclick="batchAction('activate')">批量激活</button>
                         <button class="btn btn-secondary btn-sm" onclick="batchAction('deactivate')">批量停用</button>
-                        <button class="btn btn-warning btn-sm" onclick="openUpdateUrlModal()">批量改链接</button>
+                        <button class="btn btn-warning btn-sm" onclick="openUpdateUrlModal()">批量改链</button>
                         <button class="btn btn-danger btn-sm" onclick="batchAction('delete')">批量删除</button>
                     </div>
                 </div>
@@ -943,11 +1086,11 @@
         </div>
     </div>
 
-    <!-- 批量修改链接模态框 -->
+    <!-- 批量改链模态框 -->
     <div class="modal-overlay" id="updateUrlModalOverlay">
         <div class="modal">
             <div class="modal-header">
-                <h2>批量修改链接</h2>
+                <h2>批量改链</h2>
                 <button class="modal-close" onclick="closeUpdateUrlModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -956,11 +1099,17 @@
                     <p id="updateUrlSelectedInfo" style="color: #666; margin-top: 5px;">0 条</p>
                 </div>
                 <div class="form-group">
-                    <label>新的飞书链接 *</label>
+                    <label>当前链接分布</label>
+                    <div id="currentUrlsPreview" style="margin-top: 5px; max-height: 120px; overflow-y: auto; background: #f8f5f0; border-radius: 8px; padding: 8px 12px; font-size: 12px; color: #666;">
+                        <p style="color: #999;">-</p>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>新飞书链接 *</label>
                     <input type="text" class="form-input" id="updateUrlInput" placeholder="https://..." required>
                 </div>
                 <div class="form-group">
-                    <label>新的访问密码</label>
+                    <label>新访问密码</label>
                     <input type="text" class="form-input" id="updatePasswordInput" placeholder="留空则不修改">
                 </div>
             </div>
@@ -988,6 +1137,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadCards();
             loadStats();
+            loadFeishuUrls();
             
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchCards();
@@ -1067,6 +1217,10 @@
         async function loadCards() {
             const search = document.getElementById('searchInput').value;
             const status = document.getElementById('statusFilter').value;
+            const feishuUrl = document.getElementById('feishuUrlFilter').value;
+            const expireStatus = document.getElementById('expireStatusFilter').value;
+            const createdStart = document.getElementById('createdStart').value;
+            const createdEnd = document.getElementById('createdEnd').value;
             
             const params = new URLSearchParams({
                 page: currentPage,
@@ -1074,6 +1228,10 @@
             });
             if (search) params.append('search', search);
             if (status) params.append('status', status);
+            if (feishuUrl) params.append('feishu_url', feishuUrl);
+            if (expireStatus) params.append('expire_status', expireStatus);
+            if (createdStart) params.append('created_start', createdStart);
+            if (createdEnd) params.append('created_end', createdEnd);
 
             try {
                 const response = await fetch(`/api/admin/cards?${params}`);
@@ -1082,11 +1240,172 @@
                 if (result.success) {
                     renderTable(result.data);
                     renderPagination(result.total, result.total_pages);
+                    updateFilterResultInfo(result.total);
+                    updateFilterTags();
                 } else {
                     showToast(result.msg, 'error');
                 }
             } catch (error) {
                 showToast('加载失败: ' + error.message, 'error');
+            }
+        }
+
+        // 加载飞书链接列表
+        async function loadFeishuUrls() {
+            try {
+                const response = await fetch('/api/admin/cards/feishu-urls');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('feishuUrlFilter');
+                    const currentValue = select.value;
+                    
+                    // 保留第一个option
+                    select.innerHTML = '<option value="">全部链接</option>';
+                    
+                    result.data.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.url;
+                        // 截断过长的URL显示
+                        const displayUrl = item.url.length > 40 ? item.url.substring(0, 40) + '...' : item.url;
+                        option.textContent = `${displayUrl} (${item.count}条)`;
+                        option.title = item.url; // 鼠标悬停显示完整URL
+                        select.appendChild(option);
+                    });
+                    
+                    // 恢复之前的选择
+                    if (currentValue) select.value = currentValue;
+                }
+            } catch (error) {
+                console.error('加载飞书链接列表失败:', error);
+            }
+        }
+
+        // 更新筛选结果信息
+        function updateFilterResultInfo(total) {
+            const infoEl = document.getElementById('filterResultInfo');
+            const selectAllBtn = document.getElementById('selectAllFiltered');
+            
+            if (total > 0) {
+                infoEl.textContent = `筛选结果: ${total} 条`;
+                selectAllBtn.style.display = 'inline-block';
+            } else {
+                infoEl.textContent = '';
+                selectAllBtn.style.display = 'none';
+            }
+        }
+
+        // 更新筛选标签显示
+        function updateFilterTags() {
+            const tagsContainer = document.getElementById('filterTags');
+            const tagsList = document.getElementById('filterTagsList');
+            
+            const tags = [];
+            
+            const status = document.getElementById('statusFilter').value;
+            if (status) {
+                const text = status === '1' ? '有效' : '无效';
+                tags.push({ field: 'status', label: `状态: ${text}`, value: status });
+            }
+            
+            const feishuUrl = document.getElementById('feishuUrlFilter').value;
+            if (feishuUrl) {
+                const displayUrl = feishuUrl.length > 20 ? feishuUrl.substring(0, 20) + '...' : feishuUrl;
+                tags.push({ field: 'feishuUrl', label: `链接: ${displayUrl}`, value: feishuUrl });
+            }
+            
+            const expireStatus = document.getElementById('expireStatusFilter').value;
+            if (expireStatus) {
+                const textMap = { 'not_expired': '未过期', 'expired': '已过期', 'permanent': '永久有效' };
+                tags.push({ field: 'expireStatus', label: `过期: ${textMap[expireStatus]}`, value: expireStatus });
+            }
+            
+            const createdStart = document.getElementById('createdStart').value;
+            const createdEnd = document.getElementById('createdEnd').value;
+            if (createdStart || createdEnd) {
+                const label = createdStart && createdEnd 
+                    ? `时间: ${createdStart} ~ ${createdEnd}`
+                    : createdStart 
+                        ? `时间: ${createdStart} 起`
+                        : `时间: 至 ${createdEnd}`;
+                tags.push({ field: 'date', label, value: 'date' });
+            }
+            
+            if (tags.length > 0) {
+                tagsContainer.style.display = 'flex';
+                tagsList.innerHTML = tags.map(tag => `
+                    <span class="filter-tag">
+                        ${tag.label}
+                        <span class="filter-tag-remove" onclick="removeFilterTag('${tag.field}')">&times;</span>
+                    </span>
+                `).join('');
+            } else {
+                tagsContainer.style.display = 'none';
+            }
+        }
+
+        // 移除筛选标签
+        function removeFilterTag(field) {
+            if (field === 'status') {
+                document.getElementById('statusFilter').value = '';
+            } else if (field === 'feishuUrl') {
+                document.getElementById('feishuUrlFilter').value = '';
+            } else if (field === 'expireStatus') {
+                document.getElementById('expireStatusFilter').value = '';
+            } else if (field === 'date') {
+                document.getElementById('createdStart').value = '';
+                document.getElementById('createdEnd').value = '';
+            }
+            currentPage = 1;
+            loadCards();
+        }
+
+        // 重置筛选
+        function resetFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statusFilter').value = '';
+            document.getElementById('feishuUrlFilter').value = '';
+            document.getElementById('expireStatusFilter').value = '';
+            document.getElementById('createdStart').value = '';
+            document.getElementById('createdEnd').value = '';
+            currentPage = 1;
+            selectedIds.clear();
+            updateSelectedInfo();
+            loadCards();
+        }
+
+        // 全选筛选结果
+        async function selectAllFiltered() {
+            const search = document.getElementById('searchInput').value;
+            const status = document.getElementById('statusFilter').value;
+            const feishuUrl = document.getElementById('feishuUrlFilter').value;
+            const expireStatus = document.getElementById('expireStatusFilter').value;
+            const createdStart = document.getElementById('createdStart').value;
+            const createdEnd = document.getElementById('createdEnd').value;
+            
+            const params = new URLSearchParams({ page: 1, page_size: 1000 });
+            if (search) params.append('search', search);
+            if (status) params.append('status', status);
+            if (feishuUrl) params.append('feishu_url', feishuUrl);
+            if (expireStatus) params.append('expire_status', expireStatus);
+            if (createdStart) params.append('created_start', createdStart);
+            if (createdEnd) params.append('created_end', createdEnd);
+
+            try {
+                const response = await fetch(`/api/admin/cards?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    result.data.forEach(card => selectedIds.add(card.id));
+                    updateSelectedInfo();
+                    // 更新表格中的复选框状态
+                    document.querySelectorAll('.card-checkbox').forEach(cb => {
+                        cb.checked = true;
+                    });
+                    showToast(`已选择 ${selectedIds.size} 条记录`, 'success');
+                }
+            } catch (error) {
+                showToast('全选失败: ' + error.message, 'error');
             }
         }
 
@@ -1474,8 +1793,8 @@
             window.open(url, '_blank');
         }
 
-        // 打开批量修改链接模态框
-        function openUpdateUrlModal() {
+        // 打开批量改链模态框
+        async function openUpdateUrlModal() {
             if (selectedIds.size === 0) {
                 showToast('请先选择要修改链接的卡密', 'error');
                 return;
@@ -1483,15 +1802,55 @@
             document.getElementById('updateUrlSelectedInfo').textContent = `${selectedIds.size} 条`;
             document.getElementById('updateUrlInput').value = '';
             document.getElementById('updatePasswordInput').value = '';
+            
+            // 获取选中卡密的链接分布
+            await loadSelectedUrlsPreview();
+            
             document.getElementById('updateUrlModalOverlay').classList.add('active');
         }
 
-        // 关闭批量修改链接模态框
+        // 加载选中卡密的链接分布
+        async function loadSelectedUrlsPreview() {
+            const previewEl = document.getElementById('currentUrlsPreview');
+            previewEl.innerHTML = '<p style="color: #999;">加载中...</p>';
+            
+            try {
+                // 获取选中卡密的详情
+                const params = new URLSearchParams({ page: 1, page_size: 1000 });
+                const response = await fetch(`/api/admin/cards?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 筛选出选中的卡密并统计链接
+                    const urlCount = {};
+                    result.data
+                        .filter(card => selectedIds.has(card.id))
+                        .forEach(card => {
+                            const url = card.feishu_url || '(空)';
+                            urlCount[url] = (urlCount[url] || 0) + 1;
+                        });
+                    
+                    if (Object.keys(urlCount).length > 0) {
+                        const sortedUrls = Object.entries(urlCount).sort((a, b) => b[1] - a[1]);
+                        previewEl.innerHTML = sortedUrls.map(([url, count]) => {
+                            const displayUrl = url.length > 50 ? url.substring(0, 50) + '...' : url;
+                            return `<p style="margin: 4px 0; word-break: break-all;" title="${url}">• ${displayUrl} <span style="color: #D4A574;">(${count}条)</span></p>`;
+                        }).join('');
+                    } else {
+                        previewEl.innerHTML = '<p style="color: #999;">-</p>';
+                    }
+                }
+            } catch (error) {
+                previewEl.innerHTML = '<p style="color: #999;">获取失败</p>';
+            }
+        }
+
+        // 关闭批量改链模态框
         function closeUpdateUrlModal() {
             document.getElementById('updateUrlModalOverlay').classList.remove('active');
         }
 
-        // 批量修改链接
+        // 批量改链
         async function batchUpdateUrl() {
             const newUrl = document.getElementById('updateUrlInput').value.trim();
             if (!newUrl) {
@@ -1519,7 +1878,9 @@
                     showToast(result.msg, 'success');
                     closeUpdateUrlModal();
                     selectedIds.clear();
+                    updateSelectedInfo();
                     loadCards();
+                    loadFeishuUrls(); // 刷新链接列表
                 } else {
                     showToast(result.msg, 'error');
                 }

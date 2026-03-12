@@ -317,7 +317,11 @@ async def get_card_keys(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
-    status: Optional[int] = None
+    status: Optional[int] = None,
+    feishu_url: Optional[str] = None,
+    created_start: Optional[str] = None,
+    created_end: Optional[str] = None,
+    expire_status: Optional[str] = None
 ):
     """获取卡密列表"""
     try:
@@ -330,6 +334,27 @@ async def get_card_keys(
         
         if status is not None:
             query = query.eq('status', status)
+        
+        if feishu_url:
+            query = query.eq('feishu_url', feishu_url)
+        
+        if created_start:
+            query = query.gte('created_at', created_start)
+        if created_end:
+            query = query.lte('created_at', created_end + 'T23:59:59')
+        
+        if expire_status:
+            from datetime import datetime
+            now = datetime.now().isoformat()
+            if expire_status == 'expired':
+                # 已过期：过期时间不为空且小于当前时间
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
+            elif expire_status == 'not_expired':
+                # 未过期：过期时间为空或大于当前时间
+                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
+            elif expire_status == 'permanent':
+                # 永久有效：过期时间为空
+                query = query.is_('expire_at', 'null')
         
         start = (page - 1) * page_size
         end = start + page_size - 1
@@ -347,6 +372,32 @@ async def get_card_keys(
         
     except Exception as e:
         logger.error(f"获取卡密列表失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/cards/feishu-urls")
+async def get_feishu_urls():
+    """获取所有不同的飞书链接列表（用于筛选下拉）"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有记录的飞书链接
+        response = client.table('card_keys_table').select('feishu_url').execute()
+        
+        # 统计每个链接的数量
+        url_count = {}
+        for item in response.data:
+            url = item.get('feishu_url') or '(空)'
+            url_count[url] = url_count.get(url, 0) + 1
+        
+        # 转换为列表并按数量排序
+        urls = [{"url": k, "count": v} for k, v in url_count.items()]
+        urls.sort(key=lambda x: x['count'], reverse=True)
+        
+        return {"success": True, "data": urls}
+        
+    except Exception as e:
+        logger.error(f"获取飞书链接列表失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
