@@ -379,13 +379,14 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            min-width: 900px;
+            min-width: 1200px;
         }
 
         th, td {
-            padding: 14px 16px;
+            padding: 12px 14px;
             text-align: left;
             border-bottom: 1px solid #F5E6D3;
+            vertical-align: middle;
         }
 
         th {
@@ -393,14 +394,13 @@
             font-weight: 600;
             color: #5D4E37;
             font-size: 13px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
             white-space: nowrap;
         }
 
         td {
-            font-size: 14px;
+            font-size: 13px;
             color: #6B5744;
+            line-height: 1.5;
         }
 
         tr:hover {
@@ -688,12 +688,24 @@
         }
 
         .col-narrow {
-            max-width: 150px;
+            max-width: 140px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             font-size: 12px;
         }
+
+        /* 列宽设置 */
+        th:nth-child(1), td:nth-child(1) { width: 40px; text-align: center; }
+        th:nth-child(2), td:nth-child(2) { width: 50px; text-align: center; }
+        th:nth-child(3), td:nth-child(3) { min-width: 160px; }
+        th:nth-child(4), td:nth-child(4) { width: 80px; }
+        th:nth-child(5), td:nth-child(5) { width: 80px; text-align: center; }
+        th:nth-child(6), td:nth-child(6) { width: 120px; }
+        th:nth-child(7), td:nth-child(7) { max-width: 100px; }
+        th:nth-child(10), td:nth-child(10) { width: 80px; }
+        th:nth-child(11), td:nth-child(11) { width: 90px; }
+        th:nth-child(13), td:nth-child(13) { width: 140px; }
 
         /* 统计卡片 */
         .stats-row {
