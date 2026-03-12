@@ -308,15 +308,20 @@
             border-top: 1px solid rgba(210, 180, 140, 0.2);
         }
 
-        /* 协作者头像悬浮层 - 右上角，与飞书用户头像对齐 */
+        /* 协作者头像悬浮层 - 遮挡飞书右上角头像，防止点击跳转 */
         .collaborators-overlay {
             position: absolute;
-            top: 28px;    /* 微调位置，与飞书用户头像对齐 */
-            right: 80px;  /* 与飞书用户头像对齐 */
+            top: 12px;
+            right: 12px;
             display: flex;
             align-items: center;
+            gap: 8px;
+            padding: 6px 12px 6px 8px;
+            background: rgba(255, 248, 240, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             z-index: 1000;
-            pointer-events: none;
+            cursor: default;
             animation: fadeInSlide 0.5s ease-out;
         }
 
@@ -345,9 +350,6 @@
             margin-right: -6px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             background-color: #f0f0f0;
-            transition: all 0.2s ease;
-            pointer-events: auto;
-            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -357,11 +359,6 @@
 
         .collaborator-avatar:last-child {
             margin-right: 0;
-        }
-
-        .collaborator-avatar:hover {
-            transform: translateY(-2px);
-            z-index: 10;
         }
 
         /* 在线状态点 - 右下角外侧，飞书风格 */
@@ -395,13 +392,8 @@
         }
 
         .collaborators-count {
-            margin-right: 10px;
-            padding: 4px 10px;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 12px;
-            font-size: 11px;
-            color: #374151;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+            font-size: 12px;
+            color: #6B7280;
             font-weight: 500;
             white-space: nowrap;
         }
