@@ -268,9 +268,26 @@
             border: none;
             min-height: 0;
         }
+
+        /* 安全提示遮罩 */
+        .security-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
     </style>
 </head>
-<body class="loading-mode">
+<body class="loading-mode" oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;" oncopy="return false;" oncut="return false;">
     <!-- 加载动画 -->
     <div id="loadingSpinner" class="loading-spinner"></div>
 
@@ -332,7 +349,7 @@
                 访问密码：<span id="passwordValue" class="password-value"></span>
             </div>
         </div>
-        <iframe id="feishuFrame" class="feishu-frame" allowfullscreen></iframe>
+        <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
     </div>
 
     <script>
@@ -552,6 +569,160 @@
 
         // 页面加载时检查会话
         document.addEventListener('DOMContentLoaded', checkSession);
+
+        // ==================== 安全保护措施 ====================
+
+        // 禁用键盘快捷键
+        document.addEventListener('keydown', function(e) {
+            // F12 - 开发者工具
+            if (e.key === 'F12' || e.keyCode === 123) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+I - 开发者工具
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'i')) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+J - 控制台
+            if (e.ctrlKey && e.shiftKey && (e.key === 'J' || e.key === 'j')) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+Shift+C - 元素选择
+            if (e.ctrlKey && e.shiftKey && (e.key === 'C' || e.key === 'c')) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+U - 查看源码
+            if (e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+S - 保存
+            if (e.ctrlKey && (e.key === 'S' || e.key === 's')) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+P - 打印
+            if (e.ctrlKey && (e.key === 'P' || e.key === 'p')) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+C - 复制
+            if (e.ctrlKey && (e.key === 'C' || e.key === 'c') && !e.shiftKey) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+A - 全选
+            if (e.ctrlKey && (e.key === 'A' || e.key === 'a')) {
+                e.preventDefault();
+                return false;
+            }
+            // Ctrl+X - 剪切
+            if (e.ctrlKey && (e.key === 'X' || e.key === 'x')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+
+        // 开发者工具检测（通过 debugger 时间差检测）
+        let devtoolsOpen = false;
+        const threshold = 160;
+
+        setInterval(function() {
+            const start = performance.now();
+            debugger;
+            const end = performance.now();
+            if (end - start > threshold) {
+                if (!devtoolsOpen) {
+                    devtoolsOpen = true;
+                    // 可以选择关闭页面或显示警告
+                    document.body.innerHTML = '<div class="security-overlay"><div><p>检测到开发者工具</p><p>请关闭后刷新页面</p></div></div>';
+                }
+            } else {
+                devtoolsOpen = false;
+            }
+        }, 1000);
+
+        // 禁用右键菜单（已通过 oncontextmenu 实现，这里作为备用）
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 禁用选择文本
+        document.addEventListener('selectstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 禁用拖拽
+        document.addEventListener('dragstart', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 禁用复制
+        document.addEventListener('copy', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 禁用剪切
+        document.addEventListener('cut', function(e) {
+            e.preventDefault();
+            return false;
+        });
+
+        // 检测窗口尺寸变化（开发者工具打开会改变窗口尺寸）
+        let lastWindowWidth = window.innerWidth;
+        let lastWindowHeight = window.innerHeight;
+
+        window.addEventListener('resize', function() {
+            const widthDiff = Math.abs(window.innerWidth - lastWindowWidth);
+            const heightDiff = Math.abs(window.innerHeight - lastWindowHeight);
+            
+            // 如果窗口尺寸变化很大（可能是开发者工具打开）
+            if (widthDiff > 100 || heightDiff > 100) {
+                // 可以选择显示警告或刷新页面
+                console.clear();
+            }
+            
+            lastWindowWidth = window.innerWidth;
+            lastWindowHeight = window.innerHeight;
+        });
+
+        // 定时清除控制台
+        setInterval(function() {
+            console.clear();
+        }, 2000);
+
+        // 禁用打印
+        window.addEventListener('beforeprint', function(e) {
+            e.preventDefault();
+            document.body.style.display = 'none';
+        });
+
+        window.addEventListener('afterprint', function(e) {
+            document.body.style.display = '';
+        });
+
+        // 禁用 CSS 打印样式
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @media print {
+                body { display: none !important; }
+            }
+            * {
+                -webkit-user-select: none !important;
+                -moz-user-select: none !important;
+                -ms-user-select: none !important;
+                user-select: none !important;
+                -webkit-touch-callout: none !important;
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 </body>
 </html>
