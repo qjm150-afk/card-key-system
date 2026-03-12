@@ -533,6 +533,14 @@ async def import_sale_status(file: UploadFile = File(...)):
         
         reader = csv.DictReader(io.StringIO(text))
         
+        # 获取实际的列名并标准化（去除空格等）
+        if reader.fieldnames:
+            field_map = {name.strip(): name for name in reader.fieldnames}
+        else:
+            field_map = {}
+        
+        logger.info(f"CSV列名: {reader.fieldnames}, 标准化后: {list(field_map.keys())}")
+        
         # 状态映射
         status_map = {
             '未售出': 'unsold',
@@ -544,17 +552,30 @@ async def import_sale_status(file: UploadFile = File(...)):
         updated_count = 0
         deactivated_count = 0
         not_found = []
+        skip_count = 0
+        invalid_status_count = 0
         
         for row in reader:
-            key_value = row.get('卡密', '').strip().upper()
-            order_id = row.get('订单号', '').strip()
-            sale_status_text = row.get('销售状态', '').strip()
+            # 使用标准化列名获取数据
+            raw_key = row.get(field_map.get('卡密', '卡密'), '') or row.get('卡密', '')
+            raw_order = row.get(field_map.get('订单号', '订单号'), '') or row.get('订单号', '')
+            raw_status = row.get(field_map.get('销售状态', '销售状态'), '') or row.get('销售状态', '')
+            
+            key_value = raw_key.strip().upper()
+            order_id = raw_order.strip()
+            sale_status_text = raw_status.strip()
+            
+            logger.info(f"处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}")
             
             if not key_value or not sale_status_text:
+                skip_count += 1
+                logger.info(f"跳过空数据行: key_value={key_value}, sale_status_text={sale_status_text}")
                 continue
             
             sale_status = status_map.get(sale_status_text)
             if not sale_status:
+                invalid_status_count += 1
+                logger.warning(f"无效的销售状态: {sale_status_text}")
                 continue
             
             # 查找卡密
@@ -591,13 +612,19 @@ async def import_sale_status(file: UploadFile = File(...)):
             result_msg += f"，其中 {deactivated_count} 条已自动停用"
         if not_found:
             result_msg += f"，{len(not_found)} 条卡密未找到"
+        if skip_count > 0:
+            result_msg += f"，{skip_count} 条数据为空被跳过"
+        if invalid_status_count > 0:
+            result_msg += f"，{invalid_status_count} 条销售状态无效"
         
         return {
             "success": True,
             "msg": result_msg,
             "updated": updated_count,
             "deactivated": deactivated_count,
-            "not_found": not_found[:10]  # 只返回前10条未找到的
+            "not_found": not_found[:10],  # 只返回前10条未找到的
+            "skipped": skip_count,
+            "invalid_status": invalid_status_count
         }
         
     except Exception as e:
