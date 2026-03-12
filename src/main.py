@@ -104,8 +104,8 @@ class LoginRequest(BaseModel):
 
 # ==================== 管理员认证 ====================
 
-# 管理员密码（从环境变量读取，默认为 admin123）
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+# 管理员密码（从环境变量读取，默认为 QJM150）
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "QJM150")
 
 # 存储有效的 token（生产环境应使用 Redis 等）
 VALID_TOKENS = {}
