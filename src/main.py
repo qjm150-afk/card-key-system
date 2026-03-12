@@ -491,10 +491,13 @@ async def download_sale_status_template():
         writer.writerow(['CSS-YYYY-YYYY-YYYY', 'ORDER789012', '已退款'])
         
         output.seek(0)
+        # UTF-8 BOM + 内容，确保 Excel 正确识别中文编码
+        bom = b'\xef\xbb\xbf'
+        content = bom + output.getvalue().encode('utf-8')
         
         return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
+            iter([content]),
+            media_type="text/csv; charset=utf-8",
             headers={
                 "Content-Disposition": f"attachment; filename=sale_status_template.csv"
             }
