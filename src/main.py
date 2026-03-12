@@ -284,6 +284,23 @@ async def get_card_keys(
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/cards/{card_id}")
+async def get_card_key(card_id: int):
+    """获取单个卡密"""
+    try:
+        client = get_supabase_client()
+        response = client.table('card_keys_table').select('*').eq('id', card_id).execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡密不存在"}
+        
+        return {"success": True, "data": response.data[0]}
+        
+    except Exception as e:
+        logger.error(f"获取卡密失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.post("/api/admin/cards")
 async def create_card_key(card: CardKeyCreate):
     """创建单个卡密"""

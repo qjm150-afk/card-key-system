@@ -1043,35 +1043,31 @@
         // 编辑卡密
         async function editCard(id) {
             try {
-                const response = await fetch(`/api/admin/cards?page=1&page_size=1000`);
+                const response = await fetch(`/api/admin/cards/${id}`);
                 const result = await response.json();
                 
                 if (result.success && result.data) {
-                    const card = result.data.find(c => c.id === id);
+                    const card = result.data;
                     
-                    if (card) {
-                        document.getElementById('cardId').value = card.id;
-                        document.getElementById('keyValue').value = card.key_value || '';
-                        document.getElementById('cardStatus').value = card.status || 1;
-                        document.getElementById('maxUses').value = card.max_uses || 1;
-                        document.getElementById('userNote').value = card.user_note || '';
-                        document.getElementById('feishuUrl').value = card.feishu_url || '';
-                        document.getElementById('feishuPassword').value = card.feishu_password || '';
-                        
-                        // 清空过期时间
-                        document.getElementById('expireAt').value = '';
-                        
-                        if (card.expire_at) {
-                            try {
-                                const date = new Date(card.expire_at);
-                                document.getElementById('expireAt').value = date.toISOString().slice(0, 16);
-                            } catch(e) {}
-                        }
-                        
-                        openModal(id);
-                    } else {
-                        showToast('未找到该卡密', 'error');
+                    document.getElementById('cardId').value = card.id;
+                    document.getElementById('keyValue').value = card.key_value || '';
+                    document.getElementById('cardStatus').value = card.status || 1;
+                    document.getElementById('maxUses').value = card.max_uses || 1;
+                    document.getElementById('userNote').value = card.user_note || '';
+                    document.getElementById('feishuUrl').value = card.feishu_url || '';
+                    document.getElementById('feishuPassword').value = card.feishu_password || '';
+                    
+                    // 清空过期时间
+                    document.getElementById('expireAt').value = '';
+                    
+                    if (card.expire_at) {
+                        try {
+                            const date = new Date(card.expire_at);
+                            document.getElementById('expireAt').value = date.toISOString().slice(0, 16);
+                        } catch(e) {}
                     }
+                    
+                    openModal(id);
                 } else {
                     showToast(result.msg || '获取数据失败', 'error');
                 }
