@@ -10,6 +10,7 @@ import uuid
 import secrets
 import csv
 import io
+import json
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -43,6 +44,7 @@ STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 class ValidateRequest(BaseModel):
     """验证请求"""
     card_key: str
+    device_id: Optional[str] = None  # 设备ID
 
 
 class ValidateResponse(BaseModel):
@@ -153,11 +155,12 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     - 检查卡密是否存在
     - 检查状态是否有效
     - 检查是否过期
-    - 检查使用次数
+    - 检查设备数量限制（最多5台）
     - 记录访问日志
     """
     client = None
     card_key = request.card_key.strip().upper()
+    device_id = request.device_id or "unknown"
     ip_address = get_client_ip(fastapi_request)
     user_agent = fastapi_request.headers.get("User-Agent", "")[:500]
     
@@ -165,7 +168,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if not card_key:
             return ValidateResponse(can_access=False, msg="请输入卡密")
 
-        logger.info(f"验证卡密: {card_key}, IP: {ip_address}")
+        logger.info(f"验证卡密: {card_key}, 设备: {device_id}, IP: {ip_address}")
 
         client = get_supabase_client()
 
@@ -173,8 +176,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         response = client.table('card_keys_table').select('*').eq('key_value', card_key).execute()
 
         if not response.data:
-            # 记录失败日志
-            log_access(client, None, card_key, ip_address, user_agent, False, "卡密不存在")
+            log_access(client, None, card_key, ip_address, user_agent, False, "卡密不存在", device_id)
             return ValidateResponse(can_access=False, msg="卡密不存在")
 
         card_data = response.data[0]
@@ -182,7 +184,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         # 检查状态 (1=有效, 0=无效)
         if card_data.get('status') != 1:
-            log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已失效")
+            log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已失效", device_id)
             return ValidateResponse(can_access=False, msg="卡密已失效")
 
         # 检查过期时间
@@ -190,36 +192,46 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if expire_at:
             expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
             if datetime.now(expire_time.tzinfo) > expire_time:
-                log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已过期")
+                log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已过期", device_id)
                 return ValidateResponse(can_access=False, msg="卡密已过期")
 
-        # 检查使用次数
-        max_uses = card_data.get('max_uses', 1)
-        used_count = card_data.get('used_count', 0)
-        if used_count >= max_uses:
-            log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密使用次数已达上限")
-            return ValidateResponse(can_access=False, msg="卡密使用次数已达上限")
-
-        # 验证成功 - 更新使用次数和状态
-        new_used_count = used_count + 1
-        update_data = {
-            "used_count": new_used_count,
-            "last_used_at": datetime.now().isoformat()
-        }
+        # 检查设备限制（最多5台设备）
+        max_devices = card_data.get('max_devices', 5)
+        devices_json = card_data.get('devices', '[]')
         
-        # 如果达到最大使用次数，自动将状态设为无效
-        if new_used_count >= max_uses:
-            update_data["status"] = 0
+        try:
+            bound_devices = json.loads(devices_json) if devices_json else []
+        except:
+            bound_devices = []
         
-        client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
+        # 检查设备是否已绑定
+        device_already_bound = device_id in bound_devices
+        
+        if not device_already_bound:
+            # 新设备，检查是否达到设备限制
+            if len(bound_devices) >= max_devices:
+                log_access(client, card_id, card_key, ip_address, user_agent, False, f"设备数量已达上限({max_devices}台)", device_id)
+                return ValidateResponse(can_access=False, msg=f"该卡密已在{max_devices}台设备上使用，无法在新设备登录")
+            
+            # 添加新设备
+            bound_devices.append(device_id)
+            client.table('card_keys_table').update({
+                "devices": json.dumps(bound_devices),
+                "last_used_at": datetime.now().isoformat()
+            }).eq('id', card_id).execute()
+        else:
+            # 已绑定设备，只更新最后使用时间
+            client.table('card_keys_table').update({
+                "last_used_at": datetime.now().isoformat()
+            }).eq('id', card_id).execute()
 
         # 记录成功日志
-        log_access(client, card_id, card_key, ip_address, user_agent, True, "验证成功")
+        log_access(client, card_id, card_key, ip_address, user_agent, True, "验证成功", device_id)
 
         feishu_url = card_data.get('feishu_url', '')
         feishu_password = card_data.get('feishu_password', '')
 
-        logger.info(f"验证成功: {card_key}, URL: {feishu_url}")
+        logger.info(f"验证成功: {card_key}, 设备: {device_id}, 已绑定设备数: {len(bound_devices)}")
 
         return ValidateResponse(
             can_access=True,
@@ -231,11 +243,11 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     except Exception as e:
         logger.error(f"验证失败: {str(e)}")
         if client:
-            log_access(client, None, card_key, ip_address, user_agent, False, f"系统错误: {str(e)}")
+            log_access(client, None, card_key, ip_address, user_agent, False, f"系统错误: {str(e)}", device_id)
         return ValidateResponse(can_access=False, msg="系统错误，请稍后重试")
 
 
-def log_access(client, card_key_id, key_value, ip_address, user_agent, success, error_msg):
+def log_access(client, card_key_id, key_value, ip_address, user_agent, success, error_msg, device_id=None):
     """记录访问日志"""
     try:
         client.table('access_logs').insert({

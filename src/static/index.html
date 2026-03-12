@@ -321,6 +321,18 @@
         // 会话过期时间（30天）
         const SESSION_EXPIRE_DAYS = 30;
         const STORAGE_KEY = 'card_key_session';
+        const DEVICE_ID_KEY = 'card_key_device_id';
+
+        // 获取或生成设备ID（每个设备唯一）
+        function getDeviceId() {
+            let deviceId = localStorage.getItem(DEVICE_ID_KEY);
+            if (!deviceId) {
+                // 生成唯一设备ID：时间戳 + 随机字符串
+                deviceId = 'DEV-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem(DEVICE_ID_KEY, deviceId);
+            }
+            return deviceId;
+        }
 
         // 保存会话到 localStorage
         function saveSession(cardKey, url, password) {
@@ -328,6 +340,7 @@
                 cardKey: cardKey,
                 url: url,
                 password: password || '',
+                deviceId: getDeviceId(),
                 expireAt: Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -419,12 +432,17 @@
 
         // 验证卡密
         async function validateCardKey(cardKey, saveSessionFlag = true) {
+            const deviceId = getDeviceId();
+            
             const response = await fetch('/api/validate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ card_key: cardKey }),
+                body: JSON.stringify({ 
+                    card_key: cardKey,
+                    device_id: deviceId 
+                }),
             });
 
             const data = await response.json();

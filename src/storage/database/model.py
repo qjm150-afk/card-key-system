@@ -29,9 +29,13 @@ class CardKey(Base):
     
     # 过期与使用限制
     expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="过期时间")
-    max_uses: Mapped[int] = mapped_column(Integer, default=1, nullable=False, comment="最大使用次数")
-    used_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="已使用次数")
+    max_uses: Mapped[int] = mapped_column(Integer, default=1, nullable=False, comment="最大使用次数（已废弃）")
+    used_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="已使用次数（已废弃）")
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="最后使用时间")
+    
+    # 设备限制
+    max_devices: Mapped[int] = mapped_column(Integer, default=5, nullable=False, comment="最大设备数")
+    devices: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="已绑定设备ID列表(JSON)")
     
     # 备注信息
     user_note: Mapped[Optional[str]] = mapped_column(String(200), nullable=True, comment="用户备注")
