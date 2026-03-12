@@ -620,6 +620,90 @@ async def get_operation_log(log_id: int):
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/cards/filter-options")
+async def get_filter_options(
+    status: Optional[str] = None,
+    sale_status: Optional[str] = None,
+    feishu_url: Optional[str] = None,
+    expire_status: Optional[str] = None,
+    search: Optional[str] = None,
+    created_start: Optional[str] = None,
+    created_end: Optional[str] = None,
+    exclude_field: Optional[str] = None
+):
+    """
+    获取基于当前筛选条件的各字段可选值
+    - exclude_field: 排除的字段（用于获取其他字段选项时，不应用该字段的筛选）
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 构建基础查询（排除当前要获取的字段）
+        query = client.table('card_keys_table').select('status, sale_status, feishu_url')
+        
+        # 应用筛选条件（排除当前字段）
+        if status is not None and status != '' and exclude_field != 'status':
+            query = query.eq('status', int(status))
+        
+        if sale_status and sale_status != '' and exclude_field != 'sale_status':
+            query = query.eq('sale_status', sale_status)
+        
+        if feishu_url and feishu_url != '' and exclude_field != 'feishu_url':
+            query = query.eq('feishu_url', feishu_url)
+        
+        if expire_status and expire_status != '' and exclude_field != 'expire_status':
+            now = datetime.now().isoformat()
+            if expire_status == 'expired':
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
+            elif expire_status == 'not_expired':
+                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
+            elif expire_status == 'permanent':
+                query = query.is_('expire_at', 'null')
+        
+        if search and search != '' and exclude_field != 'search':
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+        
+        if created_start and created_start != '' and exclude_field != 'created_start':
+            query = query.gte('bstudio_create_time', created_start)
+        if created_end and created_end != '' and exclude_field != 'created_end':
+            query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
+        
+        response = query.execute()
+        
+        # 统计各字段的可选值
+        status_count = {}
+        sale_status_count = {}
+        feishu_url_count = {}
+        
+        for item in response.data:
+            # 激活状态
+            s = item.get('status')
+            status_key = str(s) if s is not None else ''
+            status_count[status_key] = status_count.get(status_key, 0) + 1
+            
+            # 销售状态
+            ss = item.get('sale_status') or ''
+            sale_status_count[ss] = sale_status_count.get(ss, 0) + 1
+            
+            # 飞书链接
+            fu = item.get('feishu_url') or ''
+            feishu_url_count[fu] = feishu_url_count.get(fu, 0) + 1
+        
+        return {
+            "success": True,
+            "data": {
+                "status": status_count,  # {"1": 10, "0": 5}
+                "sale_status": sale_status_count,  # {"unsold": 3, "sold": 8, ...}
+                "feishu_url": feishu_url_count,
+                "total": len(response.data)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取筛选选项失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/admin/cards/feishu-urls")
 async def get_feishu_urls():
     """获取所有不同的飞书链接列表（用于筛选下拉）"""

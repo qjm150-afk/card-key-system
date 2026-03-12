@@ -1763,6 +1763,14 @@
             document.getElementById('expireStatusFilter').value = '';
             document.getElementById('createdStart').value = '';
             document.getElementById('createdEnd').value = '';
+            
+            // 清除表头筛选状态
+            headerFilters = { status: '', sale_status: '', feishu_url: '' };
+            document.querySelectorAll('.th-filterable').forEach(th => th.classList.remove('filtered'));
+            
+            // 重新加载筛选选项
+            loadFilterOptions(null);
+            
             currentPage = 1;
             selectedIds.clear();
             updateSelectedInfo();
@@ -1960,6 +1968,8 @@
         function searchCards() {
             currentPage = 1;
             selectedIds.clear();
+            // 更新筛选选项
+            loadFilterOptions(null);
             loadCards();
         }
 
@@ -2566,7 +2576,7 @@
         let currentOpenFilter = null;
 
         // 切换表头筛选下拉框
-        function toggleHeaderFilter(filterName) {
+        async function toggleHeaderFilter(filterName) {
             event.stopPropagation();
             
             const dropdown = document.getElementById(`filter-dropdown-${filterName}`);
@@ -2578,13 +2588,104 @@
                 }
             });
             
+            // 动态加载当前可选值
+            await loadFilterOptions(filterName);
+            
             // 切换当前下拉框
             dropdown.classList.toggle('show');
             currentOpenFilter = dropdown.classList.contains('show') ? filterName : null;
         }
 
+        // 动态加载筛选选项（基于当前筛选结果）
+        async function loadFilterOptions(excludeField) {
+            try {
+                // 收集当前筛选条件
+                const status = headerFilters.status || document.getElementById('statusFilter').value || '';
+                const saleStatus = headerFilters.sale_status || '';
+                const feishuUrl = headerFilters.feishu_url || document.getElementById('feishuUrlFilter').value || '';
+                const expireStatus = document.getElementById('expireStatusFilter').value || '';
+                const search = document.getElementById('searchInput').value || '';
+                const createdStart = document.getElementById('createdStart').value || '';
+                const createdEnd = document.getElementById('createdEnd').value || '';
+                
+                const params = new URLSearchParams();
+                if (status) params.append('status', status);
+                if (saleStatus) params.append('sale_status', saleStatus);
+                if (feishuUrl) params.append('feishu_url', feishuUrl);
+                if (expireStatus) params.append('expire_status', expireStatus);
+                if (search) params.append('search', search);
+                if (createdStart) params.append('created_start', createdStart);
+                if (createdEnd) params.append('created_end', createdEnd);
+                if (excludeField) params.append('exclude_field', excludeField);
+                
+                const response = await fetch(`/api/admin/cards/filter-options?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateFilterDropdowns(result.data, excludeField);
+                }
+            } catch (error) {
+                console.error('加载筛选选项失败:', error);
+            }
+        }
+
+        // 更新筛选下拉框选项
+        function updateFilterDropdowns(data, excludeField) {
+            const statusLabels = { '1': '有效', '0': '无效' };
+            const saleStatusLabels = { '': '未设置', 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
+            
+            // 更新激活状态下拉框
+            if (excludeField !== 'status') {
+                const statusDropdown = document.getElementById('filter-dropdown-status');
+                const currentStatus = headerFilters.status;
+                let statusHtml = `<div class="filter-option"><input type="radio" name="filter-status" value="" ${!currentStatus ? 'checked' : ''} onchange="applyHeaderFilter('status', '')"> <label>全部</label></div>`;
+                
+                for (const [value, count] of Object.entries(data.status)) {
+                    if (count > 0) {
+                        const label = statusLabels[value] || value;
+                        const checked = currentStatus === value ? 'checked' : '';
+                        statusHtml += `<div class="filter-option"><input type="radio" name="filter-status" value="${value}" ${checked} onchange="applyHeaderFilter('status', '${value}')"> <label>${label} (${count})</label></div>`;
+                    }
+                }
+                statusDropdown.innerHTML = statusHtml;
+            }
+            
+            // 更新销售状态下拉框
+            if (excludeField !== 'sale_status') {
+                const saleStatusDropdown = document.getElementById('filter-dropdown-sale_status');
+                const currentSaleStatus = headerFilters.sale_status;
+                let saleStatusHtml = `<div class="filter-option"><input type="radio" name="filter-sale_status" value="" ${!currentSaleStatus ? 'checked' : ''} onchange="applyHeaderFilter('sale_status', '')"> <label>全部</label></div>`;
+                
+                for (const [value, count] of Object.entries(data.sale_status)) {
+                    if (count > 0) {
+                        const label = saleStatusLabels[value] || value || '未设置';
+                        const checked = currentSaleStatus === value ? 'checked' : '';
+                        saleStatusHtml += `<div class="filter-option"><input type="radio" name="filter-sale_status" value="${value}" ${checked} onchange="applyHeaderFilter('sale_status', '${value}')"> <label>${label} (${count})</label></div>`;
+                    }
+                }
+                saleStatusDropdown.innerHTML = saleStatusHtml;
+            }
+            
+            // 更新飞书链接下拉框
+            if (excludeField !== 'feishu_url') {
+                const feishuDropdown = document.getElementById('filter-dropdown-feishu_url');
+                const currentFeishuUrl = headerFilters.feishu_url;
+                let feishuHtml = `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="" ${!currentFeishuUrl ? 'checked' : ''} onchange="applyHeaderFilter('feishu_url', '')"> <label>全部</label></div>`;
+                
+                for (const [url, count] of Object.entries(data.feishu_url)) {
+                    if (count > 0) {
+                        const displayUrl = url ? (url.length > 25 ? url.substring(0, 25) + '...' : url) : '(空)';
+                        const checked = currentFeishuUrl === url ? 'checked' : '';
+                        const escapedUrl = url.replace(/'/g, "\\'");
+                        feishuHtml += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${url}" ${checked} onchange="applyHeaderFilter('feishu_url', '${escapedUrl}')"> <label title="${url}">${displayUrl} (${count})</label></div>`;
+                    }
+                }
+                feishuDropdown.innerHTML = feishuHtml;
+            }
+        }
+
         // 应用表头筛选
-        function applyHeaderFilter(filterName, value) {
+        async function applyHeaderFilter(filterName, value) {
             headerFilters[filterName] = value;
             
             // 更新表头样式
@@ -2599,6 +2700,9 @@
             
             // 关闭下拉框
             document.getElementById(`filter-dropdown-${filterName}`).classList.remove('show');
+            
+            // 更新其他下拉框的选项
+            await loadFilterOptions(filterName);
             
             // 重新加载数据
             currentPage = 1;
@@ -2961,7 +3065,8 @@
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', () => {
-            initFeishuUrlFilter();
+            // 初始化所有筛选下拉框选项
+            loadFilterOptions(null);
         });
 
         // 页面加载时检查登录状态
