@@ -531,6 +531,11 @@ async def import_sale_status(file: UploadFile = File(...)):
         if text is None:
             return {"success": False, "msg": "无法识别文件编码，请确保文件为 UTF-8 或 GBK 编码"}
         
+        # 检查是否有列名行
+        lines = text.strip().split('\n')
+        first_line = lines[0] if lines else ''
+        has_header = '卡密' in first_line or '订单号' in first_line or '销售状态' in first_line
+        
         reader = csv.DictReader(io.StringIO(text))
         
         # 获取实际的列名并标准化（去除空格等）
@@ -539,12 +544,13 @@ async def import_sale_status(file: UploadFile = File(...)):
         else:
             field_map = {}
         
-        logger.info(f"CSV列名: {reader.fieldnames}, 标准化后: {list(field_map.keys())}")
+        logger.info(f"CSV列名: {reader.fieldnames}, 标准化后: {list(field_map.keys())}, 是否有表头: {has_header}")
         
-        # 状态映射
+        # 状态映射（支持"已销售"作为"已售出"的别名）
         status_map = {
             '未售出': 'unsold',
             '已售出': 'sold',
+            '已销售': 'sold',  # 别名
             '已退款': 'refunded',
             '有纠纷': 'disputed'
         }
@@ -555,57 +561,113 @@ async def import_sale_status(file: UploadFile = File(...)):
         skip_count = 0
         invalid_status_count = 0
         
-        for row in reader:
-            # 使用标准化列名获取数据
-            raw_key = row.get(field_map.get('卡密', '卡密'), '') or row.get('卡密', '')
-            raw_order = row.get(field_map.get('订单号', '订单号'), '') or row.get('订单号', '')
-            raw_status = row.get(field_map.get('销售状态', '销售状态'), '') or row.get('销售状态', '')
+        # 如果没有标准列名，按位置解析
+        if not has_header:
+            # 重新读取，使用位置索引
+            reader_list = list(csv.reader(io.StringIO(text)))
+            logger.info(f"无表头模式，共{len(reader_list)}行数据")
             
-            key_value = raw_key.strip().upper()
-            order_id = raw_order.strip()
-            sale_status_text = raw_status.strip()
-            
-            logger.info(f"处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}")
-            
-            if not key_value or not sale_status_text:
-                skip_count += 1
-                logger.info(f"跳过空数据行: key_value={key_value}, sale_status_text={sale_status_text}")
-                continue
-            
-            sale_status = status_map.get(sale_status_text)
-            if not sale_status:
-                invalid_status_count += 1
-                logger.warning(f"无效的销售状态: {sale_status_text}")
-                continue
-            
-            # 查找卡密
-            find_response = client.table('card_keys_table').select('id, status').eq('key_value', key_value).execute()
-            if not find_response.data:
-                not_found.append(key_value)
-                continue
-            
-            card = find_response.data[0]
-            card_id = card['id']
-            current_status = card['status']
-            
-            # 准备更新数据
-            update_data = {
-                'sale_status': sale_status,
-                'order_id': order_id or None
-            }
-            
-            # 已售出时记录时间
-            if sale_status == 'sold':
-                update_data['sold_at'] = datetime.now().isoformat()
-            
-            # 已退款/有纠纷时自动停用
-            if sale_status in ['refunded', 'disputed'] and current_status == 1:
-                update_data['status'] = 0  # 停用
-                deactivated_count += 1
-            
-            # 更新卡密
-            client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
-            updated_count += 1
+            for row in reader_list:
+                if len(row) < 3:
+                    skip_count += 1
+                    continue
+                
+                key_value = row[0].strip().upper()
+                order_id = row[1].strip() if len(row) > 1 else ''
+                sale_status_text = row[2].strip() if len(row) > 2 else ''
+                
+                logger.info(f"无表头处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}")
+                
+                if not key_value or not sale_status_text:
+                    skip_count += 1
+                    continue
+                
+                sale_status = status_map.get(sale_status_text)
+                if not sale_status:
+                    invalid_status_count += 1
+                    logger.warning(f"无效的销售状态: {sale_status_text}")
+                    continue
+                
+                # 查找卡密
+                find_response = client.table('card_keys_table').select('id, status').eq('key_value', key_value).execute()
+                if not find_response.data:
+                    not_found.append(key_value)
+                    continue
+                
+                card = find_response.data[0]
+                card_id = card['id']
+                current_status = card['status']
+                
+                # 准备更新数据
+                update_data = {
+                    'sale_status': sale_status,
+                    'order_id': order_id or None
+                }
+                
+                # 已售出时记录时间
+                if sale_status == 'sold':
+                    update_data['sold_at'] = datetime.now().isoformat()
+                
+                # 已退款/有纠纷时自动停用
+                if sale_status in ['refunded', 'disputed'] and current_status == 1:
+                    update_data['status'] = 0
+                    deactivated_count += 1
+                
+                # 更新卡密
+                client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
+                updated_count += 1
+        else:
+            for row in reader:
+                # 使用标准化列名获取数据
+                raw_key = row.get(field_map.get('卡密', '卡密'), '') or row.get('卡密', '')
+                raw_order = row.get(field_map.get('订单号', '订单号'), '') or row.get('订单号', '')
+                raw_status = row.get(field_map.get('销售状态', '销售状态'), '') or row.get('销售状态', '')
+                
+                key_value = raw_key.strip().upper()
+                order_id = raw_order.strip()
+                sale_status_text = raw_status.strip()
+                
+                logger.info(f"处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}")
+                
+                if not key_value or not sale_status_text:
+                    skip_count += 1
+                    logger.info(f"跳过空数据行: key_value={key_value}, sale_status_text={sale_status_text}")
+                    continue
+                
+                sale_status = status_map.get(sale_status_text)
+                if not sale_status:
+                    invalid_status_count += 1
+                    logger.warning(f"无效的销售状态: {sale_status_text}")
+                    continue
+                
+                # 查找卡密
+                find_response = client.table('card_keys_table').select('id, status').eq('key_value', key_value).execute()
+                if not find_response.data:
+                    not_found.append(key_value)
+                    continue
+                
+                card = find_response.data[0]
+                card_id = card['id']
+                current_status = card['status']
+                
+                # 准备更新数据
+                update_data = {
+                    'sale_status': sale_status,
+                    'order_id': order_id or None
+                }
+                
+                # 已售出时记录时间
+                if sale_status == 'sold':
+                    update_data['sold_at'] = datetime.now().isoformat()
+                
+                # 已退款/有纠纷时自动停用
+                if sale_status in ['refunded', 'disputed'] and current_status == 1:
+                    update_data['status'] = 0  # 停用
+                    deactivated_count += 1
+                
+                # 更新卡密
+                client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
+                updated_count += 1
         
         result_msg = f"成功更新 {updated_count} 条记录"
         if deactivated_count > 0:
