@@ -489,11 +489,11 @@
                     saveSession(cardKey, data.url, data.password);
                 }
                 showSuccess(data.url, data.password);
-                return true;
+                return { success: true };
             } else {
                 // 验证失败，清除本地会话
                 clearSession();
-                return false;
+                return { success: false, msg: data.msg || '验证失败' };
             }
         }
 
@@ -504,8 +504,8 @@
             if (session) {
                 // 有本地会话，尝试验证
                 try {
-                    const valid = await validateCardKey(session.cardKey, false);
-                    if (!valid) {
+                    const result = await validateCardKey(session.cardKey, false);
+                    if (!result.success) {
                         // 卡密已失效，显示验证页面
                         showValidate();
                     }
@@ -539,9 +539,9 @@
             setLoading(true);
 
             try {
-                const valid = await validateCardKey(cardKey, true);
-                if (!valid) {
-                    showError(data.msg || '验证失败');
+                const result = await validateCardKey(cardKey, true);
+                if (!result.success) {
+                    showError(result.msg);
                 }
             } catch (err) {
                 showError('验证失败，请稍后重试');
