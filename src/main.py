@@ -1038,12 +1038,12 @@ async def download_sale_status_template():
         writer = csv.writer(output)
         
         # 模板表头
-        writer.writerow(['卡密', '订单号', '销售状态'])
+        writer.writerow(['卡密', '订单号', '销售状态', '销售渠道'])
         # 示例行 - 包含所有销售状态
-        writer.writerow(['CSS-XXXX-XXXX-XXXX', '', '未售出'])
-        writer.writerow(['CSS-YYYY-YYYY-YYYY', 'ORDER123456', '已售出'])
-        writer.writerow(['CSS-ZZZZ-ZZZZ-ZZZZ', 'ORDER789012', '已退款'])
-        writer.writerow(['CSS-WWWW-WWWW-WWWW', 'ORDER111222', '有纠纷'])
+        writer.writerow(['CSS-XXXX-XXXX-XXXX', '', '未售出', ''])
+        writer.writerow(['CSS-YYYY-YYYY-YYYY', 'ORDER123456', '已售出', '小红书'])
+        writer.writerow(['CSS-ZZZZ-ZZZZ-ZZZZ', 'ORDER789012', '已退款', '淘宝'])
+        writer.writerow(['CSS-WWWW-WWWW-WWWW', 'ORDER111222', '有纠纷', '抖音'])
         
         output.seek(0)
         # UTF-8 BOM + 内容，确保 Excel 正确识别中文编码
@@ -1066,8 +1066,8 @@ async def download_sale_status_template():
 @app.post("/api/admin/cards/import-sale-status")
 async def import_sale_status(file: UploadFile = File(...)):
     """
-    批量导入销售状态
-    - 读取CSV文件，匹配卡密更新销售状态
+    批量导入销售状态和销售渠道
+    - 读取CSV文件，匹配卡密更新销售状态和销售渠道
     - 已退款/有纠纷的卡密自动停用
     """
     try:
@@ -1133,8 +1133,9 @@ async def import_sale_status(file: UploadFile = File(...)):
                 key_value = row[0].strip().upper()
                 order_id = row[1].strip() if len(row) > 1 else ''
                 sale_status_text = row[2].strip() if len(row) > 2 else ''
+                sales_channel = row[3].strip() if len(row) > 3 else ''
                 
-                logger.info(f"无表头处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}")
+                logger.info(f"无表头处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}, 销售渠道={sales_channel}")
                 
                 if not key_value or not sale_status_text:
                     skip_count += 1
@@ -1162,6 +1163,10 @@ async def import_sale_status(file: UploadFile = File(...)):
                     'order_id': order_id or None
                 }
                 
+                # 销售渠道（如果有）
+                if sales_channel:
+                    update_data['sales_channel'] = sales_channel
+                
                 # 已售出时记录时间
                 if sale_status == 'sold':
                     update_data['sold_at'] = datetime.now().isoformat()
@@ -1180,12 +1185,14 @@ async def import_sale_status(file: UploadFile = File(...)):
                 raw_key = row.get(field_map.get('卡密', '卡密'), '') or row.get('卡密', '')
                 raw_order = row.get(field_map.get('订单号', '订单号'), '') or row.get('订单号', '')
                 raw_status = row.get(field_map.get('销售状态', '销售状态'), '') or row.get('销售状态', '')
+                raw_channel = row.get(field_map.get('销售渠道', '销售渠道'), '') or row.get('销售渠道', '')
                 
                 key_value = raw_key.strip().upper()
                 order_id = raw_order.strip()
                 sale_status_text = raw_status.strip()
+                sales_channel = raw_channel.strip()
                 
-                logger.info(f"处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}")
+                logger.info(f"处理行: 卡密={key_value}, 订单号={order_id}, 销售状态={sale_status_text}, 销售渠道={sales_channel}")
                 
                 if not key_value or not sale_status_text:
                     skip_count += 1
@@ -1213,6 +1220,10 @@ async def import_sale_status(file: UploadFile = File(...)):
                     'sale_status': sale_status,
                     'order_id': order_id or None
                 }
+                
+                # 销售渠道（如果有）
+                if sales_channel:
+                    update_data['sales_channel'] = sales_channel
                 
                 # 已售出时记录时间
                 if sale_status == 'sold':
