@@ -200,11 +200,18 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密使用次数已达上限")
             return ValidateResponse(can_access=False, msg="卡密使用次数已达上限")
 
-        # 验证成功 - 更新使用次数
-        client.table('card_keys_table').update({
-            "used_count": used_count + 1,
+        # 验证成功 - 更新使用次数和状态
+        new_used_count = used_count + 1
+        update_data = {
+            "used_count": new_used_count,
             "last_used_at": datetime.now().isoformat()
-        }).eq('id', card_id).execute()
+        }
+        
+        # 如果达到最大使用次数，自动将状态设为无效
+        if new_used_count >= max_uses:
+            update_data["status"] = 0
+        
+        client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
 
         # 记录成功日志
         log_access(client, card_id, card_key, ip_address, user_agent, True, "验证成功")

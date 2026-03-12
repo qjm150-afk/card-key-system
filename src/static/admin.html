@@ -824,16 +824,22 @@
         // 加载统计
         async function loadStats() {
             try {
-                const response = await fetch('/api/admin/cards?page=1&page_size=1');
+                const response = await fetch('/api/admin/cards?page=1&page_size=100');
                 const result = await response.json();
                 
                 if (result.success) {
-                    document.getElementById('statTotal').textContent = result.total || 0;
+                    const allCards = result.data || [];
+                    const total = result.total || 0;
                     
-                    // 获取有效数量
-                    const activeResponse = await fetch('/api/admin/cards?page=1&page_size=1&status=1');
-                    const activeResult = await activeResponse.json();
-                    document.getElementById('statActive').textContent = activeResult.total || 0;
+                    // 有效卡密：status=1 且未过期
+                    const activeCards = allCards.filter(c => c.status === 1);
+                    
+                    // 已使用卡密：used_count > 0
+                    const usedCards = allCards.filter(c => c.used_count > 0);
+                    
+                    document.getElementById('statTotal').textContent = total;
+                    document.getElementById('statActive').textContent = activeCards.length;
+                    document.getElementById('statUsed').textContent = usedCards.length;
                 }
             } catch (error) {
                 console.error('加载统计失败:', error);
