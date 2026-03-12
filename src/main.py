@@ -215,7 +215,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     - 检查状态是否有效
     - 检查是否过期
     - 检查设备数量限制（最多5台）
-    - 记录访问日志
+    - 记录访问日志（含行为数据）
     """
     client = None
     card_key = request.card_key.strip().upper()
@@ -240,10 +240,17 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         card_data = response.data[0]
         card_id = card_data.get('id')
+        sales_channel = card_data.get('sales_channel', '')
+        
+        # 检查是否首次访问（该卡密是否有成功访问记录）
+        is_first_access = False
+        existing_logs = client.table('access_logs').select('id').eq('key_value', card_key).eq('success', True).limit(1).execute()
+        if not existing_logs.data:
+            is_first_access = True
 
         # 检查状态 (1=有效, 0=无效)
         if card_data.get('status') != 1:
-            log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已失效", device_id)
+            log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已失效", device_id, sales_channel, is_first_access)
             return ValidateResponse(can_access=False, msg="卡密已失效")
 
         # 检查过期时间
@@ -251,7 +258,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if expire_at:
             expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
             if datetime.now(expire_time.tzinfo) > expire_time:
-                log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已过期", device_id)
+                log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已过期", device_id, sales_channel, is_first_access)
                 return ValidateResponse(can_access=False, msg="卡密已过期")
 
         # 检查设备限制（最多5台设备）
@@ -269,7 +276,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if not device_already_bound:
             # 新设备，检查是否达到设备限制
             if len(bound_devices) >= max_devices:
-                log_access(client, card_id, card_key, ip_address, user_agent, False, f"设备数量已达上限({max_devices}台)", device_id)
+                log_access(client, card_id, card_key, ip_address, user_agent, False, f"设备数量已达上限({max_devices}台)", device_id, sales_channel, is_first_access)
                 return ValidateResponse(can_access=False, msg=f"该卡密已在{max_devices}台设备上使用，无法在新设备登录")
             
             # 添加新设备
@@ -284,13 +291,13 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
                 "last_used_at": datetime.now().isoformat()
             }).eq('id', card_id).execute()
 
-        # 记录成功日志
-        log_access(client, card_id, card_key, ip_address, user_agent, True, "验证成功", device_id)
+        # 记录成功日志（含行为数据）
+        log_access(client, card_id, card_key, ip_address, user_agent, True, "验证成功", device_id, sales_channel, is_first_access)
 
         feishu_url = card_data.get('feishu_url', '')
         feishu_password = card_data.get('feishu_password', '')
 
-        logger.info(f"验证成功: {card_key}, 设备: {device_id}, 已绑定设备数: {len(bound_devices)}")
+        logger.info(f"验证成功: {card_key}, 设备: {device_id}, 已绑定设备数: {len(bound_devices)}, 首次访问: {is_first_access}")
 
         return ValidateResponse(
             can_access=True,
@@ -306,18 +313,92 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         return ValidateResponse(can_access=False, msg="系统错误，请稍后重试")
 
 
-def log_access(client, card_key_id, key_value, ip_address, user_agent, success, error_msg, device_id=None):
-    """记录访问日志"""
+def parse_device_type(user_agent: str) -> str:
+    """解析设备类型"""
+    ua = user_agent.lower()
+    if 'mobile' in ua or 'android' in ua or 'iphone' in ua or 'ipad' in ua:
+        if 'ipad' in ua or 'tablet' in ua:
+            return 'Tablet'
+        return 'Mobile'
+    return 'PC'
+
+
+def get_ip_province(ip_address: str) -> str:
+    """根据IP获取省份（脱敏处理）"""
+    # 简单的IP归属地查询（可替换为专业IP库）
+    # 这里返回空字符串，实际使用时可以接入IP库
+    # 注意：IP地址属于个人信息，只保留省级别符合最小必要原则
     try:
-        client.table('access_logs').insert({
+        if not ip_address or ip_address in ['127.0.0.1', 'localhost', '::1']:
+            return '本地'
+        
+        # IPv6 本地地址
+        if ip_address.startswith('fe80:') or ip_address.startswith('::'):
+            return '本地'
+        
+        # 实际项目中可以接入IP库，这里暂时返回空
+        # 接入IP库示例：
+        # import requests
+        # resp = requests.get(f'http://ip-api.com/json/{ip_address}?lang=zh-CN', timeout=2)
+        # data = resp.json()
+        # return data.get('regionName', '')[:20]  # 截断防止过长
+        
+        return ''
+    except Exception as e:
+        logger.error(f"IP解析失败: {str(e)}")
+        return ''
+
+
+def log_access(client, card_key_id, key_value, ip_address, user_agent, success, error_msg, device_id=None, sales_channel=None, is_first_access=False):
+    """记录访问日志（增强版，采集更多行为数据）
+    
+    注意：新增字段需要先执行数据库迁移脚本 src/migrations/001_add_analytics_fields.sql
+    如果字段不存在，会自动降级到基本字段插入
+    """
+    try:
+        now = datetime.now()
+        
+        # 解析设备类型
+        device_type = parse_device_type(user_agent)
+        
+        # 获取IP所属省份（脱敏）
+        ip_province = get_ip_province(ip_address)
+        
+        # 基本日志数据（原有字段，始终可用）
+        basic_log_data = {
             "card_key_id": card_key_id,
             "key_value": key_value,
-            "ip_address": ip_address,
-            "user_agent": user_agent,
+            "ip_address": ip_address,  # 完整IP存储用于问题排查，展示时脱敏
+            "user_agent": user_agent[:500] if user_agent else '',
             "success": success,
             "error_msg": error_msg if not success else None,
-            "access_time": datetime.now().isoformat()
-        }).execute()
+            "access_time": now.isoformat(),
+        }
+        
+        # 尝试插入完整数据（包含新字段）
+        full_log_data = {
+            **basic_log_data,
+            "access_date": now.strftime('%Y-%m-%d'),
+            "access_hour": now.hour,
+            "device_type": device_type,
+            "ip_province": ip_province,
+            "is_first_access": is_first_access,
+            "sales_channel": sales_channel
+        }
+        
+        try:
+            client.table('access_logs').insert(full_log_data).execute()
+            logger.info(f"访问日志记录成功（完整数据）: {key_value}")
+        except Exception as insert_error:
+            # 如果插入失败（可能是新字段不存在），回退到基本字段
+            error_msg_str = str(insert_error)
+            if 'does not exist' in error_msg_str or 'column' in error_msg_str.lower():
+                logger.warning(f"新字段不存在，回退到基本字段插入: {error_msg_str}")
+                client.table('access_logs').insert(basic_log_data).execute()
+                logger.info(f"访问日志记录成功（基本数据）: {key_value}")
+            else:
+                raise insert_error  # 其他错误继续抛出
+                
     except Exception as e:
         logger.error(f"记录日志失败: {str(e)}")
 
@@ -1587,6 +1668,269 @@ async def admin_logout(response: JSONResponse):
     """管理员登出"""
     response.delete_cookie("admin_token")
     return {"success": True}
+
+
+# ==================== 行为数据上报 API ====================
+
+class SessionReport(BaseModel):
+    """会话上报请求"""
+    card_key: str
+    session_duration: int  # 停留时长（秒）
+    content_loaded: bool  # 内容是否加载成功
+    session_id: Optional[str] = None  # 会话ID
+
+
+@app.post("/api/report/session")
+async def report_session(request: SessionReport):
+    """
+    上报会话行为数据
+    - 停留时长
+    - 内容加载状态
+    """
+    try:
+        client = get_supabase_client()
+        
+        card_key = request.card_key.strip().upper()
+        
+        # 更新最近一条访问日志
+        # 查找该卡密最近的成功访问记录
+        recent_log = client.table('access_logs').select('id').eq('key_value', card_key).eq('success', True).order('access_time', desc=True).limit(1).execute()
+        
+        if recent_log.data:
+            log_id = recent_log.data[0]['id']
+            update_data = {}
+            
+            if request.session_duration and request.session_duration > 0:
+                update_data['session_duration'] = min(request.session_duration, 86400)  # 最大24小时
+            
+            if request.content_loaded is not None:
+                update_data['content_loaded'] = request.content_loaded
+            
+            if request.session_id:
+                update_data['session_id'] = request.session_id[:64]
+            
+            if update_data:
+                client.table('access_logs').update(update_data).eq('id', log_id).execute()
+                logger.info(f"上报会话数据: 卡密={card_key}, 时长={request.session_duration}s, 内容加载={request.content_loaded}")
+        
+        return {"success": True}
+        
+    except Exception as e:
+        logger.error(f"上报会话数据失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+# ==================== 数据分析统计 API ====================
+
+@app.get("/api/admin/analytics/overview")
+async def get_analytics_overview(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """获取数据分析概览
+    
+    注意：完整统计需要先执行数据库迁移脚本 src/migrations/001_add_analytics_fields.sql
+    如果新字段不存在，会使用 access_time 字段进行基础统计
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 默认最近7天
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        
+        # 尝试使用 access_date 字段查询（新字段）
+        try:
+            logs_response = client.table('access_logs').select('*').gte('access_date', start_date).lte('access_date', end_date).execute()
+            logs = logs_response.data or []
+        except Exception:
+            # 如果 access_date 字段不存在，使用 access_time 字段
+            logger.warning("access_date 字段不存在，使用 access_time 字段进行日期过滤")
+            start_datetime = f"{start_date}T00:00:00"
+            end_datetime = f"{end_date}T23:59:59"
+            logs_response = client.table('access_logs').select('*').gte('access_time', start_datetime).lte('access_time', end_datetime).execute()
+            logs = logs_response.data or []
+        
+        # 基础统计
+        total_visits = len(logs)
+        success_visits = len([l for l in logs if l.get('success')])
+        
+        # 计算平均停留时长（如果字段存在）
+        durations = [l.get('session_duration', 0) for l in logs if l.get('session_duration')]
+        avg_duration = sum(durations) / len(durations) if durations else 0
+        
+        # 新用户占比（如果字段存在）
+        first_access_count = len([l for l in logs if l.get('is_first_access')])
+        new_user_ratio = first_access_count / total_visits if total_visits > 0 else 0
+        
+        # 内容加载成功率（如果字段存在）
+        content_loaded_logs = [l for l in logs if l.get('content_loaded') is not None]
+        content_success = len([l for l in content_loaded_logs if l.get('content_loaded')])
+        content_success_rate = content_success / len(content_loaded_logs) if content_loaded_logs else 0
+        
+        # 设备分布（如果字段存在）
+        device_dist = {}
+        for log in logs:
+            dt = log.get('device_type') or 'Unknown'
+            device_dist[dt] = device_dist.get(dt, 0) + 1
+        
+        # 时段分布（如果字段存在）
+        hour_dist = {}
+        for log in logs:
+            hour = log.get('access_hour')
+            if hour is not None:
+                hour_dist[hour] = hour_dist.get(hour, 0) + 1
+        
+        return {
+            "success": True,
+            "data": {
+                "total_visits": total_visits,
+                "success_visits": success_visits,
+                "success_rate": success_visits / total_visits if total_visits > 0 else 0,
+                "avg_duration": round(avg_duration),
+                "new_user_ratio": round(new_user_ratio, 2),
+                "content_success_rate": round(content_success_rate, 2),
+                "device_distribution": device_dist,
+                "hour_distribution": hour_dist
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取分析概览失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/analytics/channels")
+async def get_analytics_channels(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """获取渠道效果分析
+    
+    注意：完整统计需要先执行数据库迁移脚本 src/migrations/001_add_analytics_fields.sql
+    如果新字段不存在，会使用 access_time 字段进行基础统计
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 默认最近7天
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        
+        # 尝试使用 access_date 字段查询（新字段）
+        try:
+            logs_response = client.table('access_logs').select('*').gte('access_date', start_date).lte('access_date', end_date).execute()
+            logs = logs_response.data or []
+        except Exception:
+            # 如果 access_date 字段不存在，使用 access_time 字段
+            logger.warning("access_date 字段不存在，使用 access_time 字段进行日期过滤")
+            start_datetime = f"{start_date}T00:00:00"
+            end_datetime = f"{end_date}T23:59:59"
+            logs_response = client.table('access_logs').select('*').gte('access_time', start_datetime).lte('access_time', end_datetime).execute()
+            logs = logs_response.data or []
+        
+        # 按渠道分组统计
+        channel_stats = {}
+        for log in logs:
+            channel = log.get('sales_channel') or '未知渠道'
+            if channel not in channel_stats:
+                channel_stats[channel] = {
+                    'visits': 0,
+                    'success': 0,
+                    'first_access': 0,
+                    'total_duration': 0,
+                    'duration_count': 0
+                }
+            
+            channel_stats[channel]['visits'] += 1
+            if log.get('success'):
+                channel_stats[channel]['success'] += 1
+            if log.get('is_first_access'):
+                channel_stats[channel]['first_access'] += 1
+            if log.get('session_duration'):
+                channel_stats[channel]['total_duration'] += log.get('session_duration', 0)
+                channel_stats[channel]['duration_count'] += 1
+        
+        # 计算各渠道指标
+        result = []
+        for channel, stats in channel_stats.items():
+            result.append({
+                'channel': channel,
+                'visits': stats['visits'],
+                'success': stats['success'],
+                'success_rate': round(stats['success'] / stats['visits'], 2) if stats['visits'] > 0 else 0,
+                'first_access': stats['first_access'],
+                'avg_duration': round(stats['total_duration'] / stats['duration_count']) if stats['duration_count'] > 0 else 0
+            })
+        
+        # 按访问量排序
+        result.sort(key=lambda x: x['visits'], reverse=True)
+        
+        return {
+            "success": True,
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"获取渠道分析失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/analytics/provinces")
+async def get_analytics_provinces(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None
+):
+    """获取地域分布分析（省级别）
+    
+    注意：完整统计需要先执行数据库迁移脚本 src/migrations/001_add_analytics_fields.sql
+    如果新字段不存在，会使用 access_time 字段进行基础统计
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 默认最近7天
+        if not end_date:
+            end_date = datetime.now().strftime('%Y-%m-%d')
+        if not start_date:
+            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+        
+        # 尝试使用 access_date 字段查询（新字段）
+        try:
+            logs_response = client.table('access_logs').select('*').gte('access_date', start_date).lte('access_date', end_date).execute()
+            logs = logs_response.data or []
+        except Exception:
+            # 如果 access_date 字段不存在，使用 access_time 字段
+            logger.warning("access_date 字段不存在，使用 access_time 字段进行日期过滤")
+            start_datetime = f"{start_date}T00:00:00"
+            end_datetime = f"{end_date}T23:59:59"
+            logs_response = client.table('access_logs').select('*').gte('access_time', start_datetime).lte('access_time', end_datetime).execute()
+            logs = logs_response.data or []
+        
+        # 按省份分组统计
+        province_stats = {}
+        for log in logs:
+            province = log.get('ip_province') or '未知'
+            if province not in province_stats:
+                province_stats[province] = 0
+            province_stats[province] += 1
+        
+        # 转换为列表并排序
+        result = [{'province': k, 'visits': v} for k, v in province_stats.items()]
+        result.sort(key=lambda x: x['visits'], reverse=True)
+        
+        return {
+            "success": True,
+            "data": result[:20]  # 返回前20个省份
+        }
+        
+    except Exception as e:
+        logger.error(f"获取地域分析失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
 
 
 @app.get("/api/admin/check-auth")

@@ -274,6 +274,16 @@
             min-height: 0;
         }
 
+        /* 隐私提示 */
+        .privacy-notice {
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 12px;
+            color: #8B7355;
+            background: linear-gradient(to right, rgba(255, 248, 240, 0.8), rgba(255, 252, 248, 0.8));
+            border-top: 1px solid rgba(210, 180, 140, 0.2);
+        }
+
         /* 协作者头像悬浮层 - 右上角，与飞书用户头像对齐 */
         .collaborators-overlay {
             position: absolute;
@@ -462,6 +472,11 @@
         </div>
         
         <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
+        
+        <!-- 隐私提示 -->
+        <div class="privacy-notice">
+            为保障服务质量，系统会记录访问时间、设备类型等信息，我们承诺保护您的隐私安全
+        </div>
     </div>
 
     <script>
@@ -548,6 +563,114 @@
             
             // 初始化协作者头像
             initCollaborators();
+            
+            // 开始追踪会话行为数据
+            startSessionTracking();
+        }
+        
+        // ==================== 会话行为数据追踪 ====================
+        
+        let sessionStartTime = null;
+        let sessionId = null;
+        let hasReported = false;
+        
+        // 生成会话ID
+        function generateSessionId() {
+            return 's_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        // 开始追踪会话
+        function startSessionTracking() {
+            sessionStartTime = Date.now();
+            sessionId = generateSessionId();
+            hasReported = false;
+            
+            // 监听iframe加载状态
+            feishuFrame.onload = function() {
+                reportContentLoaded(true);
+            };
+            
+            feishuFrame.onerror = function() {
+                reportContentLoaded(false);
+            };
+            
+            // 页面关闭时上报（如果还没上报）
+            window.addEventListener('beforeunload', handleBeforeUnload);
+            
+            // 页面隐藏时也可能上报
+            document.addEventListener('visibilitychange', handleVisibilityChange);
+        }
+        
+        // 处理页面关闭
+        function handleBeforeUnload() {
+            if (!hasReported) {
+                reportSessionData();
+            }
+        }
+        
+        // 处理页面可见性变化
+        function handleVisibilityChange() {
+            if (document.visibilityState === 'hidden' && !hasReported) {
+                // 页面隐藏时，如果停留超过10秒，认为是一次有效访问
+                const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+                if (duration >= 10) {
+                    reportSessionData();
+                }
+            }
+        }
+        
+        // 上报内容加载状态
+        async function reportContentLoaded(loaded) {
+            try {
+                const session = getLocalSession();
+                if (!session || !session.cardKey) return;
+                
+                // 使用 sendBeacon 确保数据发送
+                const data = {
+                    card_key: session.cardKey,
+                    session_duration: Math.floor((Date.now() - sessionStartTime) / 1000),
+                    content_loaded: loaded,
+                    session_id: sessionId
+                };
+                
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/api/report/session', JSON.stringify(data));
+                }
+            } catch (e) {
+                console.error('上报内容加载状态失败', e);
+            }
+        }
+        
+        // 上报会话数据
+        function reportSessionData() {
+            try {
+                const session = getLocalSession();
+                if (!session || !session.cardKey) return;
+                
+                const duration = Math.floor((Date.now() - sessionStartTime) / 1000);
+                
+                const data = {
+                    card_key: session.cardKey,
+                    session_duration: duration,
+                    content_loaded: true,  // 能到这里说明内容已加载
+                    session_id: sessionId
+                };
+                
+                // 使用 sendBeacon 确保页面关闭时也能发送
+                if (navigator.sendBeacon) {
+                    navigator.sendBeacon('/api/report/session', JSON.stringify(data));
+                } else {
+                    // 降级使用 XMLHttpRequest
+                    const xhr = new XMLHttpRequest();
+                    xhr.open('POST', '/api/report/session', false);  // 同步请求
+                    xhr.setRequestHeader('Content-Type', 'application/json');
+                    xhr.send(JSON.stringify(data));
+                }
+                
+                hasReported = true;
+            } catch (e) {
+                console.error('上报会话数据失败', e);
+            }
         }
 
         // ==================== 协作者头像效果 ====================
