@@ -836,6 +836,8 @@
         let logPageSize = 50;
 
         // 初始化
+        let refreshInterval = null;
+
         document.addEventListener('DOMContentLoaded', () => {
             loadCards();
             loadStats();
@@ -843,7 +845,31 @@
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchCards();
             });
+            
+            // 启动定时刷新（每30秒刷新一次）
+            startAutoRefresh();
         });
+
+        // 启动自动刷新
+        function startAutoRefresh() {
+            // 清除之前的定时器
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            // 每30秒刷新数据
+            refreshInterval = setInterval(() => {
+                loadCards();
+                loadStats();
+            }, 30000);
+        }
+
+        // 停止自动刷新
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
 
         // 切换标签页
         function switchTab(tab) {

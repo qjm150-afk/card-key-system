@@ -318,6 +318,68 @@
         const passwordInfo = document.getElementById('passwordInfo');
         const passwordValue = document.getElementById('passwordValue');
 
+        // 会话过期时间（30天）
+        const SESSION_EXPIRE_DAYS = 30;
+        const STORAGE_KEY = 'card_key_session';
+
+        // 保存会话到 localStorage
+        function saveSession(cardKey, url, password) {
+            const session = {
+                cardKey: cardKey,
+                url: url,
+                password: password || '',
+                expireAt: Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+        }
+
+        // 获取本地会话
+        function getLocalSession() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (!data) return null;
+                
+                const session = JSON.parse(data);
+                
+                // 检查是否过期
+                if (Date.now() > session.expireAt) {
+                    localStorage.removeItem(STORAGE_KEY);
+                    return null;
+                }
+                
+                return session;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // 清除会话
+        function clearSession() {
+            localStorage.removeItem(STORAGE_KEY);
+        }
+
+        // 显示成功页面
+        function showSuccess(url, password) {
+            document.body.classList.remove('validate-mode');
+            document.body.classList.add('success-mode');
+            validatePage.style.display = 'none';
+            successPage.style.display = 'flex';
+            feishuFrame.src = url;
+            
+            if (password) {
+                passwordValue.textContent = password;
+                passwordInfo.style.display = 'block';
+            }
+        }
+
+        // 显示验证页面
+        function showValidate() {
+            document.body.classList.add('validate-mode');
+            document.body.classList.remove('success-mode');
+            validatePage.style.display = 'flex';
+            successPage.style.display = 'none';
+        }
+
         // 自动格式化输入（支持 CSS-XXXX-XXXX-XXXX 格式）
         cardKeyInput.addEventListener('input', function(e) {
             let value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -355,6 +417,53 @@
             }
         }
 
+        // 验证卡密
+        async function validateCardKey(cardKey, saveSessionFlag = true) {
+            const response = await fetch('/api/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ card_key: cardKey }),
+            });
+
+            const data = await response.json();
+
+            if (data.can_access) {
+                if (saveSessionFlag) {
+                    saveSession(cardKey, data.url, data.password);
+                }
+                showSuccess(data.url, data.password);
+                return true;
+            } else {
+                // 验证失败，清除本地会话
+                clearSession();
+                return false;
+            }
+        }
+
+        // 页面加载时检查本地会话
+        async function checkSession() {
+            const session = getLocalSession();
+            
+            if (session) {
+                // 有本地会话，尝试验证
+                try {
+                    const valid = await validateCardKey(session.cardKey, false);
+                    if (!valid) {
+                        // 卡密已失效，显示验证页面
+                        showValidate();
+                    }
+                } catch (err) {
+                    // 网络错误，使用本地缓存的 URL
+                    showSuccess(session.url, session.password);
+                }
+            } else {
+                // 没有本地会话，显示验证页面
+                showValidate();
+            }
+        }
+
         // 表单提交
         form.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -375,31 +484,8 @@
             setLoading(true);
 
             try {
-                const response = await fetch('/api/validate', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ card_key: cardKey }),
-                });
-
-                const data = await response.json();
-
-                if (data.can_access) {
-                    // 切换到成功模式（全屏显示）
-                    document.body.classList.remove('validate-mode');
-                    document.body.classList.add('success-mode');
-                    
-                    // 显示成功页面
-                    validatePage.style.display = 'none';
-                    successPage.style.display = 'flex';
-                    feishuFrame.src = data.url;
-                    
-                    if (data.password) {
-                        passwordValue.textContent = data.password;
-                        passwordInfo.style.display = 'block';
-                    }
-                } else {
+                const valid = await validateCardKey(cardKey, true);
+                if (!valid) {
                     showError(data.msg || '验证失败');
                 }
             } catch (err) {
@@ -408,6 +494,9 @@
                 setLoading(false);
             }
         });
+
+        // 页面加载时检查会话
+        document.addEventListener('DOMContentLoaded', checkSession);
     </script>
 </body>
 </html>
