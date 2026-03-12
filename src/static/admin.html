@@ -568,6 +568,37 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* 复选框标签 */
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #5D4E37;
+            padding: 12px;
+            background-color: #FFFAF5;
+            border-radius: 8px;
+            border: 1px solid #F5E6D3;
+            transition: all 0.2s;
+        }
+
+        .checkbox-label:hover {
+            background-color: #FFF5EB;
+            border-color: #E8D5C4;
+        }
+
+        .checkbox-label input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #D4A574;
+        }
+
+        .checkbox-label span {
+            user-select: none;
+        }
     </style>
 </head>
 <body>
@@ -777,6 +808,12 @@
                     <div class="form-group">
                         <label>备注</label>
                         <input type="text" class="form-input" id="generateNote" placeholder="可选">
+                    </div>
+                    <div class="form-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="generateAndExport" checked>
+                            <span>生成后自动导出（适配阿奇索发货）</span>
+                        </label>
                     </div>
                 </form>
             </div>
@@ -1132,6 +1169,8 @@
 
         // 批量生成卡密
         async function generateCards() {
+            const shouldExport = document.getElementById('generateAndExport').checked;
+            
             const data = {
                 count: parseInt(document.getElementById('generateCount').value) || 10,
                 prefix: document.getElementById('generatePrefix').value || 'CSS',
@@ -1161,6 +1200,13 @@
                     closeBatchGenerateModal();
                     loadCards();
                     loadStats();
+                    
+                    // 如果勾选了导出，自动下载 CSV
+                    if (shouldExport && result.data && result.data.length > 0) {
+                        const ids = result.data.map(card => card.id).join(',');
+                        const exportUrl = `/api/admin/cards/export?format=csv&ids=${ids}`;
+                        window.open(exportUrl, '_blank');
+                    }
                 } else {
                     showToast(result.msg, 'error');
                 }
