@@ -486,9 +486,11 @@ async def download_sale_status_template():
         
         # 模板表头
         writer.writerow(['卡密', '订单号', '销售状态'])
-        # 示例行
-        writer.writerow(['CSS-XXXX-XXXX-XXXX', 'ORDER123456', '已售出'])
-        writer.writerow(['CSS-YYYY-YYYY-YYYY', 'ORDER789012', '已退款'])
+        # 示例行 - 包含所有销售状态
+        writer.writerow(['CSS-XXXX-XXXX-XXXX', '', '未售出'])
+        writer.writerow(['CSS-YYYY-YYYY-YYYY', 'ORDER123456', '已售出'])
+        writer.writerow(['CSS-ZZZZ-ZZZZ-ZZZZ', 'ORDER789012', '已退款'])
+        writer.writerow(['CSS-WWWW-WWWW-WWWW', 'ORDER111222', '有纠纷'])
         
         output.seek(0)
         # UTF-8 BOM + 内容，确保 Excel 正确识别中文编码
