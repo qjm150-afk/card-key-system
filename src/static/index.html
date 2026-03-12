@@ -274,6 +274,30 @@
             min-height: 0;
         }
 
+        /* iframe 容器 */
+        .iframe-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .iframe-container .feishu-frame {
+            height: 100%;
+            width: 100%;
+        }
+
+        /* 飞书底部操作栏遮罩 */
+        .feishu-bottom-mask {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(to top, rgba(255, 248, 240, 1) 0%, rgba(255, 248, 240, 0.95) 50%, transparent 100%);
+            pointer-events: none;
+            z-index: 10;
+        }
+
         /* 隐私提示 */
         .privacy-notice {
             padding: 12px 20px;
@@ -471,7 +495,11 @@
             <span class="collaborators-count" id="collaboratorsCount">正在查看...</span>
         </div>
         
-        <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
+        <div class="iframe-container">
+            <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
+            <!-- 飞书底部操作栏遮罩 -->
+            <div class="feishu-bottom-mask"></div>
+        </div>
         
         <!-- 隐私提示 -->
         <div class="privacy-notice">
