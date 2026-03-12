@@ -284,6 +284,61 @@ async def get_card_keys(
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/cards/export")
+async def export_cards(
+    ids: Optional[str] = None,
+    status: Optional[int] = None,
+    format: str = "csv"
+):
+    """
+    导出卡密
+    - ids: 逗号分隔的ID列表，不传则导出全部
+    - format: csv 或 txt
+    - 适配阿奇索平台格式（卡号,密码）
+    """
+    try:
+        client = get_supabase_client()
+        
+        query = client.table('card_keys_table').select('key_value,feishu_password,status,user_note')
+        
+        if ids:
+            id_list = [int(x) for x in ids.split(',')]
+            query = query.in_('id', id_list)
+        elif status is not None:
+            query = query.eq('status', status)
+        
+        response = query.order('id', desc=True).execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "没有可导出的数据"}
+        
+        # 生成 CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # 阿奇索格式：卡号,密码（无表头）
+        for card in response.data:
+            writer.writerow([
+                card['key_value'],
+                card['feishu_password'] or ''
+            ])
+        
+        output.seek(0)
+        
+        # 返回文件流
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=cards_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"导出卡密失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/admin/cards/{card_id}")
 async def get_card_key(card_id: int):
     """获取单个卡密"""
@@ -395,61 +450,6 @@ async def batch_generate_cards(req: BatchGenerateRequest):
         
     except Exception as e:
         logger.error(f"批量生成卡密失败: {str(e)}")
-        return {"success": False, "msg": str(e)}
-
-
-@app.get("/api/admin/cards/export")
-async def export_cards(
-    ids: Optional[str] = None,
-    status: Optional[int] = None,
-    format: str = "csv"
-):
-    """
-    导出卡密
-    - ids: 逗号分隔的ID列表，不传则导出全部
-    - format: csv 或 txt
-    - 适配阿奇索平台格式（卡号,密码）
-    """
-    try:
-        client = get_supabase_client()
-        
-        query = client.table('card_keys_table').select('key_value,feishu_password,status,user_note')
-        
-        if ids:
-            id_list = [int(x) for x in ids.split(',')]
-            query = query.in_('id', id_list)
-        elif status is not None:
-            query = query.eq('status', status)
-        
-        response = query.order('id', desc=True).execute()
-        
-        if not response.data:
-            return {"success": False, "msg": "没有可导出的数据"}
-        
-        # 生成 CSV
-        output = io.StringIO()
-        writer = csv.writer(output)
-        
-        # 阿奇索格式：卡号,密码（无表头）
-        for card in response.data:
-            writer.writerow([
-                card['key_value'],
-                card['feishu_password'] or ''
-            ])
-        
-        output.seek(0)
-        
-        # 返回文件流
-        return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
-            headers={
-                "Content-Disposition": f"attachment; filename=cards_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
-            }
-        )
-        
-    except Exception as e:
-        logger.error(f"导出卡密失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
