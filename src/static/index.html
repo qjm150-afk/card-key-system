@@ -479,16 +479,15 @@
             </div>
         </div>
         
-        <!-- 协作者头像悬浮层 -->
-        <div class="collaborators-overlay" id="collaboratorsOverlay">
-            <div class="collaborators-avatars" id="collaboratorsAvatars">
-                <!-- 头像将通过 JS 动态生成 -->
-            </div>
-            <span class="collaborators-count" id="collaboratorsCount">正在查看...</span>
-        </div>
-        
         <div class="iframe-container">
             <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
+            <!-- 协作者头像悬浮层 - 遮挡飞书右上角头像，防止点击跳转 -->
+            <div class="collaborators-overlay" id="collaboratorsOverlay">
+                <div class="collaborators-avatars" id="collaboratorsAvatars">
+                    <!-- 头像将通过 JS 动态生成 -->
+                </div>
+                <span class="collaborators-count" id="collaboratorsCount">正在查看...</span>
+            </div>
             <!-- 飞书底部操作栏遮罩 -->
             <div class="feishu-bottom-mask"></div>
         </div>
