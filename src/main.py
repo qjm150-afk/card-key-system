@@ -383,14 +383,20 @@ async def get_card_keys(
         if created_end:
             query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
         
-        # 绑定设备筛选
+        # 绑定设备筛选（按设备数量）需要在应用层处理
+        need_device_filter = False
+        device_count_filter = 0
         if device_filter:
-            if device_filter == 'none':
-                # 未绑定：devices为空数组字符串
-                query = query.eq('devices', '[]')
-            elif device_filter == 'has_device':
-                # 已绑定：devices不为空数组
-                query = query.neq('devices', '[]')
+            try:
+                device_count_filter = int(device_filter)
+                if device_count_filter == 0:
+                    # 0台：空数组，可以用精确匹配
+                    query = query.eq('devices', '[]')
+                else:
+                    # 其他数量：需要在应用层过滤
+                    need_device_filter = True
+            except ValueError:
+                pass
         
         # 过期时间筛选（未来天数）
         if expire_days:
@@ -409,6 +415,38 @@ async def get_card_keys(
                     query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
                 except ValueError:
                     pass
+        
+        # 如果需要在应用层过滤设备数量，先获取所有数据再过滤
+        if need_device_filter:
+            # 获取所有匹配的数据
+            response = query.order('id', desc=True).execute()
+            all_data = response.data
+            
+            # 在应用层过滤设备数量
+            filtered_data = []
+            for card in all_data:
+                try:
+                    devices = json.loads(card.get('devices', '[]'))
+                    if len(devices) == device_count_filter:
+                        filtered_data.append(card)
+                except:
+                    pass
+            
+            # 手动分页
+            total = len(filtered_data)
+            total_pages = (total + page_size - 1) // page_size if total else 0
+            start = (page - 1) * page_size
+            end = start + page_size
+            paginated_data = filtered_data[start:end]
+            
+            return {
+                "success": True,
+                "data": paginated_data,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages
+            }
         
         start = (page - 1) * page_size
         end = start + page_size - 1
@@ -486,13 +524,19 @@ async def batch_update_cards(request: BatchUpdateRequest):
         if filters.get('feishu_url') and filters.get('feishu_url') != '':
             query = query.eq('feishu_url', filters['feishu_url'])
         
-        # 绑定设备筛选
+        # 绑定设备筛选（按设备数量）
         device_filter = filters.get('device_filter')
+        need_device_filter = False
+        device_count_filter = 0
         if device_filter and device_filter != '':
-            if device_filter == 'none':
-                query = query.eq('devices', '[]')
-            elif device_filter == 'has_device':
-                query = query.neq('devices', '[]')
+            try:
+                device_count_filter = int(device_filter)
+                if device_count_filter == 0:
+                    query = query.eq('devices', '[]')
+                else:
+                    need_device_filter = True
+            except ValueError:
+                pass
         
         # 过期时间筛选（未来天数）
         expire_days = filters.get('expire_days')
@@ -521,7 +565,21 @@ async def batch_update_cards(request: BatchUpdateRequest):
         
         # 获取符合条件的记录
         response = query.execute()
-        affected_ids = [item['id'] for item in response.data]
+        
+        # 如果需要在应用层过滤设备数量
+        if need_device_filter:
+            filtered_data = []
+            for card in response.data:
+                try:
+                    devices = json.loads(card.get('devices', '[]'))
+                    if len(devices) == device_count_filter:
+                        filtered_data.append(card)
+                except:
+                    pass
+            affected_ids = [item['id'] for item in filtered_data]
+        else:
+            affected_ids = [item['id'] for item in response.data]
+        
         affected_count = len(affected_ids)
         
         if affected_count == 0:
@@ -598,7 +656,22 @@ async def count_by_filters(
     try:
         client = get_supabase_client()
         
-        query = client.table('card_keys_table').select('id', count='exact')
+        # 如果需要设备数量筛选，需要选择devices字段
+        need_device_filter = False
+        device_count_filter = 0
+        if device_filter and device_filter != '':
+            try:
+                device_count_filter = int(device_filter)
+                if device_count_filter != 0:
+                    need_device_filter = True
+            except ValueError:
+                pass
+        
+        # 根据是否需要应用层过滤选择字段
+        if need_device_filter:
+            query = client.table('card_keys_table').select('id,devices', count='exact')
+        else:
+            query = client.table('card_keys_table').select('id', count='exact')
         
         # 激活状态筛选
         if activate_status and activate_status != '':
@@ -626,12 +699,15 @@ async def count_by_filters(
         if feishu_url and feishu_url != '':
             query = query.eq('feishu_url', feishu_url)
         
-        # 绑定设备筛选
+        # 绑定设备筛选（按设备数量）- 注意need_device_filter已在前面定义
         if device_filter and device_filter != '':
-            if device_filter == 'none':
-                query = query.eq('devices', '[]')
-            elif device_filter == 'has_device':
-                query = query.neq('devices', '[]')
+            try:
+                device_count_filter = int(device_filter)
+                if device_count_filter == 0:
+                    query = query.eq('devices', '[]')
+                # else: need_device_filter已经在前面设为True
+            except ValueError:
+                pass
         
         # 过期时间筛选（未来天数）
         if expire_days and expire_days != '':
@@ -655,6 +731,19 @@ async def count_by_filters(
             query = query.gte('bstudio_create_time', created_start)
         if created_end and created_end != '':
             query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
+        
+        # 如果需要在应用层过滤设备数量
+        if need_device_filter:
+            response = query.execute()
+            count = 0
+            for card in response.data:
+                try:
+                    devices = json.loads(card.get('devices', '[]'))
+                    if len(devices) == device_count_filter:
+                        count += 1
+                except:
+                    pass
+            return {"success": True, "count": count}
         
         response = query.execute()
         

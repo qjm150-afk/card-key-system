@@ -1147,8 +1147,12 @@
                     </select>
                     <select class="filter-select" id="deviceFilter">
                         <option value="">绑定设备</option>
-                        <option value="none">未绑定</option>
-                        <option value="has_device">已绑定</option>
+                        <option value="0">0 台</option>
+                        <option value="1">1 台</option>
+                        <option value="2">2 台</option>
+                        <option value="3">3 台</option>
+                        <option value="4">4 台</option>
+                        <option value="5">5 台</option>
                     </select>
                     <select class="filter-select" id="expireDaysFilter">
                         <option value="">过期时间</option>
@@ -1749,8 +1753,7 @@
             
             const deviceFilter = document.getElementById('deviceFilter').value;
             if (deviceFilter) {
-                const textMap = { 'none': '未绑定', 'has_device': '已绑定' };
-                tags.push({ field: 'deviceFilter', label: `绑定设备: ${textMap[deviceFilter]}`, value: deviceFilter });
+                tags.push({ field: 'deviceFilter', label: `绑定设备: ${deviceFilter} 台`, value: deviceFilter });
             }
             
             const expireDays = document.getElementById('expireDaysFilter').value;
@@ -2860,8 +2863,7 @@
             }
             if (feishuUrl) summaryHtml += `<div class="filter-summary-item">飞书链接: ${feishuUrl.substring(0, 30)}...</div>`;
             if (deviceFilter) {
-                const deviceText = { none: '未绑定', has_device: '已绑定' };
-                summaryHtml += `<div class="filter-summary-item">绑定设备: ${deviceText[deviceFilter] || deviceFilter}</div>`;
+                summaryHtml += `<div class="filter-summary-item">绑定设备: ${deviceFilter} 台</div>`;
             }
             if (expireDays) {
                 const expireText = { expired: '已过期', permanent: '永久有效' };
