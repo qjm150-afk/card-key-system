@@ -863,7 +863,8 @@ async def count_by_filters(
 async def get_operation_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    operation_type: Optional[str] = None
+    operation_type: Optional[str] = None,
+    search: Optional[str] = None
 ):
     """获取操作日志列表"""
     try:
@@ -873,6 +874,9 @@ async def get_operation_logs(
         
         if operation_type:
             query = query.eq('operation_type', operation_type)
+        
+        if search:
+            query = query.ilike('operator', f'%{search}%')
         
         start = (page - 1) * page_size
         end = start + page_size - 1

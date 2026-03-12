@@ -733,6 +733,26 @@
         .logs-table th:nth-child(9),
         .logs-table td:nth-child(9) { width: 120px; }
         
+        /* 操作日志表格样式 */
+        .operation-logs-table {
+            min-width: 900px;
+        }
+        
+        .operation-logs-table th:nth-child(1),
+        .operation-logs-table td:nth-child(1) { min-width: 150px; font-size: 13px; color: #8B7355; }
+        .operation-logs-table th:nth-child(2),
+        .operation-logs-table td:nth-child(2) { width: 80px; text-align: center; }
+        .operation-logs-table th:nth-child(3),
+        .operation-logs-table td:nth-child(3) { width: 100px; text-align: center; }
+        .operation-logs-table th:nth-child(4),
+        .operation-logs-table td:nth-child(4) { min-width: 150px; }
+        .operation-logs-table th:nth-child(5),
+        .operation-logs-table td:nth-child(5) { min-width: 150px; }
+        .operation-logs-table th:nth-child(6),
+        .operation-logs-table td:nth-child(6) { width: 70px; text-align: center; }
+        .operation-logs-table th:nth-child(7),
+        .operation-logs-table td:nth-child(7) { min-width: 120px; }
+        
         .col-narrow {
             max-width: 140px;
             overflow: hidden;
@@ -1348,9 +1368,27 @@
 
         <!-- 操作日志 -->
         <div id="operation-logs-tab" class="tab-content">
+            <!-- 筛选区域 -->
+            <div class="filter-section">
+                <div class="filter-row">
+                    <input type="text" class="search-input search-input-wide" id="operationLogSearchInput" placeholder="搜索操作人..." autocomplete="off">
+                    <select class="filter-select" id="operationTypeFilter" onchange="searchOperationLogs()">
+                        <option value="">操作类型</option>
+                        <option value="batch_update">批量修改</option>
+                        <option value="batch_activate">批量激活</option>
+                        <option value="batch_deactivate">批量停用</option>
+                        <option value="batch_delete">批量删除</option>
+                    </select>
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="searchOperationLogs()">搜索</button>
+                        <button class="btn btn-secondary" onclick="resetOperationLogFilters()">重置</button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="table-container">
                 <div class="table-wrapper">
-                    <table>
+                    <table class="operation-logs-table">
                         <thead>
                             <tr>
                                 <th>操作时间</th>
@@ -3242,10 +3280,16 @@
 
         async function loadOperationLogs() {
             try {
+                const search = document.getElementById('operationLogSearchInput')?.value || '';
+                const operationType = document.getElementById('operationTypeFilter')?.value || '';
+                
                 const params = new URLSearchParams({
                     page: operationLogPage,
                     page_size: operationLogPageSize
                 });
+                
+                if (search) params.append('search', search);
+                if (operationType) params.append('operation_type', operationType);
                 
                 const response = await fetch(`/api/admin/operation-logs?${params}`);
                 const result = await response.json();
@@ -3258,20 +3302,34 @@
                 showToast('加载操作日志失败', 'error');
             }
         }
+        
+        // 搜索操作日志
+        function searchOperationLogs() {
+            operationLogPage = 1;
+            loadOperationLogs();
+        }
+        
+        // 重置操作日志筛选
+        function resetOperationLogFilters() {
+            document.getElementById('operationLogSearchInput').value = '';
+            document.getElementById('operationTypeFilter').value = '';
+            operationLogPage = 1;
+            loadOperationLogs();
+        }
 
         function renderOperationLogsTable(data) {
             const tbody = document.getElementById('operationLogsTableBody');
             
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding:40px">暂无操作日志</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding:40px;color:#A89070;">暂无操作日志</td></tr>`;
                 return;
             }
 
             const operationTypeMap = {
-                'batch_update': '批量修改',
-                'batch_activate': '批量激活',
-                'batch_deactivate': '批量停用',
-                'batch_delete': '批量删除'
+                'batch_update': { text: '批量修改', class: 'status-active' },
+                'batch_activate': { text: '批量激活', class: 'status-active' },
+                'batch_deactivate': { text: '批量停用', class: 'status-danger' },
+                'batch_delete': { text: '批量删除', class: 'status-danger' }
             };
 
             const saleStatusMap = {
@@ -3284,6 +3342,7 @@
             tbody.innerHTML = data.map(log => {
                 // 解析筛选条件
                 let filterHtml = '-';
+                let filterTitle = '';
                 if (log.filter_conditions) {
                     const filters = log.filter_conditions;
                     const parts = [];
@@ -3291,10 +3350,12 @@
                     if (filters.sale_status) parts.push(`销售: ${saleStatusMap[filters.sale_status] || filters.sale_status}`);
                     if (filters.search) parts.push(`搜索: ${filters.search}`);
                     filterHtml = parts.join(', ') || '-';
+                    filterTitle = filterHtml;
                 }
                 
                 // 解析更新内容
                 let updateHtml = '-';
+                let updateTitle = '';
                 if (log.update_fields) {
                     const fields = log.update_fields;
                     const parts = [];
@@ -3303,17 +3364,22 @@
                     if (fields.feishu_url !== undefined) parts.push(`链接→已更新`);
                     if (fields.user_note !== undefined) parts.push(`备注→${fields.user_note || '(空)'}`);
                     updateHtml = parts.join(', ') || '-';
+                    updateTitle = updateHtml;
                 }
+                
+                const typeInfo = operationTypeMap[log.operation_type] || { text: log.operation_type, class: 'status-inactive' };
                 
                 return `
                     <tr>
-                        <td>${log.created_at || '-'}</td>
-                        <td>${log.operator || 'admin'}</td>
-                        <td>${operationTypeMap[log.operation_type] || log.operation_type}</td>
-                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${filterHtml}">${filterHtml}</td>
-                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${updateHtml}">${updateHtml}</td>
-                        <td><strong>${log.affected_count}</strong></td>
-                        <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${log.remark || ''}">${log.remark || '-'}</td>
+                        <td class="text-small">${formatDate(log.created_at)}</td>
+                        <td><strong>${log.operator || 'admin'}</strong></td>
+                        <td>
+                            <span class="status-badge ${typeInfo.class}">${typeInfo.text}</span>
+                        </td>
+                        <td class="col-narrow" title="${filterTitle}">${filterHtml}</td>
+                        <td class="col-narrow" title="${updateTitle}">${updateHtml}</td>
+                        <td><span class="status-badge status-active">${log.affected_count}</span></td>
+                        <td class="col-narrow" title="${log.remark || ''}">${log.remark || '-'}</td>
                     </tr>
                 `;
             }).join('');
@@ -3323,7 +3389,7 @@
             const pagination = document.getElementById('operationLogsPagination');
             
             if (totalPages <= 1) {
-                pagination.innerHTML = '';
+                pagination.innerHTML = `<span class="page-info">共 ${total} 条记录</span>`;
                 return;
             }
 
