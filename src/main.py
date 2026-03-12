@@ -326,7 +326,7 @@ async def get_card_keys(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     search: Optional[str] = None,
-    status: Optional[int] = None,
+    activate_status: Optional[str] = None,  # valid, activated, disabled
     feishu_url: Optional[str] = None,
     created_start: Optional[str] = None,
     created_end: Optional[str] = None,
@@ -344,8 +344,24 @@ async def get_card_keys(
         if search:
             query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
         
-        if status is not None:
-            query = query.eq('status', status)
+        # 激活状态筛选（动态计算）
+        # - valid（有效）：未使用过且销售状态正常
+        # - activated（已激活）：已使用过且状态正常  
+        # - disabled（已停用）：退款或有纠纷
+        if activate_status:
+            if activate_status == 'disabled':
+                # 已停用：退款或有纠纷
+                query = query.in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'valid':
+                # 有效：未使用过且销售状态正常
+                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'activated':
+                # 已激活：已使用过且状态正常（需要在应用层过滤）
+                # 先获取已使用过的记录，然后在应用层过滤
+                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                # 使用 or 条件：devices != '[]' OR used_count > 0
+                query = query.or_("devices.neq.[],used_count.gt.0")
         
         if feishu_url:
             query = query.eq('feishu_url', feishu_url)
@@ -443,9 +459,17 @@ async def batch_update_cards(request: BatchUpdateRequest):
         
         filters = request.filters
         
-        # 应用筛选条件
-        if filters.get('status') is not None and filters.get('status') != '':
-            query = query.eq('status', int(filters['status']))
+        # 激活状态筛选
+        activate_status = filters.get('activate_status')
+        if activate_status and activate_status != '':
+            if activate_status == 'disabled':
+                query = query.in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'valid':
+                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'activated':
+                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                query = query.or_("devices.neq.[],used_count.gt.0")
         
         if filters.get('sale_status') and filters.get('sale_status') != '':
             # 映射中文值到英文
@@ -561,7 +585,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
 
 @app.get("/api/admin/cards/count-by-filters")
 async def count_by_filters(
-    status: Optional[str] = None,
+    activate_status: Optional[str] = None,
     sale_status: Optional[str] = None,
     feishu_url: Optional[str] = None,
     expire_days: Optional[str] = None,
@@ -576,8 +600,16 @@ async def count_by_filters(
         
         query = client.table('card_keys_table').select('id', count='exact')
         
-        if status is not None and status != '':
-            query = query.eq('status', int(status))
+        # 激活状态筛选
+        if activate_status and activate_status != '':
+            if activate_status == 'disabled':
+                query = query.in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'valid':
+                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'activated':
+                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                query = query.or_("devices.neq.[],used_count.gt.0")
         
         if sale_status and sale_status != '':
             # 映射中文值到英文

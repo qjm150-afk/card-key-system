@@ -446,6 +446,11 @@
             color: #92400E;
         }
 
+        .status-valid {
+            background-color: #E0E7FF;
+            color: #3730A3;
+        }
+
         .actions-cell {
             display: flex;
             gap: 8px;
@@ -1126,8 +1131,9 @@
                     <input type="text" class="search-input search-input-wide" id="searchInput" placeholder="搜索卡密/备注/订单号..." autocomplete="off">
                     <select class="filter-select" id="statusFilter">
                         <option value="">激活状态</option>
-                        <option value="1">有效</option>
-                        <option value="0">无效</option>
+                        <option value="valid">有效</option>
+                        <option value="activated">已激活</option>
+                        <option value="disabled">已停用</option>
                     </select>
                     <select class="filter-select" id="saleStatusFilter">
                         <option value="">销售状态</option>
@@ -1633,7 +1639,7 @@
         // 加载卡密列表
         async function loadCards() {
             const search = document.getElementById('searchInput').value;
-            const status = document.getElementById('statusFilter').value;
+            const activateStatus = document.getElementById('statusFilter').value;
             const saleStatus = document.getElementById('saleStatusFilter').value;
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
             const deviceFilter = document.getElementById('deviceFilter').value;
@@ -1646,7 +1652,7 @@
                 page_size: pageSize
             });
             if (search) params.append('search', search);
-            if (status) params.append('status', status);
+            if (activateStatus) params.append('activate_status', activateStatus);
             if (saleStatus) params.append('sale_status', saleStatus);
             if (feishuUrl) params.append('feishu_url', feishuUrl);
             if (deviceFilter) params.append('device_filter', deviceFilter);
@@ -1723,10 +1729,10 @@
             
             const tags = [];
             
-            const status = document.getElementById('statusFilter').value;
-            if (status) {
-                const text = status === '1' ? '有效' : '无效';
-                tags.push({ field: 'status', label: `状态: ${text}`, value: status });
+            const activateStatus = document.getElementById('statusFilter').value;
+            if (activateStatus) {
+                const textMap = { 'valid': '有效', 'activated': '已激活', 'disabled': '已停用' };
+                tags.push({ field: 'activateStatus', label: `激活状态: ${textMap[activateStatus] || activateStatus}`, value: activateStatus });
             }
             
             const saleStatus = document.getElementById('saleStatusFilter').value;
@@ -1780,7 +1786,7 @@
 
         // 移除筛选标签
         function removeFilterTag(field) {
-            if (field === 'status') {
+            if (field === 'activateStatus') {
                 document.getElementById('statusFilter').value = '';
             } else if (field === 'saleStatus') {
                 document.getElementById('saleStatusFilter').value = '';
@@ -1818,7 +1824,7 @@
         // 全选筛选结果
         async function selectAllFiltered() {
             const search = document.getElementById('searchInput').value;
-            const status = document.getElementById('statusFilter').value;
+            const activateStatus = document.getElementById('statusFilter').value;
             const saleStatus = document.getElementById('saleStatusFilter').value;
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
             const deviceFilter = document.getElementById('deviceFilter').value;
@@ -1828,7 +1834,7 @@
             
             const params = new URLSearchParams({ page: 1, page_size: 1000 });
             if (search) params.append('search', search);
-            if (status) params.append('status', status);
+            if (activateStatus) params.append('activate_status', activateStatus);
             if (saleStatus) params.append('sale_status', saleStatus);
             if (feishuUrl) params.append('feishu_url', feishuUrl);
             if (deviceFilter) params.append('device_filter', deviceFilter);
@@ -1931,23 +1937,51 @@
 
         // 获取激活状态样式
         function getStatusClass(card) {
-            if (card.status !== 1) return 'status-inactive';
-            if (card.expire_at) {
-                const expireTime = new Date(card.expire_at);
-                if (new Date() > expireTime) return 'status-expired';
+            // 已停用：退款或有纠纷
+            if (card.sale_status === 'refunded' || card.sale_status === 'disputed') {
+                return 'status-inactive';
             }
-            if ((card.used_count || 0) >= (card.max_uses || 1)) return 'status-inactive';
-            return 'status-active';
+            
+            // 检查是否已使用过（有绑定设备或使用次数>0）
+            let hasUsed = false;
+            try {
+                const devices = JSON.parse(card.devices || '[]');
+                hasUsed = devices.length > 0 || (card.used_count || 0) > 0;
+            } catch (e) {
+                hasUsed = (card.used_count || 0) > 0;
+            }
+            
+            // 已激活：已使用过且状态正常
+            if (hasUsed) {
+                return 'status-active';
+            }
+            
+            // 有效：未使用过
+            return 'status-valid';
         }
 
         // 获取激活状态文本
         function getStatusText(card) {
-            if (card.status !== 1) return '已停用';
-            if (card.expire_at) {
-                const expireTime = new Date(card.expire_at);
-                if (new Date() > expireTime) return '已过期';
+            // 已停用：退款或有纠纷
+            if (card.sale_status === 'refunded' || card.sale_status === 'disputed') {
+                return '已停用';
             }
-            if ((card.used_count || 0) >= (card.max_uses || 1)) return '已用完';
+            
+            // 检查是否已使用过（有绑定设备或使用次数>0）
+            let hasUsed = false;
+            try {
+                const devices = JSON.parse(card.devices || '[]');
+                hasUsed = devices.length > 0 || (card.used_count || 0) > 0;
+            } catch (e) {
+                hasUsed = (card.used_count || 0) > 0;
+            }
+            
+            // 已激活：已使用过且状态正常
+            if (hasUsed) {
+                return '已激活';
+            }
+            
+            // 有效：未使用过
             return '有效';
         }
 
@@ -2271,11 +2305,11 @@
         // 导出卡密
         function exportCards() {
             const ids = selectedIds.size > 0 ? Array.from(selectedIds).join(',') : '';
-            const status = document.getElementById('statusFilter').value;
+            const activateStatus = document.getElementById('statusFilter').value;
             
             let url = `/api/admin/cards/export?format=csv`;
             if (ids) url += `&ids=${ids}`;
-            if (status) url += `&status=${status}`;
+            if (activateStatus) url += `&activate_status=${activateStatus}`;
             
             window.open(url, '_blank');
         }
@@ -2795,7 +2829,7 @@
         async function openBatchUpdateModal() {
             // 收集当前筛选条件
             const search = document.getElementById('searchInput').value;
-            const status = document.getElementById('statusFilter').value;
+            const activateStatus = document.getElementById('statusFilter').value;
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
             const deviceFilter = document.getElementById('deviceFilter').value;
             const expireDays = document.getElementById('expireDaysFilter').value;
@@ -2805,7 +2839,7 @@
             
             batchUpdateData.filters = {
                 search,
-                status,
+                activate_status: activateStatus,
                 feishu_url: feishuUrl,
                 device_filter: deviceFilter,
                 expire_days: expireDays,
@@ -2816,7 +2850,10 @@
             
             // 生成筛选条件摘要
             let summaryHtml = '';
-            if (status) summaryHtml += `<div class="filter-summary-item">激活状态: ${status === '1' ? '有效' : '无效'}</div>`;
+            if (activateStatus) {
+                const statusTextMap = { valid: '有效', activated: '已激活', disabled: '已停用' };
+                summaryHtml += `<div class="filter-summary-item">激活状态: ${statusTextMap[activateStatus] || activateStatus}</div>`;
+            }
             if (saleStatus) {
                 const saleStatusText = { unsold: '未售出', sold: '已售出', refunded: '已退款', disputed: '有纠纷' };
                 summaryHtml += `<div class="filter-summary-item">销售状态: ${saleStatusText[saleStatus] || saleStatus}</div>`;
@@ -2843,7 +2880,7 @@
             // 获取符合条件的记录数
             try {
                 const params = new URLSearchParams();
-                if (status) params.append('status', status);
+                if (activateStatus) params.append('activate_status', activateStatus);
                 if (saleStatus) params.append('sale_status', saleStatus);
                 if (feishuUrl) params.append('feishu_url', feishuUrl);
                 if (deviceFilter) params.append('device_filter', deviceFilter);
