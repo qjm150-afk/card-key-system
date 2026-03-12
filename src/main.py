@@ -97,6 +97,52 @@ class BatchOperation(BaseModel):
     feishu_password: Optional[str] = None
 
 
+class LoginRequest(BaseModel):
+    """登录请求"""
+    password: str
+
+
+# ==================== 管理员认证 ====================
+
+# 管理员密码（从环境变量读取，默认为 admin123）
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin123")
+
+# 存储有效的 token（生产环境应使用 Redis 等）
+VALID_TOKENS = {}
+
+# Token 有效期（24小时）
+TOKEN_EXPIRE_HOURS = 24
+
+
+def create_token() -> str:
+    """创建 token"""
+    token = secrets.token_urlsafe(32)
+    VALID_TOKENS[token] = datetime.now() + timedelta(hours=TOKEN_EXPIRE_HOURS)
+    return token
+
+
+def verify_token(token: str) -> bool:
+    """验证 token"""
+    if not token:
+        return False
+    if token not in VALID_TOKENS:
+        return False
+    if datetime.now() > VALID_TOKENS[token]:
+        del VALID_TOKENS[token]
+        return False
+    return True
+
+
+def get_token_from_request(request: Request) -> str:
+    """从请求中获取 token"""
+    # 从 Authorization header 获取
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        return auth_header[7:]
+    # 从 cookie 获取
+    return request.cookies.get("admin_token", "")
+
+
 # ==================== Supabase 客户端 ====================
 
 def get_supabase_client():
@@ -620,6 +666,46 @@ async def get_access_logs(
     except Exception as e:
         logger.error(f"获取访问日志失败: {str(e)}")
         return {"success": False, "msg": str(e)}
+
+
+# ==================== 管理员登录 API ====================
+
+@app.post("/api/admin/login")
+async def admin_login(request: LoginRequest, response: JSONResponse):
+    """管理员登录"""
+    if request.password != ADMIN_PASSWORD:
+        logger.warning(f"登录失败: 密码错误")
+        return {"success": False, "msg": "密码错误"}
+    
+    token = create_token()
+    logger.info(f"管理员登录成功")
+    
+    # 设置 cookie
+    response.set_cookie(
+        key="admin_token",
+        value=token,
+        max_age=TOKEN_EXPIRE_HOURS * 3600,
+        httponly=True,
+        samesite="lax"
+    )
+    
+    return {"success": True, "token": token}
+
+
+@app.post("/api/admin/logout")
+async def admin_logout(response: JSONResponse):
+    """管理员登出"""
+    response.delete_cookie("admin_token")
+    return {"success": True}
+
+
+@app.get("/api/admin/check-auth")
+async def check_auth(request: Request):
+    """检查登录状态"""
+    token = get_token_from_request(request)
+    if verify_token(token):
+        return {"authenticated": True}
+    return {"authenticated": False}
 
 
 # ==================== 静态文件服务 ====================
