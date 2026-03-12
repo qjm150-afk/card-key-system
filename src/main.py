@@ -515,9 +515,22 @@ async def import_sale_status(file: UploadFile = File(...)):
     try:
         client = get_supabase_client()
         
-        # 读取上传的CSV文件
+        # 读取上传的CSV文件，尝试多种编码
         content = await file.read()
-        text = content.decode('utf-8-sig')  # 支持带BOM的UTF-8
+        
+        # 尝试多种编码解码
+        text = None
+        encodings = ['utf-8-sig', 'utf-8', 'gbk', 'gb2312', 'gb18030']
+        for encoding in encodings:
+            try:
+                text = content.decode(encoding)
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        
+        if text is None:
+            return {"success": False, "msg": "无法识别文件编码，请确保文件为 UTF-8 或 GBK 编码"}
+        
         reader = csv.DictReader(io.StringIO(text))
         
         # 状态映射
