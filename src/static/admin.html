@@ -1152,6 +1152,23 @@
                         <option value="activated">已激活</option>
                         <option value="disabled">已停用</option>
                     </select>
+                    <select class="filter-select" id="saleStatusFilter" onchange="searchCards()">
+                        <option value="">销售状态</option>
+                        <option value="unsold">未售出</option>
+                        <option value="sold">已售出</option>
+                        <option value="refunded">已退款</option>
+                        <option value="disputed">有纠纷</option>
+                    </select>
+                    <select class="filter-select" id="salesChannelFilter" onchange="searchCards()">
+                        <option value="">销售渠道</option>
+                        <option value="阿奇索发货平台">阿奇索发货平台</option>
+                        <option value="小红书">小红书</option>
+                        <option value="淘宝">淘宝</option>
+                        <option value="抖音">抖音</option>
+                        <option value="拼多多">拼多多</option>
+                        <option value="闲鱼">闲鱼</option>
+                        <option value="微信私域">微信私域</option>
+                    </select>
                     <select class="filter-select" id="deviceFilter" onchange="searchCards()">
                         <option value="">绑定设备</option>
                         <option value="0">0 台</option>
@@ -1182,23 +1199,6 @@
                         <span class="date-separator">至</span>
                         <input type="date" class="filter-date" id="createdEnd" title="创建结束日期" onchange="searchCards()">
                     </div>
-                    <select class="filter-select" id="saleStatusFilter" onchange="searchCards()">
-                        <option value="">销售状态</option>
-                        <option value="unsold">未售出</option>
-                        <option value="sold">已售出</option>
-                        <option value="refunded">已退款</option>
-                        <option value="disputed">有纠纷</option>
-                    </select>
-                    <select class="filter-select" id="salesChannelFilter" onchange="searchCards()">
-                        <option value="">销售渠道</option>
-                        <option value="阿奇索发货平台">阿奇索发货平台</option>
-                        <option value="小红书">小红书</option>
-                        <option value="淘宝">淘宝</option>
-                        <option value="抖音">抖音</option>
-                        <option value="拼多多">拼多多</option>
-                        <option value="闲鱼">闲鱼</option>
-                        <option value="微信私域">微信私域</option>
-                    </select>
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="searchCards()">搜索</button>
                         <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
