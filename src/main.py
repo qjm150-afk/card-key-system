@@ -339,9 +339,9 @@ async def get_card_keys(
             query = query.eq('feishu_url', feishu_url)
         
         if created_start:
-            query = query.gte('created_at', created_start)
+            query = query.gte('bstudio_create_time', created_start)
         if created_end:
-            query = query.lte('created_at', created_end + 'T23:59:59')
+            query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
         
         if expire_status:
             from datetime import datetime
