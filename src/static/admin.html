@@ -851,6 +851,186 @@
             color: #DC2626;
             border-color: #FECACA;
         }
+
+        /* 表头筛选样式 */
+        .th-filterable {
+            position: relative;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .filter-icon {
+            font-size: 10px;
+            color: #A89070;
+            margin-left: 4px;
+            transition: transform 0.2s;
+        }
+
+        .th-filterable:hover .filter-icon {
+            color: #D4A574;
+        }
+
+        .th-filterable.filtered .filter-icon {
+            color: #D4A574;
+        }
+
+        .th-filterable.filtered .filter-icon::before {
+            content: '✓ ';
+            font-size: 10px;
+        }
+
+        .header-filter-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #E8D5C4;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            min-width: 150px;
+            z-index: 1000;
+            padding: 8px 0;
+            margin-top: 4px;
+        }
+
+        .header-filter-dropdown.show {
+            display: block;
+        }
+
+        .filter-option {
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #5D4E37;
+        }
+
+        .filter-option:hover {
+            background-color: #FFF8F0;
+        }
+
+        .filter-option input[type="radio"] {
+            margin-right: 8px;
+            accent-color: #D4A574;
+        }
+
+        .filter-option label {
+            cursor: pointer;
+        }
+
+        /* 批量修改弹窗 */
+        .batch-update-modal {
+            max-width: 560px;
+        }
+
+        .filter-summary {
+            background: #FFF8F0;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+
+        .filter-summary-title {
+            font-weight: 600;
+            color: #5D4E37;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .filter-summary-item {
+            font-size: 13px;
+            color: #A89070;
+            margin: 4px 0;
+        }
+
+        .update-field-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid #F5E6D3;
+        }
+
+        .update-field-row:last-child {
+            border-bottom: none;
+        }
+
+        .update-field-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #D4A574;
+        }
+
+        .update-field-label {
+            min-width: 80px;
+            font-size: 14px;
+            color: #5D4E37;
+        }
+
+        .update-field-input {
+            flex: 1;
+        }
+
+        .update-field-input select,
+        .update-field-input input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #E8D5C4;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #5D4E37;
+            background: white;
+        }
+
+        .update-field-input select:focus,
+        .update-field-input input:focus {
+            outline: none;
+            border-color: #D4A574;
+        }
+
+        .preview-section {
+            background: #FEF3C7;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 16px 0;
+        }
+
+        .preview-title {
+            font-weight: 600;
+            color: #92400E;
+            margin-bottom: 8px;
+        }
+
+        .preview-item {
+            font-size: 14px;
+            color: #B45309;
+            margin: 4px 0;
+        }
+
+        .confirm-warning {
+            background: #FEF2F2;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin: 16px 0;
+            color: #DC2626;
+            font-size: 14px;
+        }
+
+        .remark-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #E8D5C4;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #5D4E37;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .remark-textarea:focus {
+            outline: none;
+            border-color: #D4A574;
+        }
     </style>
 </head>
 <body>
@@ -897,6 +1077,7 @@
         <div class="tabs">
             <button class="tab active" onclick="switchTab('cards')">卡密管理</button>
             <button class="tab" onclick="switchTab('logs')">访问日志</button>
+            <button class="tab" onclick="switchTab('operation-logs')">操作日志</button>
         </div>
 
         <!-- 卡密管理 -->
@@ -963,6 +1144,7 @@
                     <div class="batch-actions">
                         <button class="btn btn-success btn-sm" onclick="batchAction('activate')">批量激活</button>
                         <button class="btn btn-secondary btn-sm" onclick="batchAction('deactivate')">批量停用</button>
+                        <button class="btn btn-primary btn-sm" onclick="openBatchUpdateModal()">批量修改...</button>
                         <button class="btn btn-warning btn-sm" onclick="openUpdateUrlModal()">批量改链</button>
                         <button class="btn btn-info btn-sm" onclick="openImportSaleStatusModal()">导入销售状态</button>
                         <button class="btn btn-danger btn-sm" onclick="batchAction('delete')">批量删除</button>
@@ -976,13 +1158,32 @@
                                 <th><input type="checkbox" class="checkbox" id="selectAll" onchange="toggleSelectAll()"></th>
                                 <th>ID</th>
                                 <th>卡密</th>
-                                <th>激活状态</th>
+                                <th class="th-filterable" data-filter="status">
+                                    激活状态 <span class="filter-icon" onclick="toggleHeaderFilter('status')">▼</span>
+                                    <div class="header-filter-dropdown" id="filter-dropdown-status">
+                                        <div class="filter-option"><input type="radio" name="filter-status" value="" checked onchange="applyHeaderFilter('status', '')"> <label>全部</label></div>
+                                        <div class="filter-option"><input type="radio" name="filter-status" value="1" onchange="applyHeaderFilter('status', '1')"> <label>有效</label></div>
+                                        <div class="filter-option"><input type="radio" name="filter-status" value="0" onchange="applyHeaderFilter('status', '0')"> <label>无效</label></div>
+                                    </div>
+                                </th>
                                 <th>绑定设备</th>
                                 <th>过期时间</th>
                                 <th>备注</th>
-                                <th class="col-narrow">飞书链接</th>
+                                <th class="th-filterable col-narrow" data-filter="feishu_url">
+                                    飞书链接 <span class="filter-icon" onclick="toggleHeaderFilter('feishu_url')">▼</span>
+                                    <div class="header-filter-dropdown" id="filter-dropdown-feishu_url"></div>
+                                </th>
                                 <th>创建时间</th>
-                                <th>销售状态</th>
+                                <th class="th-filterable" data-filter="sale_status">
+                                    销售状态 <span class="filter-icon" onclick="toggleHeaderFilter('sale_status')">▼</span>
+                                    <div class="header-filter-dropdown" id="filter-dropdown-sale_status">
+                                        <div class="filter-option"><input type="radio" name="filter-sale_status" value="" checked onchange="applyHeaderFilter('sale_status', '')"> <label>全部</label></div>
+                                        <div class="filter-option"><input type="radio" name="filter-sale_status" value="unsold" onchange="applyHeaderFilter('sale_status', 'unsold')"> <label>未售出</label></div>
+                                        <div class="filter-option"><input type="radio" name="filter-sale_status" value="sold" onchange="applyHeaderFilter('sale_status', 'sold')"> <label>已售出</label></div>
+                                        <div class="filter-option"><input type="radio" name="filter-sale_status" value="refunded" onchange="applyHeaderFilter('sale_status', 'refunded')"> <label>已退款</label></div>
+                                        <div class="filter-option"><input type="radio" name="filter-sale_status" value="disputed" onchange="applyHeaderFilter('sale_status', 'disputed')"> <label>有纠纷</label></div>
+                                    </div>
+                                </th>
                                 <th class="col-narrow">订单号</th>
                                 <th>操作</th>
                             </tr>
@@ -1014,6 +1215,29 @@
                     </table>
                 </div>
                 <div class="pagination" id="logsPagination"></div>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div id="operation-logs-tab" class="tab-content">
+            <div class="table-container">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>操作时间</th>
+                                <th>操作人</th>
+                                <th>操作类型</th>
+                                <th>筛选条件</th>
+                                <th>更新内容</th>
+                                <th>影响数</th>
+                                <th>操作备注</th>
+                            </tr>
+                        </thead>
+                        <tbody id="operationLogsTableBody"></tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="operationLogsPagination"></div>
             </div>
         </div>
     </div>
@@ -1163,6 +1387,100 @@
         </div>
     </div>
 
+    <!-- 批量修改模态框 - Step 1: 选择字段 -->
+    <div class="modal-overlay" id="batchUpdateModalOverlay">
+        <div class="modal batch-update-modal">
+            <div class="modal-header">
+                <h2>批量修改筛选结果</h2>
+                <button class="modal-close" onclick="closeBatchUpdateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="filter-summary">
+                    <div class="filter-summary-title">📊 当前筛选条件</div>
+                    <div id="batchUpdateFilterSummary"></div>
+                    <div style="margin-top: 8px; font-weight: 600; color: #5D4E37;">
+                        📦 符合条件的记录：<span id="batchUpdateAffectedCount">0</span> 条
+                    </div>
+                </div>
+
+                <hr style="border: none; border-top: 1px solid #E8D5C4; margin: 16px 0;">
+
+                <div class="filter-summary-title">✏️ 选择要修改的字段</div>
+                <div id="batchUpdateFields">
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldStatus" onchange="toggleUpdateField('status')">
+                        <span class="update-field-label">激活状态</span>
+                        <div class="update-field-input">
+                            <select id="updateValueStatus" disabled>
+                                <option value="1">有效</option>
+                                <option value="0">无效</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldSaleStatus" onchange="toggleUpdateField('sale_status')">
+                        <span class="update-field-label">销售状态</span>
+                        <div class="update-field-input">
+                            <select id="updateValueSaleStatus" disabled>
+                                <option value="unsold">未售出</option>
+                                <option value="sold">已售出</option>
+                                <option value="refunded">已退款</option>
+                                <option value="disputed">有纠纷</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldFeishuUrl" onchange="toggleUpdateField('feishu_url')">
+                        <span class="update-field-label">飞书链接</span>
+                        <div class="update-field-input">
+                            <input type="text" id="updateValueFeishuUrl" placeholder="输入新的飞书链接" disabled>
+                        </div>
+                    </div>
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldUserNote" onchange="toggleUpdateField('user_note')">
+                        <span class="update-field-label">备注</span>
+                        <div class="update-field-input">
+                            <input type="text" id="updateValueUserNote" placeholder="输入新的备注内容" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBatchUpdateModal()">取消</button>
+                <button class="btn btn-primary" onclick="showBatchUpdateConfirm()">下一步：预览确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量修改模态框 - Step 2: 确认 -->
+    <div class="modal-overlay" id="batchUpdateConfirmOverlay">
+        <div class="modal batch-update-modal">
+            <div class="modal-header">
+                <h2>⚠️ 确认批量修改</h2>
+                <button class="modal-close" onclick="closeBatchUpdateConfirm()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="preview-section">
+                    <div class="preview-title">即将对 <span id="confirmAffectedCount">0</span> 条记录执行以下修改：</div>
+                    <div id="confirmUpdateList"></div>
+                </div>
+
+                <div class="confirm-warning">
+                    ⚠️ 此操作不可撤销，是否继续？
+                </div>
+
+                <div class="form-group">
+                    <label>📝 操作备注（可选）</label>
+                    <textarea class="remark-textarea" id="batchUpdateRemark" placeholder="填写本次操作的原因或备注..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBatchUpdateConfirm()">取消</button>
+                <button class="btn btn-danger" onclick="executeBatchUpdate()">确认执行修改</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 导入销售状态模态框 -->
     <div class="modal-overlay" id="importSaleStatusModalOverlay">
         <div class="modal">
@@ -1251,6 +1569,8 @@
             
             if (tab === 'logs') {
                 loadLogs();
+            } else if (tab === 'operation-logs') {
+                loadOperationLogs();
             }
         }
 
@@ -1289,11 +1609,12 @@
         // 加载卡密列表
         async function loadCards() {
             const search = document.getElementById('searchInput').value;
-            const status = document.getElementById('statusFilter').value;
-            const feishuUrl = document.getElementById('feishuUrlFilter').value;
+            const status = document.getElementById('statusFilter').value || headerFilters.status || '';
+            const feishuUrl = document.getElementById('feishuUrlFilter').value || headerFilters.feishu_url || '';
             const expireStatus = document.getElementById('expireStatusFilter').value;
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
+            const saleStatus = headerFilters.sale_status || '';
             
             const params = new URLSearchParams({
                 page: currentPage,
@@ -1305,6 +1626,7 @@
             if (expireStatus) params.append('expire_status', expireStatus);
             if (createdStart) params.append('created_start', createdStart);
             if (createdEnd) params.append('created_end', createdEnd);
+            if (saleStatus) params.append('sale_status', saleStatus);
 
             try {
                 const response = await fetch(`/api/admin/cards?${params}`);
@@ -2230,6 +2552,417 @@
             }
             showLogin();
         }
+
+        // ==================== 表头筛选功能 ====================
+        
+        // 表头筛选状态
+        let headerFilters = {
+            status: '',
+            sale_status: '',
+            feishu_url: ''
+        };
+
+        // 当前打开的筛选下拉框
+        let currentOpenFilter = null;
+
+        // 切换表头筛选下拉框
+        function toggleHeaderFilter(filterName) {
+            event.stopPropagation();
+            
+            const dropdown = document.getElementById(`filter-dropdown-${filterName}`);
+            
+            // 关闭其他下拉框
+            document.querySelectorAll('.header-filter-dropdown').forEach(d => {
+                if (d.id !== `filter-dropdown-${filterName}`) {
+                    d.classList.remove('show');
+                }
+            });
+            
+            // 切换当前下拉框
+            dropdown.classList.toggle('show');
+            currentOpenFilter = dropdown.classList.contains('show') ? filterName : null;
+        }
+
+        // 应用表头筛选
+        function applyHeaderFilter(filterName, value) {
+            headerFilters[filterName] = value;
+            
+            // 更新表头样式
+            const th = document.querySelector(`th[data-filter="${filterName}"]`);
+            if (th) {
+                if (value) {
+                    th.classList.add('filtered');
+                } else {
+                    th.classList.remove('filtered');
+                }
+            }
+            
+            // 关闭下拉框
+            document.getElementById(`filter-dropdown-${filterName}`).classList.remove('show');
+            
+            // 重新加载数据
+            currentPage = 1;
+            loadCards();
+        }
+
+        // 点击页面其他地方关闭下拉框
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.th-filterable')) {
+                document.querySelectorAll('.header-filter-dropdown').forEach(d => {
+                    d.classList.remove('show');
+                });
+                currentOpenFilter = null;
+            }
+        });
+
+        // 初始化飞书链接筛选下拉框
+        async function initFeishuUrlFilter() {
+            try {
+                const response = await fetch('/api/admin/cards/feishu-urls');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const dropdown = document.getElementById('filter-dropdown-feishu_url');
+                    let html = '<div class="filter-option"><input type="radio" name="filter-feishu_url" value="" checked onchange="applyHeaderFilter(\'feishu_url\', \'\')"> <label>全部</label></div>';
+                    
+                    result.data.forEach(item => {
+                        const displayUrl = item.url.length > 20 ? item.url.substring(0, 20) + '...' : item.url;
+                        html += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${item.url}" onchange="applyHeaderFilter('feishu_url', '${item.url}')"> <label title="${item.url}">${displayUrl} (${item.count}条)</label></div>`;
+                    });
+                    
+                    dropdown.innerHTML = html;
+                }
+            } catch (error) {
+                console.error('加载飞书链接失败:', error);
+            }
+        }
+
+        // ==================== 批量修改功能 ====================
+        
+        let batchUpdateData = {
+            filters: {},
+            updates: {},
+            affectedCount: 0
+        };
+
+        // 打开批量修改弹窗
+        async function openBatchUpdateModal() {
+            // 收集当前筛选条件
+            const search = document.getElementById('searchInput').value;
+            const status = document.getElementById('statusFilter').value || headerFilters.status || '';
+            const feishuUrl = document.getElementById('feishuUrlFilter').value || headerFilters.feishu_url || '';
+            const expireStatus = document.getElementById('expireStatusFilter').value;
+            const createdStart = document.getElementById('createdStart').value;
+            const createdEnd = document.getElementById('createdEnd').value;
+            const saleStatus = headerFilters.sale_status || '';
+            
+            batchUpdateData.filters = {
+                search,
+                status,
+                feishu_url: feishuUrl,
+                expire_status: expireStatus,
+                created_start: createdStart,
+                created_end: createdEnd,
+                sale_status: saleStatus
+            };
+            
+            // 生成筛选条件摘要
+            let summaryHtml = '';
+            if (status) summaryHtml += `<div class="filter-summary-item">激活状态: ${status === '1' ? '有效' : '无效'}</div>`;
+            if (saleStatus) {
+                const saleStatusText = { unsold: '未售出', sold: '已售出', refunded: '已退款', disputed: '有纠纷' };
+                summaryHtml += `<div class="filter-summary-item">销售状态: ${saleStatusText[saleStatus] || saleStatus}</div>`;
+            }
+            if (feishuUrl) summaryHtml += `<div class="filter-summary-item">飞书链接: ${feishuUrl.substring(0, 30)}...</div>`;
+            if (expireStatus) {
+                const expireText = { not_expired: '未过期', expired: '已过期', permanent: '永久有效' };
+                summaryHtml += `<div class="filter-summary-item">过期状态: ${expireText[expireStatus] || expireStatus}</div>`;
+            }
+            if (search) summaryHtml += `<div class="filter-summary-item">搜索: ${search}</div>`;
+            if (createdStart || createdEnd) summaryHtml += `<div class="filter-summary-item">创建时间: ${createdStart || '...'} 至 ${createdEnd || '...'}</div>`;
+            
+            if (!summaryHtml) {
+                summaryHtml = '<div class="filter-summary-item">无筛选条件（将影响全部记录）</div>';
+            }
+            
+            document.getElementById('batchUpdateFilterSummary').innerHTML = summaryHtml;
+            
+            // 获取符合条件的记录数
+            try {
+                const params = new URLSearchParams();
+                if (status) params.append('status', status);
+                if (saleStatus) params.append('sale_status', saleStatus);
+                if (feishuUrl) params.append('feishu_url', feishuUrl);
+                if (expireStatus) params.append('expire_status', expireStatus);
+                if (search) params.append('search', search);
+                if (createdStart) params.append('created_start', createdStart);
+                if (createdEnd) params.append('created_end', createdEnd);
+                
+                const response = await fetch(`/api/admin/cards/count-by-filters?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    batchUpdateData.affectedCount = result.count;
+                    document.getElementById('batchUpdateAffectedCount').textContent = result.count;
+                }
+            } catch (error) {
+                showToast('获取记录数失败', 'error');
+                return;
+            }
+            
+            // 重置表单
+            document.querySelectorAll('.update-field-checkbox').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.update-field-input select, .update-field-input input').forEach(input => {
+                input.disabled = true;
+                if (input.tagName === 'SELECT') {
+                    input.selectedIndex = 0;
+                } else {
+                    input.value = '';
+                }
+            });
+            
+            document.getElementById('batchUpdateModalOverlay').classList.add('active');
+        }
+
+        function closeBatchUpdateModal() {
+            document.getElementById('batchUpdateModalOverlay').classList.remove('active');
+        }
+
+        // 切换更新字段启用状态
+        function toggleUpdateField(fieldName) {
+            const checkbox = document.getElementById(`updateField${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_([a-z])/g, (g) => g[1].toUpperCase())}`);
+            const input = document.getElementById(`updateValue${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_([a-z])/g, (g) => g[1].toUpperCase())}`);
+            
+            input.disabled = !checkbox.checked;
+        }
+
+        // 显示确认弹窗
+        function showBatchUpdateConfirm() {
+            // 收集要更新的字段
+            const updates = {};
+            const fieldMap = {
+                'status': 'updateFieldStatus',
+                'sale_status': 'updateFieldSaleStatus',
+                'feishu_url': 'updateFieldFeishuUrl',
+                'user_note': 'updateFieldUserNote'
+            };
+            
+            const valueMap = {
+                'status': 'updateValueStatus',
+                'sale_status': 'updateValueSaleStatus',
+                'feishu_url': 'updateValueFeishuUrl',
+                'user_note': 'updateValueUserNote'
+            };
+            
+            const labelMap = {
+                'status': '激活状态',
+                'sale_status': '销售状态',
+                'feishu_url': '飞书链接',
+                'user_note': '备注'
+            };
+            
+            const statusTextMap = {
+                'status': { '1': '有效', '0': '无效' },
+                'sale_status': { 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' }
+            };
+            
+            for (const [field, checkboxId] of Object.entries(fieldMap)) {
+                const checkbox = document.getElementById(checkboxId);
+                if (checkbox && checkbox.checked) {
+                    const valueInput = document.getElementById(valueMap[field]);
+                    let value = valueInput.value;
+                    
+                    // 转换显示文本
+                    if (statusTextMap[field] && statusTextMap[field][value]) {
+                        updates[field] = { value, display: statusTextMap[field][value] };
+                    } else {
+                        updates[field] = { value, display: value || '(空)' };
+                    }
+                }
+            }
+            
+            if (Object.keys(updates).length === 0) {
+                showToast('请至少选择一个要修改的字段', 'error');
+                return;
+            }
+            
+            batchUpdateData.updates = updates;
+            
+            // 生成确认列表
+            let confirmHtml = '';
+            for (const [field, data] of Object.entries(updates)) {
+                confirmHtml += `<div class="preview-item">${labelMap[field]}: → ${data.display}</div>`;
+            }
+            
+            document.getElementById('confirmAffectedCount').textContent = batchUpdateData.affectedCount;
+            document.getElementById('confirmUpdateList').innerHTML = confirmHtml;
+            document.getElementById('batchUpdateRemark').value = '';
+            
+            closeBatchUpdateModal();
+            document.getElementById('batchUpdateConfirmOverlay').classList.add('active');
+        }
+
+        function closeBatchUpdateConfirm() {
+            document.getElementById('batchUpdateConfirmOverlay').classList.remove('active');
+        }
+
+        // 执行批量更新
+        async function executeBatchUpdate() {
+            // 准备更新数据
+            const updatePayload = {};
+            for (const [field, data] of Object.entries(batchUpdateData.updates)) {
+                updatePayload[field] = data.value;
+            }
+            
+            const remark = document.getElementById('batchUpdateRemark').value;
+            
+            try {
+                const response = await fetch('/api/admin/cards/batch-update', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        filters: batchUpdateData.filters,
+                        updates: updatePayload,
+                        remark: remark
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeBatchUpdateConfirm();
+                    showToast(result.msg, 'success');
+                    loadCards();
+                    loadStats();
+                } else {
+                    showToast(result.msg, 'error');
+                }
+            } catch (error) {
+                showToast('批量更新失败: ' + error.message, 'error');
+            }
+        }
+
+        // ==================== 操作日志功能 ====================
+        
+        let operationLogPage = 1;
+        let operationLogPageSize = 20;
+
+        async function loadOperationLogs() {
+            try {
+                const params = new URLSearchParams({
+                    page: operationLogPage,
+                    page_size: operationLogPageSize
+                });
+                
+                const response = await fetch(`/api/admin/operation-logs?${params}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderOperationLogsTable(result.data);
+                    renderOperationLogsPagination(result.total, result.total_pages);
+                }
+            } catch (error) {
+                showToast('加载操作日志失败', 'error');
+            }
+        }
+
+        function renderOperationLogsTable(data) {
+            const tbody = document.getElementById('operationLogsTableBody');
+            
+            if (!data || data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center" style="padding:40px">暂无操作日志</td></tr>`;
+                return;
+            }
+
+            const operationTypeMap = {
+                'batch_update': '批量修改',
+                'batch_activate': '批量激活',
+                'batch_deactivate': '批量停用',
+                'batch_delete': '批量删除'
+            };
+
+            const saleStatusMap = {
+                'unsold': '未售出',
+                'sold': '已售出',
+                'refunded': '已退款',
+                'disputed': '有纠纷'
+            };
+
+            tbody.innerHTML = data.map(log => {
+                // 解析筛选条件
+                let filterHtml = '-';
+                if (log.filter_conditions) {
+                    const filters = log.filter_conditions;
+                    const parts = [];
+                    if (filters.status !== undefined && filters.status !== '') parts.push(`状态: ${filters.status === 1 ? '有效' : '无效'}`);
+                    if (filters.sale_status) parts.push(`销售: ${saleStatusMap[filters.sale_status] || filters.sale_status}`);
+                    if (filters.search) parts.push(`搜索: ${filters.search}`);
+                    filterHtml = parts.join(', ') || '-';
+                }
+                
+                // 解析更新内容
+                let updateHtml = '-';
+                if (log.update_fields) {
+                    const fields = log.update_fields;
+                    const parts = [];
+                    if (fields.status !== undefined) parts.push(`状态→${fields.status === 1 ? '有效' : '无效'}`);
+                    if (fields.sale_status) parts.push(`销售→${saleStatusMap[fields.sale_status] || fields.sale_status}`);
+                    if (fields.feishu_url !== undefined) parts.push(`链接→已更新`);
+                    if (fields.user_note !== undefined) parts.push(`备注→${fields.user_note || '(空)'}`);
+                    updateHtml = parts.join(', ') || '-';
+                }
+                
+                return `
+                    <tr>
+                        <td>${log.created_at || '-'}</td>
+                        <td>${log.operator || 'admin'}</td>
+                        <td>${operationTypeMap[log.operation_type] || log.operation_type}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${filterHtml}">${filterHtml}</td>
+                        <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;" title="${updateHtml}">${updateHtml}</td>
+                        <td><strong>${log.affected_count}</strong></td>
+                        <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${log.remark || ''}">${log.remark || '-'}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderOperationLogsPagination(total, totalPages) {
+            const pagination = document.getElementById('operationLogsPagination');
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            
+            // 上一页
+            html += `<button class="page-btn" ${operationLogPage === 1 ? 'disabled' : ''} onclick="goToOperationLogPage(${operationLogPage - 1})">‹</button>`;
+            
+            // 页码
+            for (let i = 1; i <= totalPages; i++) {
+                if (i === 1 || i === totalPages || (i >= operationLogPage - 2 && i <= operationLogPage + 2)) {
+                    html += `<button class="page-btn ${i === operationLogPage ? 'active' : ''}" onclick="goToOperationLogPage(${i})">${i}</button>`;
+                } else if (i === operationLogPage - 3 || i === operationLogPage + 3) {
+                    html += `<span style="padding: 0 8px;">...</span>`;
+                }
+            }
+            
+            // 下一页
+            html += `<button class="page-btn" ${operationLogPage === totalPages ? 'disabled' : ''} onclick="goToOperationLogPage(${operationLogPage + 1})">›</button>`;
+            
+            pagination.innerHTML = html;
+        }
+
+        function goToOperationLogPage(page) {
+            operationLogPage = page;
+            loadOperationLogs();
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initFeishuUrlFilter();
+        });
 
         // 页面加载时检查登录状态
         checkAuth();

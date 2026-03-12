@@ -99,6 +99,13 @@ class BatchOperation(BaseModel):
     feishu_password: Optional[str] = None
 
 
+class BatchUpdateRequest(BaseModel):
+    """批量更新请求"""
+    filters: dict  # 筛选条件
+    updates: dict  # 更新字段
+    remark: Optional[str] = None  # 操作备注
+
+
 class LoginRequest(BaseModel):
     """登录请求"""
     password: str
@@ -323,7 +330,8 @@ async def get_card_keys(
     feishu_url: Optional[str] = None,
     created_start: Optional[str] = None,
     created_end: Optional[str] = None,
-    expire_status: Optional[str] = None
+    expire_status: Optional[str] = None,
+    sale_status: Optional[str] = None
 ):
     """获取卡密列表"""
     try:
@@ -340,13 +348,15 @@ async def get_card_keys(
         if feishu_url:
             query = query.eq('feishu_url', feishu_url)
         
+        if sale_status:
+            query = query.eq('sale_status', sale_status)
+        
         if created_start:
             query = query.gte('bstudio_create_time', created_start)
         if created_end:
             query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
         
         if expire_status:
-            from datetime import datetime
             now = datetime.now().isoformat()
             if expire_status == 'expired':
                 # 已过期：过期时间不为空且小于当前时间
@@ -393,6 +403,220 @@ async def get_cards_by_ids(ids: str = Query(..., description="逗号分隔的ID�
         
     except Exception as e:
         logger.error(f"根据ID获取卡密失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/cards/batch-update")
+async def batch_update_cards(request: BatchUpdateRequest):
+    """批量更新筛选结果"""
+    try:
+        client = get_supabase_client()
+        
+        # 构建查询条件
+        query = client.table('card_keys_table').select('id')
+        
+        filters = request.filters
+        
+        # 应用筛选条件
+        if filters.get('status') is not None and filters.get('status') != '':
+            query = query.eq('status', int(filters['status']))
+        
+        if filters.get('sale_status') and filters.get('sale_status') != '':
+            query = query.eq('sale_status', filters['sale_status'])
+        
+        if filters.get('feishu_url') and filters.get('feishu_url') != '':
+            query = query.eq('feishu_url', filters['feishu_url'])
+        
+        if filters.get('expire_status') and filters.get('expire_status') != '':
+            now = datetime.now().isoformat()
+            if filters['expire_status'] == 'expired':
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
+            elif filters['expire_status'] == 'not_expired':
+                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
+            elif filters['expire_status'] == 'permanent':
+                query = query.is_('expire_at', 'null')
+        
+        if filters.get('search') and filters.get('search') != '':
+            search = filters['search']
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+        
+        if filters.get('created_start') and filters.get('created_start') != '':
+            query = query.gte('bstudio_create_time', filters['created_start'])
+        if filters.get('created_end') and filters.get('created_end') != '':
+            query = query.lte('bstudio_create_time', filters['created_end'] + 'T23:59:59')
+        
+        # 获取符合条件的记录
+        response = query.execute()
+        affected_ids = [item['id'] for item in response.data]
+        affected_count = len(affected_ids)
+        
+        if affected_count == 0:
+            return {"success": False, "msg": "没有符合条件的记录"}
+        
+        # 准备更新数据
+        updates = request.updates
+        update_data = {}
+        
+        if 'status' in updates and updates['status'] is not None:
+            update_data['status'] = int(updates['status'])
+        
+        if 'sale_status' in updates and updates['sale_status']:
+            update_data['sale_status'] = updates['sale_status']
+            if updates['sale_status'] == 'sold':
+                update_data['sold_at'] = datetime.now().isoformat()
+        
+        if 'feishu_url' in updates:
+            update_data['feishu_url'] = updates['feishu_url'] or ''
+        
+        if 'feishu_password' in updates:
+            update_data['feishu_password'] = updates['feishu_password'] or ''
+        
+        if 'expire_at' in updates:
+            update_data['expire_at'] = updates['expire_at'] or None
+        
+        if 'user_note' in updates:
+            update_data['user_note'] = updates['user_note'] or ''
+        
+        if not update_data:
+            return {"success": False, "msg": "没有需要更新的字段"}
+        
+        # 执行批量更新
+        update_response = client.table('card_keys_table').update(update_data).in_('id', affected_ids).execute()
+        
+        # 记录操作日志
+        log_data = {
+            "operator": "admin",
+            "operation_type": "batch_update",
+            "filter_conditions": filters,
+            "affected_count": affected_count,
+            "affected_ids": affected_ids,
+            "update_fields": update_data,
+            "remark": request.remark or ""
+        }
+        client.table('batch_operation_logs').insert(log_data).execute()
+        
+        logger.info(f"批量更新成功: 影响记录数={affected_count}, 更新字段={list(update_data.keys())}")
+        
+        return {
+            "success": True,
+            "msg": f"成功更新 {affected_count} 条记录",
+            "affected_count": affected_count,
+            "affected_ids": affected_ids[:100]  # 只返回前100个ID
+        }
+        
+    except Exception as e:
+        logger.error(f"批量更新失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/cards/count-by-filters")
+async def count_by_filters(
+    status: Optional[str] = None,
+    sale_status: Optional[str] = None,
+    feishu_url: Optional[str] = None,
+    expire_status: Optional[str] = None,
+    search: Optional[str] = None,
+    created_start: Optional[str] = None,
+    created_end: Optional[str] = None
+):
+    """根据筛选条件统计记录数"""
+    try:
+        client = get_supabase_client()
+        
+        query = client.table('card_keys_table').select('id', count='exact')
+        
+        if status is not None and status != '':
+            query = query.eq('status', int(status))
+        
+        if sale_status and sale_status != '':
+            query = query.eq('sale_status', sale_status)
+        
+        if feishu_url and feishu_url != '':
+            query = query.eq('feishu_url', feishu_url)
+        
+        if expire_status and expire_status != '':
+            now = datetime.now().isoformat()
+            if expire_status == 'expired':
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
+            elif expire_status == 'not_expired':
+                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
+            elif expire_status == 'permanent':
+                query = query.is_('expire_at', 'null')
+        
+        if search and search != '':
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+        
+        if created_start and created_start != '':
+            query = query.gte('bstudio_create_time', created_start)
+        if created_end and created_end != '':
+            query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
+        
+        response = query.execute()
+        
+        return {"success": True, "count": response.count}
+        
+    except Exception as e:
+        logger.error(f"统计记录数失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/operation-logs")
+async def get_operation_logs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    operation_type: Optional[str] = None
+):
+    """获取操作日志列表"""
+    try:
+        client = get_supabase_client()
+        
+        query = client.table('batch_operation_logs').select('*', count='exact')
+        
+        if operation_type:
+            query = query.eq('operation_type', operation_type)
+        
+        start = (page - 1) * page_size
+        end = start + page_size - 1
+        
+        response = query.range(start, end).order('id', desc=True).execute()
+        
+        # 格式化返回数据
+        for item in response.data:
+            if item.get('created_at'):
+                item['created_at'] = item['created_at'].replace('T', ' ').split('+')[0].split('.')[0]
+        
+        return {
+            "success": True,
+            "data": response.data,
+            "total": response.count,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": (response.count + page_size - 1) // page_size if response.count else 0
+        }
+        
+    except Exception as e:
+        logger.error(f"获取操作日志失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/operation-logs/{log_id}")
+async def get_operation_log(log_id: int):
+    """获取单条操作日志详情"""
+    try:
+        client = get_supabase_client()
+        response = client.table('batch_operation_logs').select('*').eq('id', log_id).execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "日志不存在"}
+        
+        log = response.data[0]
+        if log.get('created_at'):
+            log['created_at'] = log['created_at'].replace('T', ' ').split('+')[0].split('.')[0]
+        
+        return {"success": True, "data": log}
+        
+    except Exception as e:
+        logger.error(f"获取操作日志详情失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
