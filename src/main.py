@@ -495,6 +495,11 @@ async def delete_card_key(card_id: int):
     """删除卡密"""
     try:
         client = get_supabase_client()
+        
+        # 先删除相关的访问日志记录
+        client.table('access_logs').delete().eq('card_key_id', card_id).execute()
+        
+        # 再删除卡密
         response = client.table('card_keys_table').delete().eq('id', card_id).execute()
         
         if not response.data:
@@ -517,6 +522,9 @@ async def batch_operation(operation: BatchOperation):
             return {"success": False, "msg": "请选择要操作的卡密"}
         
         if operation.action == "delete":
+            # 先删除相关的访问日志记录
+            client.table('access_logs').delete().in_('card_key_id', operation.ids).execute()
+            # 再删除卡密
             response = client.table('card_keys_table').delete().in_('id', operation.ids).execute()
             return {"success": True, "msg": f"成功删除 {len(response.data)} 条记录"}
             
