@@ -692,6 +692,13 @@
             color: #A89070;
         }
 
+        .key-value-cell {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+        
         .col-narrow {
             max-width: 140px;
             overflow: hidden;
@@ -2636,9 +2643,12 @@
 
             tbody.innerHTML = data.map(log => {
                 const saleInfo = saleStatusMap[log.sale_status] || { text: '-', class: '' };
+                // 格式化卡密显示
+                const keyValue = log.key_value || '';
+                const keyValueDisplay = keyValue.length > 16 ? keyValue.substring(0, 16) + '...' : keyValue;
                 return `
                 <tr>
-                    <td><strong>${log.key_value}</strong></td>
+                    <td class="key-value-cell" title="${keyValue}"><strong>${keyValueDisplay}</strong></td>
                     <td>${log.card_note || '-'}</td>
                     <td>
                         <span class="status-badge ${saleInfo.class}">${saleInfo.text}</span>
