@@ -1491,9 +1491,11 @@ async def get_access_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
     card_key_id: Optional[int] = None,
-    success: Optional[bool] = None
+    success: Optional[bool] = None,
+    search: Optional[str] = None,
+    sale_status: Optional[str] = None
 ):
-    """获取访问日志"""
+    """获取访问日志，关联卡密详细信息"""
     try:
         client = get_supabase_client()
         
@@ -1503,25 +1505,45 @@ async def get_access_logs(
             query = query.eq('card_key_id', card_key_id)
         if success is not None:
             query = query.eq('success', success)
+        if search:
+            query = query.ilike('key_value', f'%{search}%')
         
         start = (page - 1) * page_size
         end = start + page_size - 1
         
         response = query.range(start, end).order('access_time', desc=True).execute()
         
-        # 获取卡密备注信息
+        # 获取卡密详细信息
         logs = response.data
         if logs:
             # 提取所有key_value
             key_values = list(set(log.get('key_value') for log in logs if log.get('key_value')))
             if key_values:
-                # 批量查询卡密备注
-                cards_response = client.table('card_keys_table').select('key_value,user_note').in_('key_value', key_values).execute()
-                # 构建key_value到备注的映射
-                note_map = {card['key_value']: card.get('user_note', '') for card in (cards_response.data or [])}
-                # 为每条日志添加备注
+                # 批量查询卡密详细信息
+                cards_response = client.table('card_keys_table').select(
+                    'key_value,user_note,sale_status,sales_channel,order_id,status,devices,max_devices,expire_at'
+                ).in_('key_value', key_values).execute()
+                
+                # 构建key_value到卡密信息的映射
+                card_map = {}
+                for card in (cards_response.data or []):
+                    card_map[card['key_value']] = card
+                
+                # 为每条日志添加详细信息
                 for log in logs:
-                    log['card_note'] = note_map.get(log.get('key_value', ''), '')
+                    card_info = card_map.get(log.get('key_value', ''), {})
+                    log['card_note'] = card_info.get('user_note', '')
+                    log['sale_status'] = card_info.get('sale_status', '')
+                    log['sales_channel'] = card_info.get('sales_channel', '')
+                    log['order_id'] = card_info.get('order_id', '')
+                    log['card_status'] = card_info.get('status', 1)
+                    log['devices'] = card_info.get('devices', '[]')
+                    log['max_devices'] = card_info.get('max_devices', 5)
+                    log['expire_at'] = card_info.get('expire_at', '')
+                
+                # 如果有销售状态筛选，在应用层过滤
+                if sale_status:
+                    logs = [log for log in logs if log.get('sale_status') == sale_status]
         
         return {
             "success": True,

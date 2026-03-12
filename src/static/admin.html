@@ -1259,6 +1259,29 @@
 
         <!-- 访问日志 -->
         <div id="logs-tab" class="tab-content">
+            <!-- 筛选区域 -->
+            <div class="filter-section">
+                <div class="filter-row">
+                    <input type="text" class="search-input search-input-wide" id="logSearchInput" placeholder="搜索卡密..." autocomplete="off">
+                    <select class="filter-select" id="logResultFilter" onchange="searchLogs()">
+                        <option value="">访问结果</option>
+                        <option value="success">成功</option>
+                        <option value="fail">失败</option>
+                    </select>
+                    <select class="filter-select" id="logSaleStatusFilter" onchange="searchLogs()">
+                        <option value="">销售状态</option>
+                        <option value="unsold">未售出</option>
+                        <option value="sold">已售出</option>
+                        <option value="refunded">已退款</option>
+                        <option value="disputed">有纠纷</option>
+                    </select>
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="searchLogs()">搜索</button>
+                        <button class="btn btn-secondary" onclick="resetLogFilters()">重置</button>
+                    </div>
+                </div>
+            </div>
+            
             <div class="table-container">
                 <div class="table-wrapper">
                     <table>
@@ -1266,6 +1289,9 @@
                             <tr>
                                 <th>卡密</th>
                                 <th>备注</th>
+                                <th>销售状态</th>
+                                <th>销售渠道</th>
+                                <th>订单号</th>
                                 <th>IP地址</th>
                                 <th>结果</th>
                                 <th>错误信息</th>
@@ -1621,6 +1647,14 @@
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchCards();
             });
+            
+            // 日志搜索框回车事件
+            const logSearchInput = document.getElementById('logSearchInput');
+            if (logSearchInput) {
+                logSearchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') searchLogs();
+                });
+            }
             
             // 启动定时刷新（每30秒刷新一次）
             startAutoRefresh();
@@ -2530,7 +2564,33 @@
         // 加载访问日志
         async function loadLogs() {
             try {
-                const response = await fetch(`/api/admin/logs?page=${logPage}&page_size=${logPageSize}`);
+                // 构建查询参数
+                const params = new URLSearchParams({
+                    page: logPage,
+                    page_size: logPageSize
+                });
+                
+                // 搜索关键字
+                const search = document.getElementById('logSearchInput')?.value || '';
+                if (search) {
+                    params.append('search', search);
+                }
+                
+                // 结果筛选
+                const resultFilter = document.getElementById('logResultFilter')?.value || '';
+                if (resultFilter === 'success') {
+                    params.append('success', 'true');
+                } else if (resultFilter === 'fail') {
+                    params.append('success', 'false');
+                }
+                
+                // 销售状态筛选
+                const saleStatusFilter = document.getElementById('logSaleStatusFilter')?.value || '';
+                if (saleStatusFilter) {
+                    params.append('sale_status', saleStatusFilter);
+                }
+                
+                const response = await fetch(`/api/admin/logs?${params.toString()}`);
                 const result = await response.json();
                 
                 if (result.success) {
@@ -2541,30 +2601,60 @@
                 showToast('加载日志失败', 'error');
             }
         }
+        
+        // 搜索日志
+        function searchLogs() {
+            logPage = 1;
+            loadLogs();
+        }
+        
+        // 重置日志筛选
+        function resetLogFilters() {
+            document.getElementById('logSearchInput').value = '';
+            document.getElementById('logResultFilter').value = '';
+            document.getElementById('logSaleStatusFilter').value = '';
+            logPage = 1;
+            loadLogs();
+        }
 
         // 渲染日志表格
         function renderLogsTable(data) {
             const tbody = document.getElementById('logsTableBody');
             
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px">暂无日志</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding:40px">暂无日志</td></tr>`;
                 return;
             }
+            
+            // 销售状态映射
+            const saleStatusMap = {
+                'unsold': { text: '未售出', class: 'status-inactive' },
+                'sold': { text: '已售出', class: 'status-active' },
+                'refunded': { text: '已退款', class: 'status-danger' },
+                'disputed': { text: '有纠纷', class: 'status-warning' }
+            };
 
-            tbody.innerHTML = data.map(log => `
+            tbody.innerHTML = data.map(log => {
+                const saleInfo = saleStatusMap[log.sale_status] || { text: '-', class: '' };
+                return `
                 <tr>
                     <td><strong>${log.key_value}</strong></td>
                     <td>${log.card_note || '-'}</td>
-                    <td>${log.ip_address || '-'}</td>
+                    <td>
+                        <span class="status-badge ${saleInfo.class}">${saleInfo.text}</span>
+                    </td>
+                    <td>${log.sales_channel || '-'}</td>
+                    <td class="col-narrow" title="${log.order_id || ''}">${log.order_id || '-'}</td>
+                    <td class="text-small">${log.ip_address || '-'}</td>
                     <td>
                         <span class="status-badge ${log.success ? 'status-active' : 'status-inactive'}">
                             ${log.success ? '成功' : '失败'}
                         </span>
                     </td>
-                    <td>${log.error_msg || '-'}</td>
+                    <td class="col-narrow">${log.error_msg || '-'}</td>
                     <td class="text-small">${formatDate(log.access_time)}</td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
 
         // 渲染日志分页
