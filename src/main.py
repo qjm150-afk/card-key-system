@@ -375,6 +375,25 @@ async def get_card_keys(
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/cards/by-ids")
+async def get_cards_by_ids(ids: str = Query(..., description="逗号分隔的ID列表")):
+    """根据ID列表获取卡密详情"""
+    try:
+        client = get_supabase_client()
+        
+        id_list = [int(x.strip()) for x in ids.split(',') if x.strip()]
+        if not id_list:
+            return {"success": False, "msg": "请提供有效的ID列表"}
+        
+        response = client.table('card_keys_table').select('*').in_('id', id_list).execute()
+        
+        return {"success": True, "data": response.data}
+        
+    except Exception as e:
+        logger.error(f"根据ID获取卡密失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/admin/cards/feishu-urls")
 async def get_feishu_urls():
     """获取所有不同的飞书链接列表（用于筛选下拉）"""

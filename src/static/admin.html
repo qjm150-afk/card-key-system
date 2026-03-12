@@ -1815,20 +1815,18 @@
             previewEl.innerHTML = '<p style="color: #999;">加载中...</p>';
             
             try {
-                // 获取选中卡密的详情
-                const params = new URLSearchParams({ page: 1, page_size: 1000 });
-                const response = await fetch(`/api/admin/cards?${params}`);
+                // 直接根据选中的 ID 获取卡密详情
+                const ids = Array.from(selectedIds);
+                const response = await fetch(`/api/admin/cards/by-ids?ids=${ids.join(',')}`);
                 const result = await response.json();
                 
-                if (result.success) {
-                    // 筛选出选中的卡密并统计链接
+                if (result.success && result.data) {
+                    // 统计链接分布
                     const urlCount = {};
-                    result.data
-                        .filter(card => selectedIds.has(card.id))
-                        .forEach(card => {
-                            const url = card.feishu_url || '(空)';
-                            urlCount[url] = (urlCount[url] || 0) + 1;
-                        });
+                    result.data.forEach(card => {
+                        const url = card.feishu_url || '(空)';
+                        urlCount[url] = (urlCount[url] || 0) + 1;
+                    });
                     
                     if (Object.keys(urlCount).length > 0) {
                         const sortedUrls = Object.entries(urlCount).sort((a, b) => b[1] - a[1]);
@@ -1837,11 +1835,13 @@
                             return `<p style="margin: 4px 0; word-break: break-all;" title="${url}">• ${displayUrl} <span style="color: #D4A574;">(${count}条)</span></p>`;
                         }).join('');
                     } else {
-                        previewEl.innerHTML = '<p style="color: #999;">-</p>';
+                        previewEl.innerHTML = '<p style="color: #999;">未找到链接信息</p>';
                     }
+                } else {
+                    previewEl.innerHTML = `<p style="color: #e74c3c;">获取失败: ${result.msg || '未知错误'}</p>`;
                 }
             } catch (error) {
-                previewEl.innerHTML = '<p style="color: #999;">获取失败</p>';
+                previewEl.innerHTML = `<p style="color: #e74c3c;">获取失败: ${error.message}</p>`;
             }
         }
 
