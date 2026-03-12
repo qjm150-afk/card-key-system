@@ -274,11 +274,11 @@
             min-height: 0;
         }
 
-        /* 协作者头像悬浮层 - 右上角 */
+        /* 协作者头像悬浮层 - 右上角，避开飞书用户头像 */
         .collaborators-overlay {
             position: absolute;
             top: 16px;
-            right: 16px;
+            right: 140px;  /* 往左移动，避开飞书右上角用户头像区域 */
             display: flex;
             align-items: center;
             z-index: 1000;
