@@ -699,6 +699,40 @@
             white-space: nowrap;
         }
         
+        .ip-cell {
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+            font-size: 11px;
+            color: #A89070;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        /* 访问日志表格样式 */
+        .logs-table {
+            min-width: 1100px;
+        }
+        
+        .logs-table th:nth-child(1),
+        .logs-table td:nth-child(1) { min-width: 150px; }
+        .logs-table th:nth-child(2),
+        .logs-table td:nth-child(2) { width: 80px; }
+        .logs-table th:nth-child(3),
+        .logs-table td:nth-child(3) { width: 80px; text-align: center; }
+        .logs-table th:nth-child(4),
+        .logs-table td:nth-child(4) { width: 80px; }
+        .logs-table th:nth-child(5),
+        .logs-table td:nth-child(5) { width: 100px; }
+        .logs-table th:nth-child(6),
+        .logs-table td:nth-child(6) { min-width: 140px; }
+        .logs-table th:nth-child(7),
+        .logs-table td:nth-child(7) { width: 60px; text-align: center; }
+        .logs-table th:nth-child(8),
+        .logs-table td:nth-child(8) { width: 80px; }
+        .logs-table th:nth-child(9),
+        .logs-table td:nth-child(9) { width: 120px; }
+        
         .col-narrow {
             max-width: 140px;
             overflow: hidden;
@@ -1291,7 +1325,7 @@
             
             <div class="table-container">
                 <div class="table-wrapper">
-                    <table>
+                    <table class="logs-table">
                         <thead>
                             <tr>
                                 <th>卡密</th>
@@ -2643,25 +2677,22 @@
 
             tbody.innerHTML = data.map(log => {
                 const saleInfo = saleStatusMap[log.sale_status] || { text: '-', class: '' };
-                // 格式化卡密显示
-                const keyValue = log.key_value || '';
-                const keyValueDisplay = keyValue.length > 16 ? keyValue.substring(0, 16) + '...' : keyValue;
                 return `
                 <tr>
-                    <td class="key-value-cell" title="${keyValue}"><strong>${keyValueDisplay}</strong></td>
+                    <td class="key-value-cell"><strong>${log.key_value || '-'}</strong></td>
                     <td>${log.card_note || '-'}</td>
                     <td>
                         <span class="status-badge ${saleInfo.class}">${saleInfo.text}</span>
                     </td>
                     <td>${log.sales_channel || '-'}</td>
-                    <td class="col-narrow" title="${log.order_id || ''}">${log.order_id || '-'}</td>
-                    <td class="text-small">${log.ip_address || '-'}</td>
+                    <td>${log.order_id || '-'}</td>
+                    <td class="ip-cell">${log.ip_address || '-'}</td>
                     <td>
                         <span class="status-badge ${log.success ? 'status-active' : 'status-inactive'}">
                             ${log.success ? '成功' : '失败'}
                         </span>
                     </td>
-                    <td class="col-narrow">${log.error_msg || '-'}</td>
+                    <td>${log.error_msg || '-'}</td>
                     <td class="text-small">${formatDate(log.access_time)}</td>
                 </tr>
             `}).join('');
