@@ -708,6 +708,45 @@ async def check_auth(request: Request):
     return {"authenticated": False}
 
 
+# ==================== 在线用户统计 API ====================
+
+@app.get("/api/online-users")
+async def get_online_users():
+    """获取在线用户统计（用于前端协作者显示）"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取总卡密数（有效状态的）
+        total_response = client.table('card_keys_table').select('id', count='exact').eq('status', 1).execute()
+        total_cards = total_response.count or 0
+        
+        # 获取最近5分钟内有访问记录的唯一卡密数
+        five_min_ago = (datetime.now() - timedelta(minutes=5)).isoformat()
+        
+        # 查询最近访问日志中的唯一卡密
+        logs_response = client.table('access_logs').select('key_value').gte('access_time', five_min_ago).eq('success', True).execute()
+        
+        # 统计唯一卡密数
+        unique_keys = set()
+        if logs_response.data:
+            for log in logs_response.data:
+                if log.get('key_value'):
+                    unique_keys.add(log['key_value'])
+        
+        online_count = len(unique_keys)
+        
+        return {
+            "success": True,
+            "total_cards": total_cards,
+            "online_count": online_count,
+            "use_real_data": total_cards >= 20  # 总卡密数>=20时使用真实数据
+        }
+        
+    except Exception as e:
+        logger.error(f"获取在线用户失败: {str(e)}")
+        return {"success": False, "total_cards": 0, "online_count": 0, "use_real_data": False}
+
+
 # ==================== 静态文件服务 ====================
 
 # 微信验证文件配置（可配置多个）

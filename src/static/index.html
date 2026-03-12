@@ -308,12 +308,15 @@
             border-radius: 50%;
             border: 2px solid white;
             margin-left: -8px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-            object-fit: cover;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
             background-color: #f0f0f0;
             transition: all 0.3s ease;
             pointer-events: auto;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
         }
 
         .collaborator-avatar:first-child {
@@ -323,17 +326,42 @@
         .collaborator-avatar:hover {
             transform: translateY(-3px) scale(1.1);
             z-index: 10;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        /* 在线状态点 */
+        .online-dot {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        /* "+N" 更多用户样式 */
+        .collaborator-more {
+            background-color: #E5E7EB !important;
+            color: #6B7280;
+            font-size: 11px;
+            font-weight: 600;
+            border: 2px solid white;
+        }
+
+        .collaborator-more:hover {
+            background-color: #D1D5DB !important;
         }
 
         .collaborators-count {
             margin-left: 10px;
-            padding: 4px 12px;
+            padding: 5px 12px;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 16px;
             font-size: 12px;
             color: #5D4E37;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             font-weight: 500;
             white-space: nowrap;
         }
@@ -518,7 +546,7 @@
 
         // ==================== 协作者头像效果 ====================
         
-        // 模拟协作者数据（可以替换为真实数据）
+        // 模拟协作者数据（虚拟模式下使用）
         const collaboratorNames = [
             '求职小白', 'Offer收割机', '面试达人', '简历优化师', 
             '春招勇士', '校招先锋', '职场新人', '求职伙伴',
@@ -527,49 +555,117 @@
         
         // 头像颜色池
         const avatarColors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
-            '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
-            '#BB8FCE', '#85C1E9', '#F8B500', '#00CED1'
+            '#8B5CF6', '#F59E0B', '#10B981', '#3B82F6',
+            '#EC4899', '#06B6D4', '#EF4444', '#84CC16'
         ];
         
         let collaboratorsInterval = null;
+        let useRealData = false;
         
         // 初始化协作者
-        function initCollaborators() {
-            updateCollaborators();
+        async function initCollaborators() {
+            await updateCollaborators();
             // 每30秒更新一次
             if (collaboratorsInterval) clearInterval(collaboratorsInterval);
             collaboratorsInterval = setInterval(updateCollaborators, 30000);
         }
         
         // 更新协作者显示
-        function updateCollaborators() {
+        async function updateCollaborators() {
             const container = document.getElementById('collaboratorsAvatars');
             const countEl = document.getElementById('collaboratorsCount');
             
             if (!container) return;
             
-            // 随机生成 3-6 个在线用户
-            const onlineCount = Math.floor(Math.random() * 4) + 3;
-            const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
-            const onlineUsers = shuffledNames.slice(0, onlineCount);
-            
-            // 生成头像HTML
-            container.innerHTML = onlineUsers.map((name, index) => {
-                const color = avatarColors[index % avatarColors.length];
-                const initial = name.charAt(0);
-                return `
-                    <div class="collaborator-avatar" 
-                         style="background-color: ${color}; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;"
-                         title="${name}">
-                        ${initial}
-                    </div>
-                `;
-            }).join('');
-            
-            // 更新在线人数
-            const totalOnline = onlineCount + Math.floor(Math.random() * 10) + 5;
-            countEl.textContent = `${totalOnline} 人在线查看`;
+            try {
+                // 获取在线用户统计
+                const response = await fetch('/api/online-users');
+                const data = await response.json();
+                
+                let displayCount = 0;
+                let onlineUsers = [];
+                
+                if (data.success && data.use_real_data) {
+                    // 使用真实数据
+                    useRealData = true;
+                    displayCount = data.online_count;
+                    
+                    // 生成随机头像显示（最多显示6个）
+                    const showCount = Math.min(6, Math.max(3, Math.floor(displayCount * 0.3)));
+                    const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
+                    onlineUsers = shuffledNames.slice(0, showCount);
+                    
+                } else {
+                    // 使用虚拟数据
+                    useRealData = false;
+                    displayCount = Math.floor(Math.random() * 10) + 8; // 8-17人
+                    const showCount = Math.floor(Math.random() * 3) + 3; // 3-5个头像
+                    const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
+                    onlineUsers = shuffledNames.slice(0, showCount);
+                }
+                
+                // 生成头像HTML（参考飞书效果）
+                const maxVisible = 6;
+                const visibleUsers = onlineUsers.slice(0, maxVisible);
+                const remainingCount = displayCount - visibleUsers.length;
+                
+                let html = visibleUsers.map((name, index) => {
+                    const color = avatarColors[index % avatarColors.length];
+                    const initial = name.charAt(0);
+                    return `
+                        <div class="collaborator-avatar" 
+                             style="background-color: ${color}; position: relative;"
+                             title="${name}">
+                            <svg viewBox="0 0 24 24" fill="white" width="16" height="16">
+                                <circle cx="12" cy="8" r="4"/>
+                                <path d="M12 14c-4 0-8 2-8 4v2h16v-2c0-2-4-4-8-4z"/>
+                            </svg>
+                            <span class="online-dot" style="background-color: ${color};"></span>
+                        </div>
+                    `;
+                }).join('');
+                
+                // 如果还有更多用户，显示 +N
+                if (remainingCount > 0) {
+                    html += `
+                        <div class="collaborator-avatar collaborator-more" 
+                             style="background-color: #E5E7EB; color: #6B7280;">
+                            +${remainingCount}
+                        </div>
+                    `;
+                }
+                
+                container.innerHTML = html;
+                
+                // 更新在线人数文字
+                countEl.textContent = `${displayCount} 人在线查看`;
+                
+            } catch (error) {
+                // 网络错误时使用虚拟数据
+                console.log('获取在线用户失败，使用虚拟数据');
+                const virtualCount = Math.floor(Math.random() * 10) + 8;
+                const showCount = Math.floor(Math.random() * 3) + 3;
+                const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
+                const onlineUsers = shuffledNames.slice(0, showCount);
+                
+                let html = onlineUsers.map((name, index) => {
+                    const color = avatarColors[index % avatarColors.length];
+                    return `
+                        <div class="collaborator-avatar" 
+                             style="background-color: ${color}; position: relative;"
+                             title="${name}">
+                            <svg viewBox="0 0 24 24" fill="white" width="16" height="16">
+                                <circle cx="12" cy="8" r="4"/>
+                                <path d="M12 14c-4 0-8 2-8 4v2h16v-2c0-2-4-4-8-4z"/>
+                            </svg>
+                            <span class="online-dot" style="background-color: ${color};"></span>
+                        </div>
+                    `;
+                }).join('');
+                
+                container.innerHTML = html;
+                countEl.textContent = `${virtualCount} 人在线查看`;
+            }
         }
 
         // 显示验证页面
