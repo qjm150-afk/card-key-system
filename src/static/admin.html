@@ -1849,7 +1849,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    result.data.forEach(card => selectedIds.add(card.id));
+                    result.data.forEach(card => selectedIds.add(parseInt(card.id)));
                     updateSelectedInfo();
                     // 更新表格中的复选框状态
                     document.querySelectorAll('.card-checkbox').forEach(cb => {
@@ -1903,13 +1903,15 @@
                 const orderId = card.order_id || '';
                 const orderIdDisplay = orderId.length > 15 ? orderId.substring(0, 15) + '...' : orderId || '-';
                 
+                const checkboxId = parseInt(card.id);
+                
                 return `
                 <tr>
                     <td>
                         <input type="checkbox" class="checkbox card-checkbox" 
-                               data-id="${card.id}" 
-                               ${selectedIds.has(card.id) ? 'checked' : ''}
-                               onchange="toggleSelect(${card.id})">
+                               data-id="${checkboxId}" 
+                               ${selectedIds.has(checkboxId) ? 'checked' : ''}
+                               onchange="toggleSelect(${checkboxId})">
                     </td>
                     <td>${card.id}</td>
                     <td><strong>${card.key_value}</strong></td>
@@ -2045,7 +2047,8 @@
         // 搜索
         function searchCards() {
             currentPage = 1;
-            selectedIds.clear();
+            // 搜索时不清空选中状态，让用户可以继续操作
+            // selectedIds.clear();
             // 更新筛选选项
             loadFilterOptions(null);
             loadCards();
