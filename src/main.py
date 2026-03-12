@@ -594,9 +594,23 @@ async def get_access_logs(
         
         response = query.range(start, end).order('access_time', desc=True).execute()
         
+        # 获取卡密备注信息
+        logs = response.data
+        if logs:
+            # 提取所有key_value
+            key_values = list(set(log.get('key_value') for log in logs if log.get('key_value')))
+            if key_values:
+                # 批量查询卡密备注
+                cards_response = client.table('card_keys_table').select('key_value,user_note').in_('key_value', key_values).execute()
+                # 构建key_value到备注的映射
+                note_map = {card['key_value']: card.get('user_note', '') for card in (cards_response.data or [])}
+                # 为每条日志添加备注
+                for log in logs:
+                    log['card_note'] = note_map.get(log.get('key_value', ''), '')
+        
         return {
             "success": True,
-            "data": response.data,
+            "data": logs,
             "total": response.count,
             "page": page,
             "page_size": page_size

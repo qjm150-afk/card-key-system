@@ -17,6 +17,27 @@
             min-height: 100vh;
         }
 
+        /* 初始状态：隐藏所有内容，显示加载 */
+        body.loading-mode {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* 加载动画 */
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #F5E6D3;
+            border-top-color: #D4A574;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* 验证页面居中 */
         body.validate-mode {
             display: flex;
@@ -29,6 +50,11 @@
         body.success-mode {
             padding: 0;
             margin: 0;
+        }
+
+        /* 初始隐藏页面 */
+        #validatePage, #successPage {
+            display: none;
         }
 
         .container {
@@ -244,7 +270,10 @@
         }
     </style>
 </head>
-<body class="validate-mode">
+<body class="loading-mode">
+    <!-- 加载动画 -->
+    <div id="loadingSpinner" class="loading-spinner"></div>
+
     <!-- 验证页面 -->
     <div id="validatePage" class="container">
         <div class="card">
@@ -373,6 +402,10 @@
 
         // 显示成功页面
         function showSuccess(url, password) {
+            // 隐藏加载动画
+            document.getElementById('loadingSpinner').style.display = 'none';
+            // 切换到成功模式
+            document.body.classList.remove('loading-mode');
             document.body.classList.remove('validate-mode');
             document.body.classList.add('success-mode');
             validatePage.style.display = 'none';
@@ -387,6 +420,10 @@
 
         // 显示验证页面
         function showValidate() {
+            // 隐藏加载动画
+            document.getElementById('loadingSpinner').style.display = 'none';
+            // 切换到验证模式
+            document.body.classList.remove('loading-mode');
             document.body.classList.add('validate-mode');
             document.body.classList.remove('success-mode');
             validatePage.style.display = 'flex';

@@ -642,7 +642,7 @@
                     <div class="value" id="statActive">0</div>
                 </div>
                 <div class="stat-card">
-                    <h3>已使用</h3>
+                    <h3>已绑定设备</h3>
                     <div class="value" id="statUsed">0</div>
                 </div>
             </div>
@@ -678,7 +678,7 @@
                                 <th>ID</th>
                                 <th>卡密</th>
                                 <th>状态</th>
-                                <th>使用次数</th>
+                                <th>绑定设备</th>
                                 <th>过期时间</th>
                                 <th>备注</th>
                                 <th>飞书链接</th>
@@ -702,6 +702,7 @@
                         <thead>
                             <tr>
                                 <th>卡密</th>
+                                <th>备注</th>
                                 <th>IP地址</th>
                                 <th>结果</th>
                                 <th>错误信息</th>
@@ -737,10 +738,6 @@
                                 <option value="1">有效</option>
                                 <option value="0">无效</option>
                             </select>
-                        </div>
-                        <div class="form-group">
-                            <label>最大使用次数</label>
-                            <input type="number" class="form-input" id="maxUses" value="1" min="1">
                         </div>
                     </div>
                     <div class="form-group">
@@ -787,15 +784,9 @@
                             <input type="text" class="form-input" id="generatePrefix" value="CSS" maxlength="10">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>有效期（天）</label>
-                            <input type="number" class="form-input" id="generateExpireDays" placeholder="不填则永不过期" min="1">
-                        </div>
-                        <div class="form-group">
-                            <label>最大使用次数</label>
-                            <input type="number" class="form-input" id="generateMaxUses" value="1" min="1">
-                        </div>
+                    <div class="form-group">
+                        <label>有效期（天）</label>
+                        <input type="number" class="form-input" id="generateExpireDays" placeholder="不填则永不过期" min="1">
                     </div>
                     <div class="form-group">
                         <label>飞书链接（所有卡密共用）</label>
@@ -894,15 +885,22 @@
                     const allCards = result.data || [];
                     const total = result.total || 0;
                     
-                    // 有效卡密：status=1 且未过期
+                    // 有效卡密：status=1
                     const activeCards = allCards.filter(c => c.status === 1);
                     
-                    // 已使用卡密：used_count > 0
-                    const usedCards = allCards.filter(c => c.used_count > 0);
+                    // 已绑定设备的卡密：devices不为空数组
+                    const boundCards = allCards.filter(c => {
+                        try {
+                            const devices = JSON.parse(c.devices || '[]');
+                            return devices.length > 0;
+                        } catch {
+                            return false;
+                        }
+                    });
                     
                     document.getElementById('statTotal').textContent = total;
                     document.getElementById('statActive').textContent = activeCards.length;
-                    document.getElementById('statUsed').textContent = usedCards.length;
+                    document.getElementById('statUsed').textContent = boundCards.length;
                 }
             } catch (error) {
                 console.error('加载统计失败:', error);
@@ -960,6 +958,13 @@
                 const statusClass = getStatusClass(card);
                 const statusText = getStatusText(card);
                 
+                // 解析设备数量
+                let deviceCount = 0;
+                try {
+                    const devices = JSON.parse(card.devices || '[]');
+                    deviceCount = devices.length;
+                } catch (e) {}
+                
                 return `
                 <tr>
                     <td>
@@ -973,7 +978,7 @@
                     <td>
                         <span class="status-badge ${statusClass}">${statusText}</span>
                     </td>
-                    <td>${card.used_count || 0} / ${card.max_uses || 1}</td>
+                    <td>${deviceCount} / ${card.max_devices || 5} 台</td>
                     <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
                     <td>${card.user_note || '-'}</td>
                     <td class="truncate" title="${card.feishu_url || ''}">${card.feishu_url || '-'}</td>
@@ -1124,7 +1129,6 @@
                     document.getElementById('cardId').value = card.id;
                     document.getElementById('keyValue').value = card.key_value || '';
                     document.getElementById('cardStatus').value = card.status || 1;
-                    document.getElementById('maxUses').value = card.max_uses || 1;
                     document.getElementById('userNote').value = card.user_note || '';
                     document.getElementById('feishuUrl').value = card.feishu_url || '';
                     document.getElementById('feishuPassword').value = card.feishu_password || '';
@@ -1155,7 +1159,6 @@
             const data = {
                 key_value: document.getElementById('keyValue').value.toUpperCase(),
                 status: parseInt(document.getElementById('cardStatus').value),
-                max_uses: parseInt(document.getElementById('maxUses').value) || 1,
                 user_note: document.getElementById('userNote').value,
                 feishu_url: document.getElementById('feishuUrl').value,
                 feishu_password: document.getElementById('feishuPassword').value
@@ -1206,7 +1209,6 @@
                 feishu_url: document.getElementById('generateFeishuUrl').value,
                 feishu_password: document.getElementById('generateFeishuPassword').value,
                 expire_days: parseInt(document.getElementById('generateExpireDays').value) || null,
-                max_uses: parseInt(document.getElementById('generateMaxUses').value) || 1,
                 user_note: document.getElementById('generateNote').value
             };
 
@@ -1336,13 +1338,14 @@
             const tbody = document.getElementById('logsTableBody');
             
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center" style="padding:40px">暂无日志</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center" style="padding:40px">暂无日志</td></tr>`;
                 return;
             }
 
             tbody.innerHTML = data.map(log => `
                 <tr>
                     <td><strong>${log.key_value}</strong></td>
+                    <td>${log.card_note || '-'}</td>
                     <td>${log.ip_address || '-'}</td>
                     <td>
                         <span class="status-badge ${log.success ? 'status-active' : 'status-inactive'}">
