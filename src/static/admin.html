@@ -660,6 +660,14 @@
             color: #A89070;
         }
 
+        .col-narrow {
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
         /* 统计卡片 */
         .stats-row {
             display: grid;
@@ -969,12 +977,13 @@
                                 <th>ID</th>
                                 <th>卡密</th>
                                 <th>激活状态</th>
-                                <th>销售状态</th>
                                 <th>绑定设备</th>
                                 <th>过期时间</th>
                                 <th>备注</th>
-                                <th>飞书链接</th>
+                                <th class="col-narrow">飞书链接</th>
                                 <th>创建时间</th>
+                                <th>销售状态</th>
+                                <th class="col-narrow">订单号</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
@@ -1480,7 +1489,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="11">
+                        <td colspan="12">
                             <div class="empty-state">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M20 13V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7m16 0v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5m16 0h-2.586a1 1 0 0 0-.707.293l-2.414 2.414a1 1 0 0 1-.707.293h-3.172a1 1 0 0 1-.707-.293l-2.414-2.414A1 1 0 0 0 6.586 13H4"/>
@@ -1506,6 +1515,14 @@
                     deviceCount = devices.length;
                 } catch (e) {}
                 
+                // 截断显示飞书链接
+                const feishuUrl = card.feishu_url || '';
+                const feishuUrlDisplay = feishuUrl.length > 25 ? feishuUrl.substring(0, 25) + '...' : feishuUrl || '-';
+                
+                // 截断显示订单号
+                const orderId = card.order_id || '';
+                const orderIdDisplay = orderId.length > 15 ? orderId.substring(0, 15) + '...' : orderId || '-';
+                
                 return `
                 <tr>
                     <td>
@@ -1519,14 +1536,15 @@
                     <td>
                         <span class="status-badge ${statusClass}">${statusText}</span>
                     </td>
-                    <td>
-                        <span class="status-badge ${saleStatusClass}">${saleStatusText}</span>
-                    </td>
                     <td>${deviceCount} / ${card.max_devices || 5} 台</td>
                     <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
                     <td>${card.user_note || '-'}</td>
-                    <td class="truncate" title="${card.feishu_url || ''}">${card.feishu_url || '-'}</td>
+                    <td class="col-narrow" title="${feishuUrl}">${feishuUrlDisplay}</td>
                     <td class="text-small">${formatDate(card.bstudio_create_time)}</td>
+                    <td>
+                        <span class="status-badge ${saleStatusClass}">${saleStatusText}</span>
+                    </td>
+                    <td class="col-narrow" title="${orderId}">${orderIdDisplay}</td>
                     <td>
                         <div class="actions-cell">
                             <button class="btn btn-secondary btn-sm" onclick="editCard(${card.id})">编辑</button>
