@@ -11,11 +11,12 @@ import secrets
 import csv
 import io
 import json
+import re
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -623,6 +624,11 @@ async def get_access_logs(
 
 # ==================== 静态文件服务 ====================
 
+# 微信验证文件配置（可配置多个）
+WECHAT_VERIFY_FILES = {
+    "f6f3f1102e163b12197a863f1873b9b2.txt": "215382aa832da898a1c0ad9e2e48a96a909277a9",
+}
+
 @app.get("/")
 async def serve_index():
     """服务首页"""
@@ -639,6 +645,17 @@ async def serve_admin():
     if os.path.exists(admin_path):
         return FileResponse(admin_path, media_type="text/html")
     raise HTTPException(status_code=404, detail="Admin page not found")
+
+
+# 微信验证文件路由（放在具体路由之后）
+@app.get("/{verify_file}")
+async def serve_wechat_verify(verify_file: str):
+    """服务微信验证文件（仅匹配微信验证文件格式）"""
+    # 只处理符合微信验证文件格式的请求：32位十六进制.txt
+    if re.match(r'^[a-f0-9]{32}\.txt$', verify_file):
+        if verify_file in WECHAT_VERIFY_FILES:
+            return PlainTextResponse(WECHAT_VERIFY_FILES[verify_file])
+    raise HTTPException(status_code=404, detail="File not found")
 
 
 # 挂载静态文件目录
