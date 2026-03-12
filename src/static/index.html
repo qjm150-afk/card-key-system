@@ -274,6 +274,70 @@
             min-height: 0;
         }
 
+        /* 协作者头像悬浮层 */
+        .collaborators-overlay {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            align-items: center;
+            z-index: 1000;
+            pointer-events: none;
+            animation: fadeInSlide 0.5s ease-out;
+        }
+
+        @keyframes fadeInSlide {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .collaborators-avatars {
+            display: flex;
+            align-items: center;
+        }
+
+        .collaborator-avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid white;
+            margin-left: -8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+            object-fit: cover;
+            background-color: #f0f0f0;
+            transition: all 0.3s ease;
+            pointer-events: auto;
+            cursor: pointer;
+        }
+
+        .collaborator-avatar:first-child {
+            margin-left: 0;
+        }
+
+        .collaborator-avatar:hover {
+            transform: translateY(-3px) scale(1.1);
+            z-index: 10;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .collaborators-count {
+            margin-left: 10px;
+            padding: 4px 12px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            font-size: 12px;
+            color: #5D4E37;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
         /* 安全提示遮罩 */
         .security-overlay {
             position: fixed;
@@ -354,6 +418,15 @@
                 访问密码：<span id="passwordValue" class="password-value"></span>
             </div>
         </div>
+        
+        <!-- 协作者头像悬浮层 -->
+        <div class="collaborators-overlay" id="collaboratorsOverlay">
+            <div class="collaborators-avatars" id="collaboratorsAvatars">
+                <!-- 头像将通过 JS 动态生成 -->
+            </div>
+            <span class="collaborators-count" id="collaboratorsCount">正在查看...</span>
+        </div>
+        
         <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
     </div>
 
@@ -438,6 +511,65 @@
                 passwordValue.textContent = password;
                 passwordInfo.style.display = 'block';
             }
+            
+            // 初始化协作者头像
+            initCollaborators();
+        }
+
+        // ==================== 协作者头像效果 ====================
+        
+        // 模拟协作者数据（可以替换为真实数据）
+        const collaboratorNames = [
+            '求职小白', 'Offer收割机', '面试达人', '简历优化师', 
+            '春招勇士', '校招先锋', '职场新人', '求职伙伴',
+            '努力搬砖', '奋斗青年', '求职路上', '追梦人'
+        ];
+        
+        // 头像颜色池
+        const avatarColors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+            '#FFEAA7', '#DDA0DD', '#98D8C8', '#F7DC6F',
+            '#BB8FCE', '#85C1E9', '#F8B500', '#00CED1'
+        ];
+        
+        let collaboratorsInterval = null;
+        
+        // 初始化协作者
+        function initCollaborators() {
+            updateCollaborators();
+            // 每30秒更新一次
+            if (collaboratorsInterval) clearInterval(collaboratorsInterval);
+            collaboratorsInterval = setInterval(updateCollaborators, 30000);
+        }
+        
+        // 更新协作者显示
+        function updateCollaborators() {
+            const container = document.getElementById('collaboratorsAvatars');
+            const countEl = document.getElementById('collaboratorsCount');
+            
+            if (!container) return;
+            
+            // 随机生成 3-6 个在线用户
+            const onlineCount = Math.floor(Math.random() * 4) + 3;
+            const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
+            const onlineUsers = shuffledNames.slice(0, onlineCount);
+            
+            // 生成头像HTML
+            container.innerHTML = onlineUsers.map((name, index) => {
+                const color = avatarColors[index % avatarColors.length];
+                const initial = name.charAt(0);
+                return `
+                    <div class="collaborator-avatar" 
+                         style="background-color: ${color}; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;"
+                         title="${name}">
+                        ${initial}
+                    </div>
+                `;
+            }).join('');
+            
+            // 更新在线人数
+            const totalOnline = onlineCount + Math.floor(Math.random() * 10) + 5;
+            countEl.textContent = `${totalOnline} 人在线查看`;
         }
 
         // 显示验证页面
