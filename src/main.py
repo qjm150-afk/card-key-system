@@ -14,7 +14,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -76,6 +76,8 @@ class CardKeyUpdate(BaseModel):
     feishu_password: Optional[str] = None
     expire_at: Optional[str] = None
     max_uses: Optional[int] = None
+    sale_status: Optional[str] = None  # 销售状态
+    order_id: Optional[str] = None  # 订单号
 
 
 class BatchGenerateRequest(BaseModel):
@@ -475,6 +477,121 @@ async def export_cards(
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/cards/sale-status-template")
+async def download_sale_status_template():
+    """下载销售状态导入模板"""
+    try:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # 模板表头
+        writer.writerow(['卡密', '订单号', '销售状态'])
+        # 示例行
+        writer.writerow(['CSS-XXXX-XXXX-XXXX', 'ORDER123456', '已售出'])
+        writer.writerow(['CSS-YYYY-YYYY-YYYY', 'ORDER789012', '已退款'])
+        
+        output.seek(0)
+        
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename=sale_status_template.csv"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"下载模板失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/cards/import-sale-status")
+async def import_sale_status(file: UploadFile = File(...)):
+    """
+    批量导入销售状态
+    - 读取CSV文件，匹配卡密更新销售状态
+    - 已退款/有纠纷的卡密自动停用
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 读取上传的CSV文件
+        content = await file.read()
+        text = content.decode('utf-8-sig')  # 支持带BOM的UTF-8
+        reader = csv.DictReader(io.StringIO(text))
+        
+        # 状态映射
+        status_map = {
+            '未售出': 'unsold',
+            '已售出': 'sold',
+            '已退款': 'refunded',
+            '有纠纷': 'disputed'
+        }
+        
+        updated_count = 0
+        deactivated_count = 0
+        not_found = []
+        
+        for row in reader:
+            key_value = row.get('卡密', '').strip().upper()
+            order_id = row.get('订单号', '').strip()
+            sale_status_text = row.get('销售状态', '').strip()
+            
+            if not key_value or not sale_status_text:
+                continue
+            
+            sale_status = status_map.get(sale_status_text)
+            if not sale_status:
+                continue
+            
+            # 查找卡密
+            find_response = client.table('card_keys_table').select('id, status').eq('key_value', key_value).execute()
+            if not find_response.data:
+                not_found.append(key_value)
+                continue
+            
+            card = find_response.data[0]
+            card_id = card['id']
+            current_status = card['status']
+            
+            # 准备更新数据
+            update_data = {
+                'sale_status': sale_status,
+                'order_id': order_id or None
+            }
+            
+            # 已售出时记录时间
+            if sale_status == 'sold':
+                update_data['sold_at'] = datetime.now().isoformat()
+            
+            # 已退款/有纠纷时自动停用
+            if sale_status in ['refunded', 'disputed'] and current_status == 1:
+                update_data['status'] = 0  # 停用
+                deactivated_count += 1
+            
+            # 更新卡密
+            client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
+            updated_count += 1
+        
+        result_msg = f"成功更新 {updated_count} 条记录"
+        if deactivated_count > 0:
+            result_msg += f"，其中 {deactivated_count} 条已自动停用"
+        if not_found:
+            result_msg += f"，{len(not_found)} 条卡密未找到"
+        
+        return {
+            "success": True,
+            "msg": result_msg,
+            "updated": updated_count,
+            "deactivated": deactivated_count,
+            "not_found": not_found[:10]  # 只返回前10条未找到的
+        }
+        
+    except Exception as e:
+        logger.error(f"导入销售状态失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/admin/cards/{card_id}")
 async def get_card_key(card_id: int):
     """获取单个卡密"""
@@ -613,6 +730,13 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
             update_data["expire_at"] = card.expire_at
         if card.max_uses is not None:
             update_data["max_uses"] = card.max_uses
+        if card.sale_status is not None:
+            update_data["sale_status"] = card.sale_status
+            # 已售出时记录时间
+            if card.sale_status == 'sold':
+                update_data["sold_at"] = datetime.now().isoformat()
+        if card.order_id is not None:
+            update_data["order_id"] = card.order_id or None
         
         response = client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
         
