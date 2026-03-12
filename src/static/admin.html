@@ -1172,6 +1172,16 @@
                         <option value="refunded">已退款</option>
                         <option value="disputed">有纠纷</option>
                     </select>
+                    <select class="filter-select" id="salesChannelFilter" onchange="searchCards()">
+                        <option value="">销售渠道</option>
+                        <option value="阿奇索发货平台">阿奇索发货平台</option>
+                        <option value="小红书">小红书</option>
+                        <option value="淘宝">淘宝</option>
+                        <option value="抖音">抖音</option>
+                        <option value="拼多多">拼多多</option>
+                        <option value="闲鱼">闲鱼</option>
+                        <option value="微信私域">微信私域</option>
+                    </select>
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="searchCards()">搜索</button>
                         <button class="btn btn-secondary" onclick="resetFilters()">重置</button>
@@ -1217,6 +1227,7 @@
                                 <th class="col-narrow">飞书链接</th>
                                 <th>创建时间</th>
                                 <th>销售状态</th>
+                                <th>销售渠道</th>
                                 <th class="col-narrow">订单号</th>
                                 <th>操作</th>
                             </tr>
@@ -1307,9 +1318,24 @@
                             </select>
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>订单号</label>
-                        <input type="text" class="form-input" id="orderId" placeholder="可选，记录销售订单号">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>销售渠道</label>
+                            <input type="text" class="form-input" id="salesChannel" list="salesChannelList" placeholder="选择或输入渠道名称">
+                            <datalist id="salesChannelList">
+                                <option value="阿奇索发货平台">
+                                <option value="小红书">
+                                <option value="淘宝">
+                                <option value="抖音">
+                                <option value="拼多多">
+                                <option value="闲鱼">
+                                <option value="微信私域">
+                            </datalist>
+                        </div>
+                        <div class="form-group">
+                            <label>订单号</label>
+                            <input type="text" class="form-input" id="orderId" placeholder="可选，记录销售订单号">
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>过期时间</label>
@@ -1358,6 +1384,10 @@
                     <div class="form-group">
                         <label>有效期（天）</label>
                         <input type="number" class="form-input" id="generateExpireDays" placeholder="不填则永不过期" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>销售渠道</label>
+                        <input type="text" class="form-input" id="generateSalesChannel" list="salesChannelList" placeholder="选择或输入渠道名称">
                     </div>
                     <div class="form-group">
                         <label>飞书链接（所有卡密共用）</label>
@@ -1474,6 +1504,13 @@
                         <span class="update-field-label">备注</span>
                         <div class="update-field-input">
                             <input type="text" id="updateValueUserNote" placeholder="输入新的备注内容" disabled>
+                        </div>
+                    </div>
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldSalesChannel" onchange="toggleUpdateField('sales_channel')">
+                        <span class="update-field-label">销售渠道</span>
+                        <div class="update-field-input">
+                            <input type="text" id="updateValueSalesChannel" list="salesChannelList" placeholder="选择或输入渠道名称" disabled>
                         </div>
                     </div>
                 </div>
@@ -1649,6 +1686,7 @@
             const expireDays = document.getElementById('expireDaysFilter').value;
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
+            const salesChannel = document.getElementById('salesChannelFilter').value;
             
             const params = new URLSearchParams({
                 page: currentPage,
@@ -1662,6 +1700,7 @@
             if (expireDays) params.append('expire_days', expireDays);
             if (createdStart) params.append('created_start', createdStart);
             if (createdEnd) params.append('created_end', createdEnd);
+            if (salesChannel) params.append('sales_channel', salesChannel);
 
             try {
                 const response = await fetch(`/api/admin/cards?${params}`);
@@ -1816,6 +1855,7 @@
             document.getElementById('expireDaysFilter').value = '';
             document.getElementById('createdStart').value = '';
             document.getElementById('createdEnd').value = '';
+            document.getElementById('salesChannelFilter').value = '';
             
             currentPage = 1;
             selectedIds.clear();
@@ -1869,7 +1909,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="12">
+                        <td colspan="13">
                             <div class="empty-state">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M20 13V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7m16 0v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5m16 0h-2.586a1 1 0 0 0-.707.293l-2.414 2.414a1 1 0 0 1-.707.293h-3.172a1 1 0 0 1-.707-.293l-2.414-2.414A1 1 0 0 0 6.586 13H4"/>
@@ -1926,6 +1966,7 @@
                     <td>
                         <span class="status-badge ${saleStatusClass}">${saleStatusText}</span>
                     </td>
+                    <td>${card.sales_channel || '-'}</td>
                     <td class="col-narrow" title="${orderId}">${orderIdDisplay}</td>
                     <td>
                         <div class="actions-cell">
@@ -2129,6 +2170,7 @@
                     document.getElementById('keyValue').value = card.key_value || '';
                     document.getElementById('cardStatus').value = card.status || 1;
                     document.getElementById('saleStatus').value = card.sale_status || 'unsold';
+                    document.getElementById('salesChannel').value = card.sales_channel || '';
                     document.getElementById('orderId').value = card.order_id || '';
                     document.getElementById('userNote').value = card.user_note || '';
                     document.getElementById('feishuUrl').value = card.feishu_url || '';
@@ -2161,6 +2203,7 @@
                 key_value: document.getElementById('keyValue').value.toUpperCase(),
                 status: parseInt(document.getElementById('cardStatus').value),
                 sale_status: document.getElementById('saleStatus').value,
+                sales_channel: document.getElementById('salesChannel').value,
                 order_id: document.getElementById('orderId').value || null,
                 user_note: document.getElementById('userNote').value,
                 feishu_url: document.getElementById('feishuUrl').value,
@@ -2212,7 +2255,8 @@
                 feishu_url: document.getElementById('generateFeishuUrl').value,
                 feishu_password: document.getElementById('generateFeishuPassword').value,
                 expire_days: parseInt(document.getElementById('generateExpireDays').value) || null,
-                user_note: document.getElementById('generateNote').value
+                user_note: document.getElementById('generateNote').value,
+                sales_channel: document.getElementById('generateSalesChannel').value
             };
 
             if (data.count < 1 || data.count > 1000) {
@@ -2941,21 +2985,24 @@
                 'status': 'updateFieldStatus',
                 'sale_status': 'updateFieldSaleStatus',
                 'feishu_url': 'updateFieldFeishuUrl',
-                'user_note': 'updateFieldUserNote'
+                'user_note': 'updateFieldUserNote',
+                'sales_channel': 'updateFieldSalesChannel'
             };
             
             const valueMap = {
                 'status': 'updateValueStatus',
                 'sale_status': 'updateValueSaleStatus',
                 'feishu_url': 'updateValueFeishuUrl',
-                'user_note': 'updateValueUserNote'
+                'user_note': 'updateValueUserNote',
+                'sales_channel': 'updateValueSalesChannel'
             };
             
             const labelMap = {
                 'status': '激活状态',
                 'sale_status': '销售状态',
                 'feishu_url': '飞书链接',
-                'user_note': '备注'
+                'user_note': '备注',
+                'sales_channel': '销售渠道'
             };
             
             const statusTextMap = {

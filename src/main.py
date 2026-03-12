@@ -78,6 +78,7 @@ class CardKeyUpdate(BaseModel):
     max_uses: Optional[int] = None
     sale_status: Optional[str] = None  # 销售状态
     order_id: Optional[str] = None  # 订单号
+    sales_channel: Optional[str] = None  # 销售渠道
 
 
 class BatchGenerateRequest(BaseModel):
@@ -89,6 +90,7 @@ class BatchGenerateRequest(BaseModel):
     expire_days: Optional[int] = None  # 有效期天数
     max_uses: int = 1  # 最大使用次数
     user_note: str = ""  # 备注
+    sales_channel: str = ""  # 销售渠道
 
 
 class BatchOperation(BaseModel):
@@ -101,7 +103,8 @@ class BatchOperation(BaseModel):
 
 class BatchUpdateRequest(BaseModel):
     """批量更新请求"""
-    filters: dict  # 筛选条件
+    filters: Optional[dict] = None  # 筛选条件（可选）
+    ids: Optional[list] = None  # 指定ID列表（可选，与filters二选一）
     updates: dict  # 更新字段
     remark: Optional[str] = None  # 操作备注
 
@@ -332,7 +335,8 @@ async def get_card_keys(
     created_end: Optional[str] = None,
     expire_days: Optional[str] = None,
     sale_status: Optional[str] = None,
-    device_filter: Optional[str] = None
+    device_filter: Optional[str] = None,
+    sales_channel: Optional[str] = None  # 销售渠道筛选
 ):
     """获取卡密列表"""
     try:
@@ -365,6 +369,9 @@ async def get_card_keys(
         
         if feishu_url:
             query = query.eq('feishu_url', feishu_url)
+        
+        if sales_channel:
+            query = query.eq('sales_channel', sales_channel)
         
         if sale_status:
             # 映射中文值到英文
@@ -492,93 +499,104 @@ async def batch_update_cards(request: BatchUpdateRequest):
     try:
         client = get_supabase_client()
         
-        # 构建查询条件
-        query = client.table('card_keys_table').select('id')
-        
-        filters = request.filters
-        
-        # 激活状态筛选
-        activate_status = filters.get('activate_status')
-        if activate_status and activate_status != '':
-            if activate_status == 'disabled':
-                query = query.in_('sale_status', ['refunded', 'disputed'])
-            elif activate_status == 'valid':
-                query = query.eq('devices', '[]').eq('used_count', 0)
-                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
-            elif activate_status == 'activated':
-                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
-                query = query.or_("devices.neq.[],used_count.gt.0")
-        
-        if filters.get('sale_status') and filters.get('sale_status') != '':
-            # 映射中文值到英文
-            sale_status_map = {
-                '未销售': 'unsold',
-                '已售出': 'sold',
-                '已核销': 'used',
-                '已退款': 'refunded',
-                '有纠纷': 'disputed'
-            }
-            mapped_status = sale_status_map.get(filters['sale_status'], filters['sale_status'])
-            query = query.eq('sale_status', mapped_status)
-        
-        if filters.get('feishu_url') and filters.get('feishu_url') != '':
-            query = query.eq('feishu_url', filters['feishu_url'])
-        
-        # 绑定设备筛选（按设备数量）
-        device_filter = filters.get('device_filter')
-        need_device_filter = False
-        device_count_filter = 0
-        if device_filter and device_filter != '':
-            try:
-                device_count_filter = int(device_filter)
-                if device_count_filter == 0:
-                    query = query.eq('devices', '[]')
-                else:
-                    need_device_filter = True
-            except ValueError:
-                pass
-        
-        # 过期时间筛选（未来天数）
-        expire_days = filters.get('expire_days')
-        if expire_days and expire_days != '':
-            now = datetime.now()
-            if expire_days == 'expired':
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
-            elif expire_days == 'permanent':
-                query = query.is_('expire_at', 'null')
-            else:
+        # 判断使用ids还是filters
+        if request.ids and len(request.ids) > 0:
+            # 使用指定的ID列表
+            affected_ids = [int(id) for id in request.ids]
+        elif request.filters:
+            # 构建查询条件
+            query = client.table('card_keys_table').select('id')
+            
+            filters = request.filters
+            
+            # 激活状态筛选
+            activate_status = filters.get('activate_status')
+            if activate_status and activate_status != '':
+                if activate_status == 'disabled':
+                    query = query.in_('sale_status', ['refunded', 'disputed'])
+                elif activate_status == 'valid':
+                    query = query.eq('devices', '[]').eq('used_count', 0)
+                    query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                elif activate_status == 'activated':
+                    query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                    query = query.or_("devices.neq.[],used_count.gt.0")
+            
+            if filters.get('sale_status') and filters.get('sale_status') != '':
+                # 映射中文值到英文
+                sale_status_map = {
+                    '未销售': 'unsold',
+                    '已售出': 'sold',
+                    '已核销': 'used',
+                    '已退款': 'refunded',
+                    '有纠纷': 'disputed'
+                }
+                mapped_status = sale_status_map.get(filters['sale_status'], filters['sale_status'])
+                query = query.eq('sale_status', mapped_status)
+            
+            if filters.get('feishu_url') and filters.get('feishu_url') != '':
+                query = query.eq('feishu_url', filters['feishu_url'])
+            
+            # 销售渠道筛选
+            if filters.get('sales_channel') and filters.get('sales_channel') != '':
+                query = query.eq('sales_channel', filters['sales_channel'])
+            
+            # 绑定设备筛选（按设备数量）
+            device_filter = filters.get('device_filter')
+            need_device_filter = False
+            device_count_filter = 0
+            if device_filter and device_filter != '':
                 try:
-                    days = int(expire_days)
-                    future_date = (now + timedelta(days=days)).isoformat()
-                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                    device_count_filter = int(device_filter)
+                    if device_count_filter == 0:
+                        query = query.eq('devices', '[]')
+                    else:
+                        need_device_filter = True
                 except ValueError:
                     pass
-        
-        if filters.get('search') and filters.get('search') != '':
-            search = filters['search']
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
-        
-        if filters.get('created_start') and filters.get('created_start') != '':
-            query = query.gte('bstudio_create_time', filters['created_start'])
-        if filters.get('created_end') and filters.get('created_end') != '':
-            query = query.lte('bstudio_create_time', filters['created_end'] + 'T23:59:59')
-        
-        # 获取符合条件的记录
-        response = query.execute()
-        
-        # 如果需要在应用层过滤设备数量
-        if need_device_filter:
-            filtered_data = []
-            for card in response.data:
-                try:
-                    devices = json.loads(card.get('devices', '[]'))
-                    if len(devices) == device_count_filter:
-                        filtered_data.append(card)
-                except:
-                    pass
-            affected_ids = [item['id'] for item in filtered_data]
+            
+            # 过期时间筛选（未来天数）
+            expire_days = filters.get('expire_days')
+            if expire_days and expire_days != '':
+                now = datetime.now()
+                if expire_days == 'expired':
+                    query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                elif expire_days == 'permanent':
+                    query = query.is_('expire_at', 'null')
+                else:
+                    try:
+                        days = int(expire_days)
+                        future_date = (now + timedelta(days=days)).isoformat()
+                        query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                    except ValueError:
+                        pass
+            
+            if filters.get('search') and filters.get('search') != '':
+                search = filters['search']
+                query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
+            
+            if filters.get('created_start') and filters.get('created_start') != '':
+                query = query.gte('bstudio_create_time', filters['created_start'])
+            if filters.get('created_end') and filters.get('created_end') != '':
+                query = query.lte('bstudio_create_time', filters['created_end'] + 'T23:59:59')
+            
+            # 获取符合条件的记录
+            response = query.execute()
+            
+            # 如果需要在应用层过滤设备数量
+            if need_device_filter:
+                filtered_data = []
+                for card in response.data:
+                    try:
+                        devices = json.loads(card.get('devices', '[]'))
+                        if len(devices) == device_count_filter:
+                            filtered_data.append(card)
+                    except:
+                        pass
+                affected_ids = [item['id'] for item in filtered_data]
+            else:
+                affected_ids = [item['id'] for item in response.data]
         else:
-            affected_ids = [item['id'] for item in response.data]
+            return {"success": False, "msg": "请提供ids或filters参数"}
         
         affected_count = len(affected_ids)
         
@@ -612,6 +630,9 @@ async def batch_update_cards(request: BatchUpdateRequest):
         if 'user_note' in updates:
             update_data['user_note'] = updates['user_note'] or ''
         
+        if 'sales_channel' in updates:
+            update_data['sales_channel'] = updates['sales_channel'] or ''
+        
         if not update_data:
             return {"success": False, "msg": "没有需要更新的字段"}
         
@@ -622,7 +643,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
         log_data = {
             "operator": "admin",
             "operation_type": "batch_update",
-            "filter_conditions": filters,
+            "filter_conditions": request.filters if request.filters else {"ids": request.ids},
             "affected_count": affected_count,
             "affected_ids": affected_ids,
             "update_fields": update_data,
@@ -924,6 +945,33 @@ async def get_feishu_urls():
         
     except Exception as e:
         logger.error(f"获取飞书链接列表失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/cards/sales-channels")
+async def get_sales_channels():
+    """获取所有不同的销售渠道列表（用于筛选下拉）"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有记录的销售渠道
+        response = client.table('card_keys_table').select('sales_channel').execute()
+        
+        # 统计每个渠道的数量
+        channel_count = {}
+        for item in response.data:
+            channel = item.get('sales_channel') or ''
+            if channel:
+                channel_count[channel] = channel_count.get(channel, 0) + 1
+        
+        # 转换为列表并按数量排序
+        channels = [{"channel": k, "count": v} for k, v in channel_count.items()]
+        channels.sort(key=lambda x: x['count'], reverse=True)
+        
+        return {"success": True, "data": channels}
+        
+    except Exception as e:
+        logger.error(f"获取销售渠道列表失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
@@ -1301,7 +1349,8 @@ async def batch_generate_cards(req: BatchGenerateRequest):
                 "bstudio_create_time": datetime.now().isoformat(),
                 "expire_at": expire_at,
                 "max_uses": req.max_uses,
-                "used_count": 0
+                "used_count": 0,
+                "sales_channel": req.sales_channel
             })
         
         # 批量插入
@@ -1349,6 +1398,8 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
                 update_data["sold_at"] = datetime.now().isoformat()
         if card.order_id is not None:
             update_data["order_id"] = card.order_id or None
+        if card.sales_channel is not None:
+            update_data["sales_channel"] = card.sales_channel
         
         response = client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
         
