@@ -433,20 +433,22 @@ async def get_card_keys(
             query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
         
         # 激活状态筛选（动态计算）
-        # - valid（有效）：未使用过且销售状态正常
-        # - activated（已激活）：已使用过且状态正常  
-        # - disabled（已停用）：退款或有纠纷
+        # - valid（有效）：status=1 且未使用过且销售状态正常
+        # - activated（已激活）：status=1 且已使用过且销售状态正常
+        # - disabled（已停用）：status=0 或 销售状态为 refunded/disputed
         if activate_status:
             if activate_status == 'disabled':
-                # 已停用：退款或有纠纷
-                query = query.in_('sale_status', ['refunded', 'disputed'])
+                # 已停用：status=0 或 退款或有纠纷
+                # 使用 or 条件：status=0 OR sale_status in ['refunded', 'disputed']
+                query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
-                # 有效：未使用过且销售状态正常
+                # 有效：status=1 且 未使用过且销售状态正常
+                query = query.eq('status', 1)
                 query = query.eq('devices', '[]').eq('used_count', 0)
                 query = query.not_.in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
-                # 已激活：已使用过且状态正常（需要在应用层过滤）
-                # 先获取已使用过的记录，然后在应用层过滤
+                # 已激活：status=1 且 已使用过且销售状态正常
+                query = query.eq('status', 1)
                 query = query.not_.in_('sale_status', ['refunded', 'disputed'])
                 # 使用 or 条件：devices != '[]' OR used_count > 0
                 query = query.or_("devices.neq.[],used_count.gt.0")
@@ -597,11 +599,16 @@ async def batch_update_cards(request: BatchUpdateRequest):
             activate_status = filters.get('activate_status')
             if activate_status and activate_status != '':
                 if activate_status == 'disabled':
-                    query = query.in_('sale_status', ['refunded', 'disputed'])
+                    # 已停用：status=0 或 退款或有纠纷
+                    query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
                 elif activate_status == 'valid':
+                    # 有效：status=1 且 未使用过且销售状态正常
+                    query = query.eq('status', 1)
                     query = query.eq('devices', '[]').eq('used_count', 0)
                     query = query.not_.in_('sale_status', ['refunded', 'disputed'])
                 elif activate_status == 'activated':
+                    # 已激活：status=1 且 已使用过且销售状态正常
+                    query = query.eq('status', 1)
                     query = query.not_.in_('sale_status', ['refunded', 'disputed'])
                     query = query.or_("devices.neq.[],used_count.gt.0")
             
@@ -787,11 +794,16 @@ async def count_by_filters(
         # 激活状态筛选
         if activate_status and activate_status != '':
             if activate_status == 'disabled':
-                query = query.in_('sale_status', ['refunded', 'disputed'])
+                # 已停用：status=0 或 退款或有纠纷
+                query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
+                # 有效：status=1 且 未使用过且销售状态正常
+                query = query.eq('status', 1)
                 query = query.eq('devices', '[]').eq('used_count', 0)
                 query = query.not_.in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
+                # 已激活：status=1 且 已使用过且销售状态正常
+                query = query.eq('status', 1)
                 query = query.not_.in_('sale_status', ['refunded', 'disputed'])
                 query = query.or_("devices.neq.[],used_count.gt.0")
         
