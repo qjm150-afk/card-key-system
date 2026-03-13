@@ -69,151 +69,201 @@
 
         .card {
             background: white;
-            border-radius: 28px;
-            box-shadow: 0 8px 32px rgba(255, 138, 92, 0.12);
+            border-radius: 32px;
+            box-shadow: 
+                0 4px 6px rgba(255, 138, 92, 0.05),
+                0 10px 40px rgba(255, 138, 92, 0.12),
+                0 0 0 1px rgba(255, 138, 92, 0.03);
             padding: 0;
             border: none;
             overflow: hidden;
+            backdrop-filter: blur(10px);
         }
 
         /* 顶部视觉区 */
         .header-section {
-            background: linear-gradient(135deg, #FFF5EE 0%, #FFE8DC 100%);
-            padding: 40px 32px 32px;
+            background: linear-gradient(135deg, #FFF8F5 0%, #FFEDE5 100%);
+            padding: 48px 32px 36px;
             text-align: center;
             position: relative;
+            overflow: hidden;
         }
 
+        /* 装饰圆点 */
         .header-section::before {
             content: '';
             position: absolute;
-            top: -20px;
-            left: -20px;
-            width: 100px;
-            height: 100px;
-            background: radial-gradient(circle, rgba(255, 138, 92, 0.15) 0%, transparent 70%);
+            top: -30px;
+            left: -30px;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(255, 138, 92, 0.2) 0%, transparent 70%);
             border-radius: 50%;
         }
 
         .header-section::after {
             content: '';
             position: absolute;
-            bottom: -30px;
-            right: -30px;
-            width: 120px;
-            height: 120px;
-            background: radial-gradient(circle, rgba(45, 156, 219, 0.1) 0%, transparent 70%);
+            bottom: -40px;
+            right: -40px;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, rgba(45, 156, 219, 0.12) 0%, transparent 70%);
             border-radius: 50%;
         }
 
+        /* 装饰元素 */
+        .decoration-dots {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+
+        .decoration-dots::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            width: 8px;
+            height: 8px;
+            background: rgba(255, 138, 92, 0.3);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .decoration-dots::after {
+            content: '';
+            position: absolute;
+            top: 40px;
+            right: 50px;
+            width: 5px;
+            height: 5px;
+            background: rgba(45, 156, 219, 0.3);
+            border-radius: 50%;
+            animation: pulse 2s ease-in-out infinite 0.5s;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+        }
+
         .mascot-wrapper {
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             position: relative;
             z-index: 1;
         }
 
         .mascot-img {
-            width: 120px;
-            height: 120px;
+            width: 140px;
+            height: 140px;
             object-fit: contain;
-            filter: drop-shadow(0 4px 12px rgba(255, 138, 92, 0.2));
+            filter: drop-shadow(0 6px 16px rgba(255, 138, 92, 0.25));
             animation: float 3s ease-in-out infinite;
         }
 
         @keyframes float {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-8px); }
+            50% { transform: translateY(-10px); }
         }
 
         .title {
-            font-size: 26px;
+            font-size: 28px;
             font-weight: 700;
             background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
             position: relative;
             z-index: 1;
+            letter-spacing: 0.5px;
         }
 
         .subtitle {
             font-size: 15px;
-            color: #8B7355;
+            color: #7A6855;
             position: relative;
             z-index: 1;
+            font-weight: 400;
         }
 
         /* 表单区域 */
         .form-section {
-            padding: 28px 32px 32px;
+            padding: 32px 32px 36px;
         }
 
         .input-wrapper {
             position: relative;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
 
         .input-container {
             display: flex;
             align-items: center;
-            background: #F8F9FA;
-            border: 1.5px solid #E0E0E0;
-            border-radius: 24px;
-            padding: 4px;
+            background: #FAFAFA;
+            border: 1.5px solid #E8E8E8;
+            border-radius: 26px;
+            padding: 5px;
             transition: all 0.3s ease;
         }
 
         .input-container:focus-within {
             border-color: #FF8A5C;
-            background: #FFFAF7;
-            box-shadow: 0 0 0 4px rgba(255, 138, 92, 0.1);
+            background: #FFF;
+            box-shadow: 0 0 0 4px rgba(255, 138, 92, 0.12), 0 2px 8px rgba(255, 138, 92, 0.1);
         }
 
         .input-icon {
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
-            border-radius: 20px;
-            font-size: 18px;
+            border-radius: 21px;
+            font-size: 17px;
             flex-shrink: 0;
+            box-shadow: 0 2px 8px rgba(255, 138, 92, 0.25);
         }
 
         .input {
             flex: 1;
-            height: 44px;
-            padding: 0 12px;
+            height: 42px;
+            padding: 0 14px;
             font-size: 16px;
             border: none;
             background: transparent;
             outline: none;
             color: #5D4E37;
+            font-weight: 450;
         }
 
         .input::placeholder {
-            color: #A8A8A8;
+            color: #B8B8B8;
+            font-weight: 400;
         }
 
         .paste-btn {
-            width: 44px;
-            height: 44px;
+            width: 42px;
+            height: 42px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #F0F0F0;
+            background: #F5F5F5;
             border: none;
-            border-radius: 20px;
-            font-size: 16px;
+            border-radius: 21px;
+            font-size: 15px;
             cursor: pointer;
             transition: all 0.2s ease;
             flex-shrink: 0;
         }
 
         .paste-btn:hover {
-            background: #E8E8E8;
+            background: #EBEBEB;
             transform: scale(1.05);
         }
 
@@ -225,32 +275,32 @@
         .smart-hint {
             display: flex;
             align-items: flex-start;
-            gap: 6px;
-            padding: 12px 16px;
-            background: linear-gradient(135deg, #FFF9F5 0%, #FFF5EE 100%);
-            border-radius: 12px;
-            margin-bottom: 20px;
-            border: 1px solid rgba(255, 138, 92, 0.15);
+            gap: 8px;
+            padding: 14px 18px;
+            background: linear-gradient(135deg, #FFFBF8 0%, #FFF7F2 100%);
+            border-radius: 14px;
+            margin-bottom: 22px;
+            border: 1px solid rgba(255, 138, 92, 0.12);
         }
 
         .smart-hint-icon {
-            font-size: 14px;
+            font-size: 15px;
             flex-shrink: 0;
             margin-top: 1px;
         }
 
         .smart-hint-text {
             font-size: 13px;
-            color: #8B7355;
-            line-height: 1.5;
+            color: #7A6855;
+            line-height: 1.6;
         }
 
         .error-box {
-            background-color: #FEF2F2;
-            border: 1px solid #FECACA;
+            background: linear-gradient(135deg, #FEF6F6 0%, #FEF2F2 100%);
+            border: 1px solid #FEDADA;
             border-radius: 16px;
-            padding: 14px 16px;
-            margin-bottom: 16px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
             display: flex;
             align-items: center;
             gap: 10px;
@@ -265,22 +315,23 @@
         /* 按钮样式 */
         .button {
             width: 100%;
-            height: 52px;
+            height: 54px;
             background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
             color: white;
             font-size: 17px;
             font-weight: 600;
             border: none;
-            border-radius: 26px;
+            border-radius: 27px;
             cursor: pointer;
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
-            box-shadow: 0 4px 16px rgba(255, 138, 92, 0.35);
+            box-shadow: 0 6px 20px rgba(255, 138, 92, 0.4);
             position: relative;
             overflow: hidden;
+            letter-spacing: 0.3px;
         }
 
         .button::before {
@@ -290,8 +341,8 @@
             left: -100%;
             width: 100%;
             height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-            transition: left 0.5s ease;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+            transition: left 0.6s ease;
         }
 
         .button:hover::before {
@@ -299,12 +350,12 @@
         }
 
         .button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 24px rgba(255, 138, 92, 0.45);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(255, 138, 92, 0.5);
         }
 
         .button:active {
-            transform: translateY(0);
+            transform: translateY(-1px);
         }
 
         .button:disabled {
@@ -324,24 +375,14 @@
         }
 
         .footer {
-            margin-top: 24px;
+            margin-top: 28px;
             text-align: center;
         }
 
         .footer-text {
             font-size: 13px;
-            color: #A89070;
+            color: #A8A090;
             line-height: 1.8;
-        }
-
-        .footer-text a {
-            color: #FF8A5C;
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .footer-text a:hover {
-            text-decoration: underline;
         }
 
         /* 成功页面样式 */
@@ -569,6 +610,7 @@
         <div class="card">
             <!-- 顶部视觉区 -->
             <div class="header-section">
+                <div class="decoration-dots"></div>
                 <div class="mascot-wrapper">
                     <img src="/static/mascot.png" alt="学长卡通" class="mascot-img" onerror="this.style.display='none'">
                 </div>
@@ -611,8 +653,7 @@
                 </form>
 
                 <div class="footer">
-                    <p class="footer-text">验证通过后可访问专属内容</p>
-                    <p class="footer-text">如需帮助请<a href="javascript:void(0)">联系客服</a></p>
+                    <p class="footer-text">验证通过后即可访问专属求职资源</p>
                 </div>
             </div>
         </div>
