@@ -298,6 +298,18 @@
             cursor: default;
         }
 
+        /* 飞书顶部右侧遮罩 - 阻挡"进入原应用"按钮 */
+        .feishu-top-right-mask {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 180px;
+            height: 56px;
+            background: transparent;
+            z-index: 999;
+            cursor: default;
+        }
+
         /* 隐私提示 */
         .privacy-notice {
             padding: 12px 20px;
@@ -488,13 +500,15 @@
                 </div>
                 <span class="collaborators-count" id="collaboratorsCount">正在查看...</span>
             </div>
+            <!-- 飞书顶部右侧遮罩 - 阻挡"进入原应用"按钮 -->
+            <div class="feishu-top-right-mask"></div>
             <!-- 飞书底部操作栏遮罩 -->
             <div class="feishu-bottom-mask"></div>
         </div>
         
         <!-- 隐私提示 -->
         <div class="privacy-notice">
-            为保障服务质量，系统会记录访问时间、设备类型等信息，我们承诺保护您的隐私安全
+            为保障服务质量，系统会记录访问时间等信息，我们承诺保护您的隐私安全
         </div>
     </div>
 
