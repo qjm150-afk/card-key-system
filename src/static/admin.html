@@ -1996,6 +1996,13 @@
                             <input type="text" id="updateValueSalesChannel" list="salesChannelList" placeholder="选择或输入渠道名称" disabled>
                         </div>
                     </div>
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldExpireAt" onchange="toggleUpdateField('expire_at')">
+                        <span class="update-field-label">过期时间</span>
+                        <div class="update-field-input">
+                            <input type="datetime-local" id="updateValueExpireAt" disabled>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -3975,7 +3982,8 @@
                 'feishu_url': 'updateFieldFeishuUrl',
                 'link_name': 'updateFieldLinkName',
                 'user_note': 'updateFieldUserNote',
-                'sales_channel': 'updateFieldSalesChannel'
+                'sales_channel': 'updateFieldSalesChannel',
+                'expire_at': 'updateFieldExpireAt'
             };
             
             const valueMap = {
@@ -3984,7 +3992,8 @@
                 'feishu_url': 'updateValueFeishuUrl',
                 'link_name': 'updateValueLinkName',
                 'user_note': 'updateValueUserNote',
-                'sales_channel': 'updateValueSalesChannel'
+                'sales_channel': 'updateValueSalesChannel',
+                'expire_at': 'updateValueExpireAt'
             };
             
             const labelMap = {
@@ -3993,7 +4002,8 @@
                 'feishu_url': '飞书链接',
                 'link_name': '链接名称',
                 'user_note': '备注',
-                'sales_channel': '销售渠道'
+                'sales_channel': '销售渠道',
+                'expire_at': '过期时间'
             };
             
             const statusTextMap = {
@@ -4007,8 +4017,26 @@
                     const valueInput = document.getElementById(valueMap[field]);
                     let value = valueInput.value;
                     
+                    // 特殊处理过期时间字段
+                    if (field === 'expire_at') {
+                        if (value) {
+                            // 格式化显示：datetime-local 格式转成易读格式
+                            const date = new Date(value);
+                            const display = date.toLocaleString('zh-CN', {
+                                year: 'numeric',
+                                month: '2-digit',
+                                day: '2-digit',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                            // 转换为 ISO 格式存储
+                            updates[field] = { value: date.toISOString(), display };
+                        } else {
+                            updates[field] = { value: '', display: '(清空)' };
+                        }
+                    }
                     // 转换显示文本
-                    if (statusTextMap[field] && statusTextMap[field][value]) {
+                    else if (statusTextMap[field] && statusTextMap[field][value]) {
                         updates[field] = { value, display: statusTextMap[field][value] };
                     } else {
                         updates[field] = { value, display: value || '(空)' };
