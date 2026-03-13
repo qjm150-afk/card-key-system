@@ -472,31 +472,31 @@
             pointer-events: auto;
         }
 
-        /* 退出按钮 - 浮动在飞书页面左下角 */
+        /* 退出按钮 - 浮动在飞书页面顶部中间 */
         .exit-btn {
             position: absolute;
-            bottom: 60px;
-            left: 16px;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
             align-items: center;
             gap: 6px;
-            padding: 8px 14px;
-            background: rgba(255, 255, 255, 0.9);
-            border: 1px solid rgba(0, 0, 0, 0.08);
-            border-radius: 20px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 6px 14px;
+            background: rgba(255, 255, 255, 0.85);
+            border: 1px solid rgba(0, 0, 0, 0.06);
+            border-radius: 18px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
             z-index: 10001;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 500;
             color: #5D4E37;
             transition: all 0.2s ease;
         }
 
         .exit-btn:hover {
-            background: rgba(255, 255, 255, 1);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-            transform: translateY(-1px);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
         }
 
         .exit-btn:active {
