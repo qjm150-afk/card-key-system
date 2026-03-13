@@ -179,6 +179,22 @@ def get_supabase_client():
     return client
 
 
+def safe_log_operation(client, log_data: dict):
+    """
+    安全记录操作日志（失败不影响主操作）
+    
+    云端 Supabase 的 batch_operation_logs 表可能存在：
+    1. 字段不完整（缺少 filter_conditions 等新字段）
+    2. 主键序列不同步
+    
+    因此日志记录失败时只记录警告，不抛出异常
+    """
+    try:
+        client.table('batch_operation_logs').insert(log_data).execute()
+    except Exception as e:
+        logger.warning(f"记录操作日志失败（不影响主操作）: {str(e)}")
+
+
 def get_db_mode():
     """获取当前数据库模式"""
     from storage.database.db_client import get_db_mode as _get_db_mode
@@ -734,7 +750,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
         update_response = client.table('card_keys_table').update(update_data).in_('id', affected_ids).execute()
         
         # 记录操作日志
-        log_data = {
+        safe_log_operation(client, {
             "operator": "admin",
             "operation_type": "batch_update",
             "filter_conditions": request.filters if request.filters else {"ids": request.ids},
@@ -742,8 +758,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
             "affected_ids": affected_ids,
             "update_fields": update_data,
             "remark": request.remark or ""
-        }
-        client.table('batch_operation_logs').insert(log_data).execute()
+        })
         
         logger.info(f"批量更新成功: 影响记录数={affected_count}, 更新字段={list(update_data.keys())}")
         
@@ -1781,7 +1796,7 @@ async def import_cards(file: UploadFile = File(...)):
         
         # 记录操作日志
         if added_count > 0 or updated_count > 0:
-            client.table('batch_operation_logs').insert({
+            safe_log_operation(client, {
                 "operator": "admin",
                 "operation_type": "import_cards",
                 "filter_conditions": {"filename": file.filename},
@@ -1789,7 +1804,7 @@ async def import_cards(file: UploadFile = File(...)):
                 "affected_ids": [],
                 "update_fields": {"added": added_count, "updated": updated_count},
                 "remark": f"导入卡密: 新增{added_count}条, 更新{updated_count}条"
-            }).execute()
+            })
         
         result_msg = f"导入完成：新增 {added_count} 条，更新 {updated_count} 条"
         if skipped_count > 0:
@@ -1916,7 +1931,7 @@ async def batch_generate_cards(req: BatchGenerateRequest):
         generated_ids = [card['id'] for card in response.data]
         
         # 记录操作日志
-        client.table('batch_operation_logs').insert({
+        safe_log_operation(client, {
             "operator": "admin",
             "operation_type": "batch_generate",
             "filter_conditions": {
@@ -1931,7 +1946,7 @@ async def batch_generate_cards(req: BatchGenerateRequest):
             "affected_ids": generated_ids,
             "update_fields": {},
             "remark": f"批量生成 {generated_count} 条卡密"
-        }).execute()
+        })
         
         return {
             "success": True,
@@ -1985,10 +2000,10 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
         if not response.data:
             return {"success": False, "msg": "卡密不存在"}
         
-        # 记录操作日志（仅在有更新内容时）
+        # 记录操作日志（仅在有更新内容时，失败不影响主操作）
         if update_data:
             updated_card = response.data[0]
-            client.table('batch_operation_logs').insert({
+            safe_log_operation(client, {
                 "operator": "admin",
                 "operation_type": "single_update",
                 "filter_conditions": {"card_id": card_id, "key_value": updated_card.get('key_value', '')},
@@ -1996,7 +2011,7 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
                 "affected_ids": [card_id],
                 "update_fields": update_data,
                 "remark": f"编辑卡密: {updated_card.get('key_value', '')}"
-            }).execute()
+            })
         
         return {"success": True, "data": response.data[0], "msg": "更新成功"}
         
@@ -2025,7 +2040,7 @@ async def delete_card_key(card_id: int):
             return {"success": False, "msg": "卡密不存在"}
         
         # 记录操作日志
-        client.table('batch_operation_logs').insert({
+        safe_log_operation(client, {
             "operator": "admin",
             "operation_type": "single_delete",
             "filter_conditions": {"card_id": card_id, "key_value": deleted_key},
@@ -2033,7 +2048,7 @@ async def delete_card_key(card_id: int):
             "affected_ids": [card_id],
             "update_fields": {},
             "remark": f"删除卡密: {deleted_key}"
-        }).execute()
+        })
         
         return {"success": True, "msg": "删除成功"}
         
@@ -2067,7 +2082,7 @@ async def batch_operation(operation: BatchOperation):
             affected_count = len(response.data)
             
             # 记录操作日志
-            client.table('batch_operation_logs').insert({
+            safe_log_operation(client, {
                 "operator": "admin",
                 "operation_type": operation_type_map["delete"],
                 "filter_conditions": {"ids": operation.ids},
@@ -2075,7 +2090,7 @@ async def batch_operation(operation: BatchOperation):
                 "affected_ids": operation.ids,
                 "update_fields": {},
                 "remark": f"批量删除 {affected_count} 条卡密"
-            }).execute()
+            })
             
             return {"success": True, "msg": f"成功删除 {affected_count} 条记录"}
             
@@ -2084,7 +2099,7 @@ async def batch_operation(operation: BatchOperation):
             affected_count = len(response.data)
             
             # 记录操作日志
-            client.table('batch_operation_logs').insert({
+            safe_log_operation(client, {
                 "operator": "admin",
                 "operation_type": operation_type_map["activate"],
                 "filter_conditions": {"ids": operation.ids},
@@ -2092,7 +2107,7 @@ async def batch_operation(operation: BatchOperation):
                 "affected_ids": operation.ids,
                 "update_fields": {"status": 1},
                 "remark": f"批量激活 {affected_count} 条卡密"
-            }).execute()
+            })
             
             return {"success": True, "msg": f"成功激活 {affected_count} 条记录"}
             
@@ -2101,7 +2116,7 @@ async def batch_operation(operation: BatchOperation):
             affected_count = len(response.data)
             
             # 记录操作日志
-            client.table('batch_operation_logs').insert({
+            safe_log_operation(client, {
                 "operator": "admin",
                 "operation_type": operation_type_map["deactivate"],
                 "filter_conditions": {"ids": operation.ids},
@@ -2109,7 +2124,7 @@ async def batch_operation(operation: BatchOperation):
                 "affected_ids": operation.ids,
                 "update_fields": {"status": 0},
                 "remark": f"批量停用 {affected_count} 条卡密"
-            }).execute()
+            })
             
             return {"success": True, "msg": f"成功停用 {affected_count} 条记录"}
             
@@ -2123,7 +2138,7 @@ async def batch_operation(operation: BatchOperation):
             affected_count = len(response.data)
             
             # 记录操作日志
-            client.table('batch_operation_logs').insert({
+            safe_log_operation(client, {
                 "operator": "admin",
                 "operation_type": operation_type_map["update_url"],
                 "filter_conditions": {"ids": operation.ids},
@@ -2131,7 +2146,7 @@ async def batch_operation(operation: BatchOperation):
                 "affected_ids": operation.ids,
                 "update_fields": {"feishu_url": operation.feishu_url, "feishu_password": operation.feishu_password or ""},
                 "remark": f"批量更新飞书链接 {affected_count} 条"
-            }).execute()
+            })
             
             return {"success": True, "msg": f"成功更新 {affected_count} 条记录"}
         

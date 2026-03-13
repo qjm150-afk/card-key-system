@@ -432,15 +432,30 @@ class SQLiteUpdate:
         with self.table.client._get_connection() as conn:
             cursor = conn.cursor()
             
-            set_clause = ", ".join([f"{k} = ?" for k in self.data.keys()])
+            # 先查询要更新的记录ID
             where_clause, params = self._build_where_clause()
+            if where_clause:
+                cursor.execute(f"SELECT id FROM {self.table.table_name} WHERE {where_clause}", params)
+            else:
+                cursor.execute(f"SELECT id FROM {self.table.table_name}")
             
+            affected_ids = [row[0] for row in cursor.fetchall()]
+            
+            # 执行更新
+            set_clause = ", ".join([f"{k} = ?" for k in self.data.keys()])
             sql = f"UPDATE {self.table.table_name} SET {set_clause}"
             if where_clause:
                 sql += f" WHERE {where_clause}"
             
             cursor.execute(sql, list(self.data.values()) + params)
             conn.commit()
+            
+            # 返回更新后的记录
+            if affected_ids:
+                placeholders = ", ".join(["?" for _ in affected_ids])
+                cursor.execute(f"SELECT * FROM {self.table.table_name} WHERE id IN ({placeholders})", affected_ids)
+                rows = cursor.fetchall()
+                return SQLiteResponse([dict(row) for row in rows])
             
             return SQLiteResponse([])
 
