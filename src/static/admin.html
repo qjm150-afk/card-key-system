@@ -390,12 +390,11 @@
         }
 
         th {
-            background: linear-gradient(135deg, #FFFAF5, #F5EDE3);
+            background-color: #FFFAF5;
             font-weight: 600;
             color: #5D4E37;
             font-size: 13px;
             white-space: nowrap;
-            text-align: center;
         }
 
         td {
@@ -710,7 +709,7 @@
             color: white;
             font-weight: 600;
             padding: 14px 12px;
-            text-align: center;
+            text-align: left;
             border-bottom: 2px solid #B8956A;
         }
         
@@ -724,16 +723,24 @@
             background-color: #FFF8F0;
         }
         
-        /* 访问日志列宽 */
-        .logs-table th:nth-child(1), .logs-table td:nth-child(1) { min-width: 140px; text-align: left; }
-        .logs-table th:nth-child(2), .logs-table td:nth-child(2) { min-width: 120px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        .logs-table th:nth-child(3), .logs-table td:nth-child(3) { min-width: 80px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        .logs-table th:nth-child(4), .logs-table td:nth-child(4) { width: 80px; text-align: center; }
-        .logs-table th:nth-child(5), .logs-table td:nth-child(5) { width: 80px; text-align: center; }
-        .logs-table th:nth-child(6), .logs-table td:nth-child(6) { width: 100px; text-align: center; }
-        .logs-table th:nth-child(7), .logs-table td:nth-child(7) { width: 60px; text-align: center; }
-        .logs-table th:nth-child(8), .logs-table td:nth-child(8) { min-width: 100px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        .logs-table th:nth-child(9), .logs-table td:nth-child(9) { min-width: 140px; text-align: center; }
+        .logs-table th:nth-child(1),
+        .logs-table td:nth-child(1) { min-width: 160px; font-weight: 500; }
+        .logs-table th:nth-child(2),
+        .logs-table td:nth-child(2) { min-width: 120px; }
+        .logs-table th:nth-child(3),
+        .logs-table td:nth-child(3) { min-width: 100px; font-size: 13px; color: #8B7355; }
+        .logs-table th:nth-child(4),
+        .logs-table td:nth-child(4) { min-width: 80px; text-align: center; }
+        .logs-table th:nth-child(5),
+        .logs-table td:nth-child(5) { min-width: 100px; }
+        .logs-table th:nth-child(6),
+        .logs-table td:nth-child(6) { min-width: 120px; font-size: 13px; }
+        .logs-table th:nth-child(7),
+        .logs-table td:nth-child(7) { width: 60px; text-align: center; }
+        .logs-table th:nth-child(8),
+        .logs-table td:nth-child(8) { min-width: 100px; font-size: 13px; }
+        .logs-table th:nth-child(9),
+        .logs-table td:nth-child(9) { min-width: 150px; font-size: 13px; color: #8B7355; }
         
         /* 操作日志表格样式 */
         .operation-logs-table {
@@ -745,7 +752,7 @@
             color: white;
             font-weight: 600;
             padding: 14px 12px;
-            text-align: center;
+            text-align: left;
             border-bottom: 2px solid #B8956A;
         }
         
@@ -759,46 +766,20 @@
             background-color: #FFF8F0;
         }
         
-        /* 操作日志列宽 */
-        .operation-logs-table th:nth-child(1), .operation-logs-table td:nth-child(1) { min-width: 140px; text-align: center; }
-        .operation-logs-table th:nth-child(2), .operation-logs-table td:nth-child(2) { width: 80px; text-align: center; }
-        .operation-logs-table th:nth-child(3), .operation-logs-table td:nth-child(3) { width: 100px; text-align: center; }
-        .operation-logs-table th:nth-child(4), .operation-logs-table td:nth-child(4) { min-width: 150px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        .operation-logs-table th:nth-child(5), .operation-logs-table td:nth-child(5) { min-width: 150px; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        .operation-logs-table th:nth-child(6), .operation-logs-table td:nth-child(6) { width: 70px; text-align: center; }
-        .operation-logs-table th:nth-child(7), .operation-logs-table td:nth-child(7) { min-width: 140px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        
-        /* 链接健康表格样式 */
-        #link-health-tab table th {
-            background: linear-gradient(135deg, #D4A574, #C49A6C);
-            color: white;
-        }
-        
-        #link-health-tab table th:nth-child(1), #link-health-tab table td:nth-child(1) { min-width: 120px; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        #link-health-tab table th:nth-child(2), #link-health-tab table td:nth-child(2) { min-width: 200px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        #link-health-tab table th:nth-child(3), #link-health-tab table td:nth-child(3) { width: 80px; text-align: center; }
-        #link-health-tab table th:nth-child(4), #link-health-tab table td:nth-child(4) { width: 100px; text-align: center; }
-        #link-health-tab table th:nth-child(5), #link-health-tab table td:nth-child(5) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        #link-health-tab table th:nth-child(6), #link-health-tab table td:nth-child(6) { min-width: 140px; text-align: center; }
-        #link-health-tab table th:nth-child(7), #link-health-tab table td:nth-child(7) { width: 100px; text-align: center; }
-        
-        /* 数据分析渠道表格样式 */
-        .channel-table table th {
-            background: linear-gradient(135deg, #D4A574, #C49A6C);
-            color: white;
-            padding: 12px 10px;
-        }
-        
-        .channel-table table td {
-            padding: 10px;
-            text-align: center;
-        }
-        
-        .channel-table table th:nth-child(1), .channel-table table td:nth-child(1) { min-width: 100px; text-align: left; }
-        .channel-table table th:nth-child(2), .channel-table table td:nth-child(2) { width: 80px; }
-        .channel-table table th:nth-child(3), .channel-table table td:nth-child(3) { width: 80px; }
-        .channel-table table th:nth-child(4), .channel-table table td:nth-child(4) { width: 80px; }
-        .channel-table table th:nth-child(5), .channel-table table td:nth-child(5) { width: 90px; }
+        .operation-logs-table th:nth-child(1),
+        .operation-logs-table td:nth-child(1) { min-width: 160px; font-size: 13px; color: #8B7355; }
+        .operation-logs-table th:nth-child(2),
+        .operation-logs-table td:nth-child(2) { width: 80px; text-align: center; font-weight: 500; }
+        .operation-logs-table th:nth-child(3),
+        .operation-logs-table td:nth-child(3) { width: 100px; text-align: center; }
+        .operation-logs-table th:nth-child(4),
+        .operation-logs-table td:nth-child(4) { min-width: 180px; font-size: 13px; }
+        .operation-logs-table th:nth-child(5),
+        .operation-logs-table td:nth-child(5) { min-width: 200px; font-size: 13px; }
+        .operation-logs-table th:nth-child(6),
+        .operation-logs-table td:nth-child(6) { width: 80px; text-align: center; }
+        .operation-logs-table th:nth-child(7),
+        .operation-logs-table td:nth-child(7) { min-width: 180px; font-size: 13px; }
         
         .col-narrow {
             max-width: 120px;
@@ -808,33 +789,19 @@
             font-size: 12px;
         }
 
-        /* 卡密管理主表格列宽设置 */
-        .table-container > .table-wrapper > table th:nth-child(1), 
-        .table-container > .table-wrapper > table td:nth-child(1) { width: 40px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(2), 
-        .table-container > .table-wrapper > table td:nth-child(2) { width: 50px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(3), 
-        .table-container > .table-wrapper > table td:nth-child(3) { min-width: 160px; text-align: left; }
-        .table-container > .table-wrapper > table th:nth-child(4), 
-        .table-container > .table-wrapper > table td:nth-child(4) { width: 80px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(5), 
-        .table-container > .table-wrapper > table td:nth-child(5) { width: 80px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(6), 
-        .table-container > .table-wrapper > table td:nth-child(6) { width: 100px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(7), 
-        .table-container > .table-wrapper > table td:nth-child(7) { min-width: 100px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        .table-container > .table-wrapper > table th:nth-child(8), 
-        .table-container > .table-wrapper > table td:nth-child(8) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
-        .table-container > .table-wrapper > table th:nth-child(9), 
-        .table-container > .table-wrapper > table td:nth-child(9) { width: 140px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(10), 
-        .table-container > .table-wrapper > table td:nth-child(10) { width: 80px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(11), 
-        .table-container > .table-wrapper > table td:nth-child(11) { width: 80px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(12), 
-        .table-container > .table-wrapper > table td:nth-child(12) { width: 100px; text-align: center; }
-        .table-container > .table-wrapper > table th:nth-child(13), 
-        .table-container > .table-wrapper > table td:nth-child(13) { width: 140px; text-align: center; }
+        /* 列宽设置 */
+        th:nth-child(1), td:nth-child(1) { width: 40px; text-align: center; }
+        th:nth-child(2), td:nth-child(2) { width: 50px; text-align: center; }
+        th:nth-child(3), td:nth-child(3) { min-width: 160px; }
+        th:nth-child(4), td:nth-child(4) { width: 80px; }
+        th:nth-child(5), td:nth-child(5) { width: 80px; text-align: center; }
+        th:nth-child(6), td:nth-child(6) { width: 100px; }
+        th:nth-child(7), td:nth-child(7) { min-width: 100px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        th:nth-child(8), td:nth-child(8) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        th:nth-child(9), td:nth-child(9) { width: 140px; }
+        th:nth-child(10), td:nth-child(10) { width: 80px; }
+        th:nth-child(11), td:nth-child(11) { width: 80px; }
+        th:nth-child(13), td:nth-child(13) { width: 140px; }
 
         /* 统计卡片 */
         .stats-row {
