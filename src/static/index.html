@@ -662,6 +662,32 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
+        /* 博主离线状态 */
+        .creator-online-badge.offline .creator-avatar {
+            border-color: #9CA3AF;
+            opacity: 0.85;
+        }
+
+        .creator-online-badge.offline .online-indicator {
+            background-color: #9CA3AF;
+        }
+
+        /* 博主在线呼吸动画 */
+        .creator-online-badge.online .online-indicator {
+            animation: onlinePulse 2s ease-in-out infinite;
+        }
+
+        @keyframes onlinePulse {
+            0%, 100% { 
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+            }
+            50% { 
+                transform: scale(1.1);
+                box-shadow: 0 0 0 4px rgba(16, 185, 129, 0);
+            }
+        }
+
         /* 安全提示遮罩 */
         .security-overlay {
             position: fixed;
@@ -870,6 +896,9 @@
             // 初始化协作者头像
             initCollaborators();
             
+            // 初始化博主在线状态
+            initCreatorOnline();
+            
             // 点击协作者悬浮层显示/隐藏退出按钮
             const collaboratorsOverlay = document.getElementById('collaboratorsOverlay');
             const exitBtn = document.getElementById('exitBtn');
@@ -1044,6 +1073,148 @@
             // 每30秒更新一次
             if (collaboratorsInterval) clearInterval(collaboratorsInterval);
             collaboratorsInterval = setInterval(updateCollaborators, 30000);
+        }
+
+        // ==================== 博主在线状态模拟 ====================
+        // 模拟真实的博主在线/离线行为
+        let creatorState = {
+            isOnline: true,
+            lastChangeTime: Date.now(),
+            // 最小持续时间（毫秒）- 避免频繁切换
+            minOnlineDuration: 8 * 60 * 1000,    // 在线至少8分钟
+            minOfflineDuration: 3 * 60 * 1000,   // 离线至少3分钟
+            // 检查间隔
+            checkInterval: 60 * 1000,            // 每分钟检查一次
+        };
+
+        // 获取基于时间的在线概率
+        function getOnlineProbability() {
+            const hour = new Date().getHours();
+            const dayOfWeek = new Date().getDay(); // 0=周日
+            
+            // 基础概率
+            let probability = 0.75;
+            
+            // 根据时段调整
+            if (hour >= 0 && hour < 7) {
+                // 深夜到清晨 - 离线概率高
+                probability = 0.15;
+            } else if (hour >= 7 && hour < 9) {
+                // 早晨 - 开始活跃
+                probability = 0.5;
+            } else if (hour >= 9 && hour < 12) {
+                // 上午 - 高概率在线
+                probability = 0.85;
+            } else if (hour >= 12 && hour < 14) {
+                // 中午休息
+                probability = 0.6;
+            } else if (hour >= 14 && hour < 18) {
+                // 下午 - 高概率在线
+                probability = 0.9;
+            } else if (hour >= 18 && hour < 20) {
+                // 傍晚 - 稍微降低
+                probability = 0.7;
+            } else if (hour >= 20 && hour < 24) {
+                // 晚间 - 活跃
+                probability = 0.8;
+            }
+            
+            // 周末调整
+            if (dayOfWeek === 0 || dayOfWeek === 6) {
+                probability -= 0.1; // 周末稍微降低
+            }
+            
+            return probability;
+        }
+
+        // 模拟博主在线状态
+        function simulateCreatorOnline() {
+            const now = Date.now();
+            const timeSinceLastChange = now - creatorState.lastChangeTime;
+            
+            // 检查是否满足最小持续时间
+            const minDuration = creatorState.isOnline 
+                ? creatorState.minOnlineDuration 
+                : creatorState.minOfflineDuration;
+            
+            if (timeSinceLastChange < minDuration) {
+                // 还在最小持续时间内，保持当前状态
+                return creatorState.isOnline;
+            }
+            
+            // 有一定概率切换状态
+            if (Math.random() < 0.25) { // 25%概率考虑切换
+                const onlineProb = getOnlineProbability();
+                
+                // 根据概率决定是否切换
+                if (creatorState.isOnline) {
+                    // 当前在线，有概率变离线
+                    if (Math.random() > onlineProb) {
+                        creatorState.isOnline = false;
+                        creatorState.lastChangeTime = now;
+                    }
+                } else {
+                    // 当前离线，有概率变在线
+                    if (Math.random() < onlineProb) {
+                        creatorState.isOnline = true;
+                        creatorState.lastChangeTime = now;
+                    }
+                }
+            }
+            
+            return creatorState.isOnline;
+        }
+
+        // 更新博主在线图标显示
+        function updateCreatorOnlineBadge() {
+            const badge = document.getElementById('creatorOnlineBadge');
+            if (!badge) return;
+            
+            const isOnline = simulateCreatorOnline();
+            
+            if (isOnline) {
+                badge.classList.remove('offline');
+                badge.classList.add('online');
+            } else {
+                badge.classList.remove('online');
+                badge.classList.add('offline');
+            }
+        }
+
+        // 初始化博主在线状态
+        function initCreatorOnline() {
+            // 从localStorage恢复状态（模拟跨页面一致性）
+            const savedState = localStorage.getItem('creatorOnlineState');
+            if (savedState) {
+                try {
+                    const parsed = JSON.parse(savedState);
+                    creatorState = { ...creatorState, ...parsed };
+                    
+                    // 如果距离上次状态变化超过30分钟，重新计算
+                    if (Date.now() - creatorState.lastChangeTime > 30 * 60 * 1000) {
+                        creatorState.lastChangeTime = Date.now();
+                        creatorState.isOnline = getOnlineProbability() > Math.random();
+                    }
+                } catch (e) {
+                    // 解析失败，使用默认值
+                }
+            } else {
+                // 首次访问，根据当前时间决定初始状态
+                creatorState.isOnline = getOnlineProbability() > Math.random();
+            }
+            
+            // 立即更新显示
+            updateCreatorOnlineBadge();
+            
+            // 定期检查状态
+            setInterval(() => {
+                updateCreatorOnlineBadge();
+                // 保存状态到localStorage
+                localStorage.setItem('creatorOnlineState', JSON.stringify({
+                    isOnline: creatorState.isOnline,
+                    lastChangeTime: creatorState.lastChangeTime
+                }));
+            }, creatorState.checkInterval);
         }
         
         // 更新协作者显示
