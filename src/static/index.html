@@ -440,10 +440,7 @@
         }
 
         .feishu-frame {
-            flex: 1;
-            width: 100%;
             border: none;
-            min-height: 0;
         }
 
         /* iframe 容器 - CSS裁剪底部按钮区域 */
@@ -451,13 +448,14 @@
             flex: 1;
             position: relative;
             overflow: hidden; /* 隐藏超出容器的内容 */
+            width: 100%;
         }
 
         .iframe-container .feishu-frame {
-            height: calc(100% + 100px); /* 高度增加，让底部按钮超出容器 */
+            height: calc(100% + 80px); /* 高度增加，让底部按钮超出容器 */
             width: 100%;
             position: absolute;
-            bottom: 0; /* 从底部定位，裁剪底部 */
+            top: 0; /* 从顶部定位 */
             left: 0;
         }
 
