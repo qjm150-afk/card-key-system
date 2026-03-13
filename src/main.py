@@ -918,8 +918,28 @@ async def get_operation_logs(
         
         # 格式化返回数据
         for item in response.data:
-            if item.get('created_at'):
+            # 使用 operation_time 字段
+            if item.get('operation_time'):
+                item['created_at'] = item['operation_time'].replace('T', ' ').split('+')[0].split('.')[0]
+            elif item.get('created_at'):
                 item['created_at'] = item['created_at'].replace('T', ' ').split('+')[0].split('.')[0]
+            
+            # 解析JSON字段
+            if item.get('filter_conditions') and isinstance(item['filter_conditions'], str):
+                try:
+                    item['filter_conditions'] = json.loads(item['filter_conditions'])
+                except:
+                    pass
+            if item.get('update_fields') and isinstance(item['update_fields'], str):
+                try:
+                    item['update_fields'] = json.loads(item['update_fields'])
+                except:
+                    pass
+            if item.get('affected_ids') and isinstance(item['affected_ids'], str):
+                try:
+                    item['affected_ids'] = json.loads(item['affected_ids'])
+                except:
+                    pass
         
         return {
             "success": True,

@@ -725,23 +725,42 @@
         
         /* 操作日志表格样式 */
         .operation-logs-table {
-            min-width: 900px;
+            min-width: 1000px;
+        }
+        
+        .operation-logs-table th {
+            background: linear-gradient(135deg, #D4A574, #C49A6C);
+            color: white;
+            font-weight: 600;
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 2px solid #B8956A;
+        }
+        
+        .operation-logs-table td {
+            padding: 12px;
+            border-bottom: 1px solid #E8D5C4;
+            vertical-align: middle;
+        }
+        
+        .operation-logs-table tr:hover {
+            background-color: #FFF8F0;
         }
         
         .operation-logs-table th:nth-child(1),
-        .operation-logs-table td:nth-child(1) { min-width: 150px; font-size: 13px; color: #8B7355; }
+        .operation-logs-table td:nth-child(1) { min-width: 160px; font-size: 13px; color: #8B7355; }
         .operation-logs-table th:nth-child(2),
-        .operation-logs-table td:nth-child(2) { width: 80px; text-align: center; }
+        .operation-logs-table td:nth-child(2) { width: 80px; text-align: center; font-weight: 500; }
         .operation-logs-table th:nth-child(3),
         .operation-logs-table td:nth-child(3) { width: 100px; text-align: center; }
         .operation-logs-table th:nth-child(4),
-        .operation-logs-table td:nth-child(4) { min-width: 150px; }
+        .operation-logs-table td:nth-child(4) { min-width: 180px; font-size: 13px; }
         .operation-logs-table th:nth-child(5),
-        .operation-logs-table td:nth-child(5) { min-width: 150px; }
+        .operation-logs-table td:nth-child(5) { min-width: 200px; font-size: 13px; }
         .operation-logs-table th:nth-child(6),
-        .operation-logs-table td:nth-child(6) { width: 70px; text-align: center; }
+        .operation-logs-table td:nth-child(6) { width: 80px; text-align: center; }
         .operation-logs-table th:nth-child(7),
-        .operation-logs-table td:nth-child(7) { min-width: 120px; }
+        .operation-logs-table td:nth-child(7) { min-width: 180px; font-size: 13px; }
         
         .col-narrow {
             max-width: 140px;
@@ -5376,12 +5395,25 @@
                 // 解析筛选条件
                 let filterHtml = '-';
                 let filterTitle = '';
-                if (log.filter_conditions) {
-                    const filters = log.filter_conditions;
+                let filters = log.filter_conditions;
+                
+                // 如果是字符串，尝试解析为JSON
+                if (typeof filters === 'string') {
+                    try {
+                        filters = JSON.parse(filters);
+                    } catch (e) {
+                        filters = null;
+                    }
+                }
+                
+                if (filters && typeof filters === 'object') {
                     const parts = [];
+                    if (filters.ids) parts.push(`ID: ${Array.isArray(filters.ids) ? filters.ids.join(', ') : filters.ids}`);
+                    if (filters.card_id) parts.push(`卡密ID: ${filters.card_id}`);
+                    if (filters.key_value) parts.push(`卡密: ${filters.key_value}`);
                     if (filters.status !== undefined && filters.status !== '') parts.push(`状态: ${filters.status === 1 ? '有效' : '无效'}`);
                     if (filters.sale_status) parts.push(`销售: ${saleStatusMap[filters.sale_status] || filters.sale_status}`);
-                    if (filters.search) parts.push(`搜索: ${filters.search}`);
+                    if (filters.search && typeof filters.search === 'string') parts.push(`搜索: ${filters.search}`);
                     filterHtml = parts.join(', ') || '-';
                     filterTitle = filterHtml;
                 }
@@ -5389,13 +5421,25 @@
                 // 解析更新内容
                 let updateHtml = '-';
                 let updateTitle = '';
-                if (log.update_fields) {
-                    const fields = log.update_fields;
+                let fields = log.update_fields;
+                
+                // 如果是字符串，尝试解析为JSON
+                if (typeof fields === 'string') {
+                    try {
+                        fields = JSON.parse(fields);
+                    } catch (e) {
+                        fields = null;
+                    }
+                }
+                
+                if (fields && typeof fields === 'object') {
                     const parts = [];
                     if (fields.status !== undefined) parts.push(`状态→${fields.status === 1 ? '有效' : '无效'}`);
                     if (fields.sale_status) parts.push(`销售→${saleStatusMap[fields.sale_status] || fields.sale_status}`);
                     if (fields.feishu_url !== undefined) parts.push(`链接→已更新`);
+                    if (fields.link_name !== undefined) parts.push(`名称→${fields.link_name || '(空)'}`);
                     if (fields.user_note !== undefined) parts.push(`备注→${fields.user_note || '(空)'}`);
+                    if (fields.key_value) parts.push(`卡密→${fields.key_value}`);
                     updateHtml = parts.join(', ') || '-';
                     updateTitle = updateHtml;
                 }
