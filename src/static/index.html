@@ -446,16 +446,19 @@
             min-height: 0;
         }
 
-        /* iframe 容器 */
+        /* iframe 容器 - CSS裁剪底部按钮区域 */
         .iframe-container {
             flex: 1;
             position: relative;
-            overflow: hidden;
+            overflow: hidden; /* 隐藏超出容器的内容 */
         }
 
         .iframe-container .feishu-frame {
-            height: 100%;
+            height: calc(100% + 60px); /* 高度增加，让底部按钮超出容器 */
             width: 100%;
+            position: absolute;
+            bottom: 0; /* 从底部定位，裁剪底部 */
+            left: 0;
         }
 
         /* 飞书底部操作栏遮罩 - 阻止点击"进入原应用"按钮 */
