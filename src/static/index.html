@@ -286,16 +286,17 @@
             width: 100%;
         }
 
-        /* 飞书底部操作栏遮罩 - 阻止点击进入原应用 */
+        /* 飞书底部操作栏遮罩 - 阻止点击"进入原应用"按钮 */
         .feishu-bottom-mask {
             position: absolute;
             bottom: 0;
             left: 0;
             right: 0;
-            height: 44px;
+            height: 60px;
             background: transparent;
-            z-index: 10;
+            z-index: 9999;
             cursor: default;
+            pointer-events: auto;
         }
 
         /* 飞书顶部右侧遮罩 - 阻挡"进入原应用"按钮 */
