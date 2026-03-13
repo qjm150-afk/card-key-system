@@ -530,7 +530,7 @@
         .collaborators-overlay {
             position: absolute;
             top: 12px;
-            right: 12px;
+            right: 62px; /* 为博主图标腾出空间 */
             display: flex;
             align-items: center;
             gap: 8px;
@@ -623,6 +623,43 @@
             color: #6B7280;
             font-weight: 500;
             white-space: nowrap;
+        }
+
+        /* 博主在线图标 - 在线人数右边 */
+        .creator-online-badge {
+            position: absolute;
+            top: 10px;
+            right: 12px; /* 最右边 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+            z-index: 10003;
+            animation: fadeInSlide 0.5s ease-out;
+        }
+
+        .creator-online-badge .creator-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #10B981;
+        }
+
+        .creator-online-badge .online-indicator {
+            position: absolute;
+            bottom: 1px;
+            right: 1px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #10B981;
+            border: 2px solid white;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
 
         /* 安全提示遮罩 */
@@ -719,6 +756,11 @@
         
         <div class="iframe-container">
             <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
+            <!-- 博主在线图标 -->
+            <div class="creator-online-badge" id="creatorOnlineBadge">
+                <img src="/static/creator-avatar.jpg" alt="博主头像" class="creator-avatar">
+                <div class="online-indicator"></div>
+            </div>
             <!-- 协作者头像悬浮层 - 遮挡飞书右上角头像，防止点击跳转 -->
             <div class="collaborators-overlay" id="collaboratorsOverlay">
                 <div class="collaborators-avatars" id="collaboratorsAvatars">
