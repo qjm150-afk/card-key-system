@@ -395,6 +395,7 @@
             color: #5D4E37;
             font-size: 13px;
             white-space: nowrap;
+            text-align: center;
         }
 
         td {
@@ -709,7 +710,7 @@
             color: white;
             font-weight: 600;
             padding: 14px 12px;
-            text-align: left;
+            text-align: center;
             border-bottom: 2px solid #B8956A;
         }
         
@@ -724,23 +725,23 @@
         }
         
         .logs-table th:nth-child(1),
-        .logs-table td:nth-child(1) { min-width: 160px; font-weight: 500; }
+        .logs-table td:nth-child(1) { min-width: 140px; font-weight: 500; }
         .logs-table th:nth-child(2),
-        .logs-table td:nth-child(2) { min-width: 120px; }
+        .logs-table td:nth-child(2) { min-width: 100px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .logs-table th:nth-child(3),
-        .logs-table td:nth-child(3) { min-width: 100px; font-size: 13px; color: #8B7355; }
+        .logs-table td:nth-child(3) { min-width: 80px; font-size: 13px; color: #8B7355; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .logs-table th:nth-child(4),
-        .logs-table td:nth-child(4) { min-width: 80px; text-align: center; }
+        .logs-table td:nth-child(4) { min-width: 70px; text-align: center; }
         .logs-table th:nth-child(5),
-        .logs-table td:nth-child(5) { min-width: 100px; }
+        .logs-table td:nth-child(5) { min-width: 70px; text-align: center; }
         .logs-table th:nth-child(6),
-        .logs-table td:nth-child(6) { min-width: 120px; font-size: 13px; }
+        .logs-table td:nth-child(6) { min-width: 80px; font-size: 13px; max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .logs-table th:nth-child(7),
         .logs-table td:nth-child(7) { width: 60px; text-align: center; }
         .logs-table th:nth-child(8),
-        .logs-table td:nth-child(8) { min-width: 100px; font-size: 13px; }
+        .logs-table td:nth-child(8) { min-width: 100px; font-size: 13px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .logs-table th:nth-child(9),
-        .logs-table td:nth-child(9) { min-width: 150px; font-size: 13px; color: #8B7355; }
+        .logs-table td:nth-child(9) { min-width: 140px; font-size: 13px; color: #8B7355; }
         
         /* 操作日志表格样式 */
         .operation-logs-table {
@@ -752,7 +753,7 @@
             color: white;
             font-weight: 600;
             padding: 14px 12px;
-            text-align: left;
+            text-align: center;
             border-bottom: 2px solid #B8956A;
         }
         
@@ -767,19 +768,58 @@
         }
         
         .operation-logs-table th:nth-child(1),
-        .operation-logs-table td:nth-child(1) { min-width: 160px; font-size: 13px; color: #8B7355; }
+        .operation-logs-table td:nth-child(1) { min-width: 140px; font-size: 13px; color: #8B7355; }
         .operation-logs-table th:nth-child(2),
-        .operation-logs-table td:nth-child(2) { width: 80px; text-align: center; font-weight: 500; }
+        .operation-logs-table td:nth-child(2) { width: 70px; text-align: center; font-weight: 500; }
         .operation-logs-table th:nth-child(3),
-        .operation-logs-table td:nth-child(3) { width: 100px; text-align: center; }
+        .operation-logs-table td:nth-child(3) { width: 90px; text-align: center; }
         .operation-logs-table th:nth-child(4),
-        .operation-logs-table td:nth-child(4) { min-width: 180px; font-size: 13px; }
+        .operation-logs-table td:nth-child(4) { min-width: 150px; max-width: 200px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .operation-logs-table th:nth-child(5),
-        .operation-logs-table td:nth-child(5) { min-width: 200px; font-size: 13px; }
+        .operation-logs-table td:nth-child(5) { min-width: 150px; max-width: 200px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .operation-logs-table th:nth-child(6),
-        .operation-logs-table td:nth-child(6) { width: 80px; text-align: center; }
+        .operation-logs-table td:nth-child(6) { width: 70px; text-align: center; }
         .operation-logs-table th:nth-child(7),
-        .operation-logs-table td:nth-child(7) { min-width: 180px; font-size: 13px; }
+        .operation-logs-table td:nth-child(7) { min-width: 150px; max-width: 200px; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        
+        /* 链接健康检测表格样式 */
+        .link-health-table {
+            min-width: 900px;
+        }
+        
+        .link-health-table th {
+            background: linear-gradient(135deg, #D4A574, #C49A6C);
+            color: white;
+            font-weight: 600;
+            padding: 14px 12px;
+            text-align: center;
+            border-bottom: 2px solid #B8956A;
+        }
+        
+        .link-health-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #E8D5C4;
+            vertical-align: middle;
+        }
+        
+        .link-health-table tr:hover {
+            background-color: #FFF8F0;
+        }
+        
+        .link-health-table th:nth-child(1),
+        .link-health-table td:nth-child(1) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .link-health-table th:nth-child(2),
+        .link-health-table td:nth-child(2) { min-width: 200px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #8B7355; }
+        .link-health-table th:nth-child(3),
+        .link-health-table td:nth-child(3) { width: 70px; text-align: center; }
+        .link-health-table th:nth-child(4),
+        .link-health-table td:nth-child(4) { width: 90px; text-align: center; }
+        .link-health-table th:nth-child(5),
+        .link-health-table td:nth-child(5) { min-width: 100px; max-width: 150px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .link-health-table th:nth-child(6),
+        .link-health-table td:nth-child(6) { min-width: 140px; font-size: 13px; color: #8B7355; }
+        .link-health-table th:nth-child(7),
+        .link-health-table td:nth-child(7) { width: 80px; text-align: center; }
         
         .col-narrow {
             max-width: 120px;
@@ -2110,7 +2150,7 @@
             <!-- 链接列表 -->
             <div class="table-container">
                 <div class="table-wrapper">
-                    <table>
+                    <table class="link-health-table">
                         <thead>
                             <tr>
                                 <th>链接名称</th>
