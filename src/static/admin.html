@@ -1791,6 +1791,7 @@
             <button class="tab active" onclick="switchTab('cards')">卡密管理</button>
             <button class="tab" onclick="switchTab('logs')">访问日志</button>
             <button class="tab" onclick="switchTab('operation-logs')">操作日志</button>
+            <button class="tab" onclick="switchTab('link-health')">链接健康</button>
             <button class="tab" onclick="switchTab('analytics')">数据分析</button>
         </div>
 
@@ -1953,6 +1954,7 @@
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="searchLogs()">搜索</button>
                         <button class="btn btn-secondary" onclick="resetLogFilters()">重置</button>
+                        <button class="btn btn-success" onclick="exportAccessLogs()">导出日志</button>
                         <button class="btn btn-danger" onclick="openCleanLogsModal()">批量清理</button>
                     </div>
                 </div>
@@ -2023,6 +2025,70 @@
                     </table>
                 </div>
                 <div class="pagination" id="operationLogsPagination"></div>
+            </div>
+        </div>
+
+        <!-- 链接健康检测 -->
+        <div id="link-health-tab" class="tab-content">
+            <!-- 状态汇总卡片 -->
+            <div class="stats-row">
+                <div class="stat-card">
+                    <h3>总链接数</h3>
+                    <div class="value" id="linkHealthTotal">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #10B981, #059669);">
+                    <h3>正常链接</h3>
+                    <div class="value" id="linkHealthHealthy">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #EF4444, #DC2626);">
+                    <h3>异常链接</h3>
+                    <div class="value" id="linkHealthUnhealthy">0</div>
+                </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #9CA3AF, #6B7280);">
+                    <h3>未检测</h3>
+                    <div class="value" id="linkHealthUnknown">0</div>
+                </div>
+            </div>
+            
+            <!-- 操作区域 -->
+            <div class="filter-section">
+                <div class="filter-row">
+                    <input type="text" class="search-input search-input-wide" id="linkHealthSearchInput" placeholder="搜索链接名称..." autocomplete="off">
+                    <select class="filter-select" id="linkHealthStatusFilter" onchange="filterLinkHealth()">
+                        <option value="">全部状态</option>
+                        <option value="healthy">正常</option>
+                        <option value="unhealthy">异常</option>
+                        <option value="unknown">未检测</option>
+                    </select>
+                    <div class="filter-actions">
+                        <button class="btn btn-primary" onclick="checkAllLinks()">检测全部链接</button>
+                        <button class="btn btn-secondary" onclick="loadLinkHealth()">刷新状态</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 链接列表 -->
+            <div class="table-container">
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>链接名称</th>
+                                <th>链接URL</th>
+                                <th>状态</th>
+                                <th>HTTP状态码</th>
+                                <th>错误信息</th>
+                                <th>最后检测时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="linkHealthTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: #999;">暂无链接数据</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -2738,6 +2804,7 @@
                 <div class="form-group">
                     <label>导出格式</label>
                     <select class="form-input" id="exportFormat">
+                        <option value="xlsx">Excel (.xlsx)</option>
                         <option value="csv">CSV (Excel 兼容)</option>
                         <option value="txt">TXT (纯文本)</option>
                     </select>
@@ -2745,7 +2812,8 @@
                 <div style="background: #e8f4fd; padding: 12px; border-radius: 6px; margin-top: 16px;">
                     <strong>💡 提示：</strong>
                     <ul style="margin: 8px 0 0 20px; padding: 0; color: #0c5460; font-size: 13px;">
-                        <li>CSV 格式带 BOM 头，可直接用 Excel 打开</li>
+                        <li>Excel 格式可直接用 Excel/WPS 打开编辑</li>
+                        <li>CSV 格式带 BOM 头，兼容 Excel 打开</li>
                         <li>导出勾选的卡密或全部卡密（未勾选时）</li>
                     </ul>
                 </div>
@@ -2856,6 +2924,12 @@
                 });
             }
             
+            // 链接健康搜索框事件
+            const linkHealthSearchInput = document.getElementById('linkHealthSearchInput');
+            if (linkHealthSearchInput) {
+                linkHealthSearchInput.addEventListener('input', filterLinkHealth);
+            }
+            
             // 启动定时刷新（每30秒刷新一次）
             startAutoRefresh();
         });
@@ -2893,6 +2967,8 @@
                 loadLogs();
             } else if (tab === 'operation-logs') {
                 loadOperationLogs();
+            } else if (tab === 'link-health') {
+                loadLinkHealth();
             } else if (tab === 'analytics') {
                 initAnalyticsDate();
                 loadAnalytics();
@@ -2938,16 +3014,16 @@
         // 渲染链接健康状态
         function renderLinkHealth(links, summary) {
             // 更新汇总数据
-            document.getElementById('linkHealthy').textContent = summary.healthy || 0;
-            document.getElementById('linkUnhealthy').textContent = summary.unhealthy || 0;
-            document.getElementById('linkUnknown').textContent = summary.unknown || 0;
-            document.getElementById('linkTotal').textContent = summary.total || 0;
+            document.getElementById('linkHealthTotal').textContent = summary.total || 0;
+            document.getElementById('linkHealthHealthy').textContent = summary.healthy || 0;
+            document.getElementById('linkHealthUnhealthy').textContent = summary.unhealthy || 0;
+            document.getElementById('linkHealthUnknown').textContent = summary.unknown || 0;
             
             // 渲染链接列表
-            const container = document.getElementById('linkHealthList');
+            const container = document.getElementById('linkHealthTableBody');
             
             if (!links || links.length === 0) {
-                container.innerHTML = '<div class="link-list-empty">暂无链接数据，点击"检测全部"开始检测</div>';
+                container.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">暂无链接数据，点击"检测全部链接"开始检测</td></tr>';
                 return;
             }
             
@@ -2959,26 +3035,22 @@
             
             container.innerHTML = sortedLinks.map(link => {
                 const statusClass = link.status || 'unknown';
-                const statusIcon = getStatusIcon(link.status);
+                const statusText = statusClass === 'healthy' ? '正常' : statusClass === 'unhealthy' ? '异常' : '未检测';
+                const statusColor = statusClass === 'healthy' ? '#10B981' : statusClass === 'unhealthy' ? '#EF4444' : '#9CA3AF';
                 const checkTime = link.last_check_time ? formatCheckTime(link.last_check_time) : '未检测';
                 
                 return `
-                    <div class="link-item ${statusClass}">
-                        <div class="link-status-icon">${statusIcon}</div>
-                        <div class="link-info">
-                            <div class="link-name">${link.name || '未命名链接'}</div>
-                            <div class="link-url">${link.url}</div>
-                        </div>
-                        <div class="link-meta">
-                            <div class="link-check-time">${checkTime}</div>
-                            ${link.error_message ? '<div class="link-error">' + link.error_message + '</div>' : ''}
-                        </div>
-                        <div class="link-actions">
-                            <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测">
-                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                            </button>
-                        </div>
-                    </div>
+                    <tr>
+                        <td>${link.name || '未命名链接'}</td>
+                        <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;" title="${link.url}">${link.url}</td>
+                        <td><span style="color: ${statusColor}; font-weight: 500;">${statusText}</span></td>
+                        <td>${link.http_code || '-'}</td>
+                        <td style="color: #EF4444; font-size: 12px;">${link.error_message || '-'}</td>
+                        <td>${checkTime}</td>
+                        <td>
+                            <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测">检测</button>
+                        </td>
+                    </tr>
                 `;
             }).join('');
         }
@@ -3013,13 +3085,7 @@
         
         // 检测所有链接
         async function checkAllLinks() {
-            const btn = document.getElementById('checkAllLinksBtn');
-            const text = document.getElementById('checkAllLinksText');
-            const list = document.getElementById('linkHealthList');
-            
-            btn.disabled = true;
-            text.textContent = '检测中...';
-            list.innerHTML = '<div class="link-list-empty"><div style="display: inline-block; width: 24px; height: 24px; border: 2px solid #D4A574; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><br><br>正在检测链接...</div>';
+            showToast('正在检测链接...', 'info');
             
             try {
                 const response = await fetch('/api/admin/link-health/check', { method: 'POST' });
@@ -3036,9 +3102,6 @@
                 console.error('检测链接失败', e);
                 showToast('检测失败', 'error');
                 loadLinkHealth();
-            } finally {
-                btn.disabled = false;
-                text.textContent = '检测全部';
             }
         }
         
@@ -3068,6 +3131,28 @@
             }
         }
         
+        // 筛选链接健康状态
+        function filterLinkHealth() {
+            const searchValue = document.getElementById('linkHealthSearchInput')?.value?.toLowerCase() || '';
+            const statusFilter = document.getElementById('linkHealthStatusFilter')?.value || '';
+            
+            const rows = document.querySelectorAll('#linkHealthTableBody tr');
+            
+            rows.forEach(row => {
+                const name = row.cells[0]?.textContent?.toLowerCase() || '';
+                const url = row.cells[1]?.textContent?.toLowerCase() || '';
+                const status = row.cells[2]?.textContent?.trim() || '';
+                
+                const matchSearch = !searchValue || name.includes(searchValue) || url.includes(searchValue);
+                const matchStatus = !statusFilter || 
+                    (statusFilter === 'healthy' && status === '正常') ||
+                    (statusFilter === 'unhealthy' && status === '异常') ||
+                    (statusFilter === 'unknown' && status === '未检测');
+                
+                row.style.display = matchSearch && matchStatus ? '' : 'none';
+            });
+        }
+
         // ==================== 统计报表功能 ====================
         
         // 加载统计报表数据
@@ -4484,6 +4569,76 @@
             document.getElementById('logDaysFilter').value = '';
             logPage = 1;
             loadLogs();
+        }
+
+        // ==================== 导出访问日志功能 ====================
+        
+        // 导出访问日志
+        async function exportAccessLogs() {
+            try {
+                // 获取当前筛选条件
+                const searchValue = document.getElementById('logSearchInput')?.value || '';
+                const resultFilter = document.getElementById('logResultFilter')?.value || '';
+                const daysFilter = document.getElementById('logDaysFilter')?.value || '';
+                
+                // 构建导出URL
+                let exportUrl = '/api/admin/logs/export?format=xlsx';
+                
+                // 卡密搜索
+                if (searchValue) {
+                    exportUrl += `&key_value=${encodeURIComponent(searchValue)}`;
+                }
+                
+                // 成功状态筛选
+                if (resultFilter) {
+                    exportUrl += `&success=${resultFilter === 'success' ? 'true' : 'false'}`;
+                }
+                
+                // 时间范围
+                if (daysFilter) {
+                    const days = parseInt(daysFilter);
+                    const now = new Date();
+                    const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+                    exportUrl += `&start_date=${startDate.toISOString().split('T')[0]}`;
+                    exportUrl += `&end_date=${now.toISOString().split('T')[0]}`;
+                }
+                
+                // 使用fetch下载文件
+                showToast('正在导出访问日志...', 'info');
+                const response = await fetch(exportUrl);
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    showToast(errorData.msg || '导出失败', 'error');
+                    return;
+                }
+                
+                // 获取文件名
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = '访问日志.xlsx';
+                if (contentDisposition) {
+                    const filenameMatch = contentDisposition.match(/filename=(.+)/);
+                    if (filenameMatch) {
+                        filename = filenameMatch[1];
+                    }
+                }
+                
+                // 下载文件
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showToast('访问日志导出成功！', 'success');
+            } catch (error) {
+                console.error('导出访问日志失败:', error);
+                showToast('导出失败: ' + error.message, 'error');
+            }
         }
 
         // ==================== 批量清理访问日志功能 ====================

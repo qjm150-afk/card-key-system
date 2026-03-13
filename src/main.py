@@ -1117,7 +1117,7 @@ async def export_cards(
     """
     导出卡密
     - ids: 逗号分隔的ID列表，不传则导出全部
-    - format: csv 或 txt
+    - format: csv, txt 或 xlsx
     - fields: 逗号分隔的字段列表，如 "key_value,feishu_password,status"
     """
     try:
@@ -1199,6 +1199,44 @@ async def export_cards(
                 return str(value)
             return str(value)
         
+        # 生成文件名
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"卡密导出_{timestamp}"
+        
+        if format == 'xlsx':
+            # Excel格式 - 使用HTML表格格式（Excel兼容）
+            headers = [field_config[f]['label'] for f in selected_fields]
+            rows = []
+            for card in response.data:
+                row = [format_value(f, card.get(field_config[f]['db_field'])) for f in selected_fields]
+                rows.append(row)
+            
+            # 生成HTML表格
+            html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
+            html += '<head><meta charset="UTF-8"></head><body>'
+            html += '<table border="1" style="border-collapse: collapse;">'
+            
+            # 表头
+            html += '<tr style="background-color: #D4A574; color: white; font-weight: bold;">'
+            for h in headers:
+                html += f'<th style="padding: 8px;">{h}</th>'
+            html += '</tr>'
+            
+            # 数据行
+            for row in rows:
+                html += '<tr>'
+                for cell in row:
+                    html += f'<td style="padding: 6px;">{cell}</td>'
+                html += '</tr>'
+            
+            html += '</table></body></html>'
+            
+            return StreamingResponse(
+                iter([html.encode('utf-8')]),
+                media_type="application/vnd.ms-excel",
+                headers={"Content-Disposition": f"attachment; filename={filename}.xls"}
+            )
+        
         # 生成输出
         output = io.StringIO()
         
@@ -1242,12 +1280,146 @@ async def export_cards(
             iter([content]),
             media_type=media_type,
             headers={
-                "Content-Disposition": f"attachment; filename=cards_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
+                "Content-Disposition": f"attachment; filename={filename}.{ext}"
             }
         )
         
     except Exception as e:
         logger.error(f"导出卡密失败: {str(e)}")
+
+
+@app.get("/api/admin/logs/export")
+async def export_logs(
+    format: str = "csv",
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    key_value: Optional[str] = None,
+    success: Optional[str] = None
+):
+    """
+    导出访问日志
+    - format: csv, txt 或 xlsx
+    - start_date: 开始日期 (YYYY-MM-DD)
+    - end_date: 结束日期 (YYYY-MM-DD)
+    - key_value: 卡密值筛选
+    - success: 是否成功 (true/false)
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 构建查询
+        query = client.table('access_logs').select('*')
+        
+        # 日期筛选
+        if start_date:
+            query = query.gte('access_time', f'{start_date}T00:00:00')
+        if end_date:
+            query = query.lte('access_time', f'{end_date}T23:59:59')
+        
+        # 卡密筛选
+        if key_value:
+            query = query.eq('key_value', key_value)
+        
+        # 成功状态筛选
+        if success is not None:
+            query = query.eq('success', success.lower() == 'true')
+        
+        # 按时间倒序，限制最多10000条
+        response = query.order('access_time', desc=True).limit(10000).execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "没有可导出的日志数据"}
+        
+        # 格式化数据
+        def format_time(value):
+            if not value:
+                return ''
+            if isinstance(value, str):
+                return value.replace('T', ' ').split('.')[0][:19]
+            return str(value)
+        
+        # 生成文件名
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f"access_logs_{timestamp}"
+        
+        if format == 'xlsx':
+            # Excel格式
+            html = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">'
+            html += '<head><meta charset="UTF-8"></head><body>'
+            html += '<table border="1" style="border-collapse: collapse;">'
+            
+            # 表头
+            headers = ['ID', '卡密值', '验证结果', '错误信息', '访问时间']
+            html += '<tr style="background-color: #D4A574; color: white; font-weight: bold;">'
+            for h in headers:
+                html += f'<th style="padding: 8px;">{h}</th>'
+            html += '</tr>'
+            
+            # 数据行
+            for log in response.data:
+                html += '<tr>'
+                html += f'<td style="padding: 6px;">{log.get("id", "")}</td>'
+                html += f'<td style="padding: 6px;">{log.get("key_value", "")}</td>'
+                result = '成功' if log.get('success') else '失败'
+                color = '#10B981' if log.get('success') else '#EF4444'
+                html += f'<td style="padding: 6px; color: {color};">{result}</td>'
+                html += f'<td style="padding: 6px;">{log.get("error_msg", "") or ""}</td>'
+                html += f'<td style="padding: 6px;">{format_time(log.get("access_time"))}</td>'
+                html += '</tr>'
+            
+            html += '</table></body></html>'
+            
+            return StreamingResponse(
+                iter([html.encode('utf-8')]),
+                media_type="application/vnd.ms-excel",
+                headers={"Content-Disposition": f"attachment; filename={filename}.xls"}
+            )
+        
+        # CSV/TXT格式
+        output = io.StringIO()
+        
+        if format == 'txt':
+            for log in response.data:
+                result = '成功' if log.get('success') else '失败'
+                line = f"ID:{log.get('id', '')} | 卡密:{log.get('key_value', '')} | 结果:{result} | 时间:{format_time(log.get('access_time'))}"
+                if log.get('error_msg'):
+                    line += f" | 错误:{log.get('error_msg')}"
+                output.write(line + '\n')
+        else:
+            writer = csv.writer(output)
+            writer.writerow(['ID', '卡密值', '验证结果', '错误信息', '访问时间'])
+            
+            for log in response.data:
+                result = '成功' if log.get('success') else '失败'
+                writer.writerow([
+                    log.get('id', ''),
+                    log.get('key_value', ''),
+                    result,
+                    log.get('error_msg', '') or '',
+                    format_time(log.get('access_time'))
+                ])
+        
+        output.seek(0)
+        
+        ext = 'txt' if format == 'txt' else 'csv'
+        media_type = 'text/plain' if format == 'txt' else 'text/csv; charset=utf-8'
+        
+        content = output.getvalue()
+        if format == 'csv':
+            bom = b'\xef\xbb\xbf'
+            content = bom + content.encode('utf-8')
+        else:
+            content = content.encode('utf-8')
+        
+        return StreamingResponse(
+            iter([content]),
+            media_type=media_type,
+            headers={"Content-Disposition": f"attachment; filename={filename}.{ext}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"导出访问日志失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
         return {"success": False, "msg": str(e)}
 
 
