@@ -1714,7 +1714,7 @@
                 <div class="hour-heatmap" id="hourHeatmap">
                     <div class="heatmap-empty">暂无时段数据</div>
                 </div>
-                <div class="heatmap-legend">
+                <div class="heatmap-legend" id="heatmapLegend" style="display: none;">
                     <span style="color: #A89070; font-size: 12px;">访问量：</span>
                     <span class="heatmap-legend-item" style="background: #f5f0e8;">少</span>
                     <span class="heatmap-legend-item" style="background: #d4c4a8;"></span>
@@ -2207,11 +2207,16 @@
         // 渲染时段热力图
         function renderHourHeatmap(hourData) {
             const container = document.getElementById('hourHeatmap');
+            const legend = document.getElementById('heatmapLegend');
             
             if (!hourData || Object.keys(hourData).length === 0) {
                 container.innerHTML = '<div class="heatmap-empty">暂无时段数据</div>';
+                legend.style.display = 'none';
                 return;
             }
+            
+            // 显示图例
+            legend.style.display = 'flex';
             
             // 找出最大值用于计算颜色深度
             const maxValue = Math.max(...Object.values(hourData));
