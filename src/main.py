@@ -1524,6 +1524,19 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
         if not response.data:
             return {"success": False, "msg": "卡密不存在"}
         
+        # 记录操作日志（仅在有更新内容时）
+        if update_data:
+            updated_card = response.data[0]
+            client.table('batch_operation_logs').insert({
+                "operator": "admin",
+                "operation_type": "single_update",
+                "filter_conditions": {"card_id": card_id, "key_value": updated_card.get('key_value', '')},
+                "affected_count": 1,
+                "affected_ids": [card_id],
+                "update_fields": update_data,
+                "remark": f"编辑卡密: {updated_card.get('key_value', '')}"
+            }).execute()
+        
         return {"success": True, "data": response.data[0], "msg": "更新成功"}
         
     except Exception as e:
@@ -1537,6 +1550,10 @@ async def delete_card_key(card_id: int):
     try:
         client = get_supabase_client()
         
+        # 先获取卡密信息用于日志记录
+        card_info = client.table('card_keys_table').select('key_value').eq('id', card_id).execute()
+        deleted_key = card_info.data[0]['key_value'] if card_info.data else 'unknown'
+        
         # 先删除相关的访问日志记录
         client.table('access_logs').delete().eq('card_key_id', card_id).execute()
         
@@ -1545,6 +1562,17 @@ async def delete_card_key(card_id: int):
         
         if not response.data:
             return {"success": False, "msg": "卡密不存在"}
+        
+        # 记录操作日志
+        client.table('batch_operation_logs').insert({
+            "operator": "admin",
+            "operation_type": "single_delete",
+            "filter_conditions": {"card_id": card_id, "key_value": deleted_key},
+            "affected_count": 1,
+            "affected_ids": [card_id],
+            "update_fields": {},
+            "remark": f"删除卡密: {deleted_key}"
+        }).execute()
         
         return {"success": True, "msg": "删除成功"}
         
@@ -1562,20 +1590,67 @@ async def batch_operation(operation: BatchOperation):
         if not operation.ids:
             return {"success": False, "msg": "请选择要操作的卡密"}
         
+        # 操作类型映射
+        operation_type_map = {
+            "delete": "batch_delete",
+            "activate": "batch_activate",
+            "deactivate": "batch_deactivate",
+            "update_url": "batch_update_url"
+        }
+        
         if operation.action == "delete":
             # 先删除相关的访问日志记录
             client.table('access_logs').delete().in_('card_key_id', operation.ids).execute()
             # 再删除卡密
             response = client.table('card_keys_table').delete().in_('id', operation.ids).execute()
-            return {"success": True, "msg": f"成功删除 {len(response.data)} 条记录"}
+            affected_count = len(response.data)
+            
+            # 记录操作日志
+            client.table('batch_operation_logs').insert({
+                "operator": "admin",
+                "operation_type": operation_type_map["delete"],
+                "filter_conditions": {"ids": operation.ids},
+                "affected_count": affected_count,
+                "affected_ids": operation.ids,
+                "update_fields": {},
+                "remark": f"批量删除 {affected_count} 条卡密"
+            }).execute()
+            
+            return {"success": True, "msg": f"成功删除 {affected_count} 条记录"}
             
         elif operation.action == "activate":
             response = client.table('card_keys_table').update({"status": 1}).in_('id', operation.ids).execute()
-            return {"success": True, "msg": f"成功激活 {len(response.data)} 条记录"}
+            affected_count = len(response.data)
+            
+            # 记录操作日志
+            client.table('batch_operation_logs').insert({
+                "operator": "admin",
+                "operation_type": operation_type_map["activate"],
+                "filter_conditions": {"ids": operation.ids},
+                "affected_count": affected_count,
+                "affected_ids": operation.ids,
+                "update_fields": {"status": 1},
+                "remark": f"批量激活 {affected_count} 条卡密"
+            }).execute()
+            
+            return {"success": True, "msg": f"成功激活 {affected_count} 条记录"}
             
         elif operation.action == "deactivate":
             response = client.table('card_keys_table').update({"status": 0}).in_('id', operation.ids).execute()
-            return {"success": True, "msg": f"成功停用 {len(response.data)} 条记录"}
+            affected_count = len(response.data)
+            
+            # 记录操作日志
+            client.table('batch_operation_logs').insert({
+                "operator": "admin",
+                "operation_type": operation_type_map["deactivate"],
+                "filter_conditions": {"ids": operation.ids},
+                "affected_count": affected_count,
+                "affected_ids": operation.ids,
+                "update_fields": {"status": 0},
+                "remark": f"批量停用 {affected_count} 条卡密"
+            }).execute()
+            
+            return {"success": True, "msg": f"成功停用 {affected_count} 条记录"}
             
         elif operation.action == "update_url":
             if not operation.feishu_url:
@@ -1584,7 +1659,20 @@ async def batch_operation(operation: BatchOperation):
                 "feishu_url": operation.feishu_url,
                 "feishu_password": operation.feishu_password or ""
             }).in_('id', operation.ids).execute()
-            return {"success": True, "msg": f"成功更新 {len(response.data)} 条记录"}
+            affected_count = len(response.data)
+            
+            # 记录操作日志
+            client.table('batch_operation_logs').insert({
+                "operator": "admin",
+                "operation_type": operation_type_map["update_url"],
+                "filter_conditions": {"ids": operation.ids},
+                "affected_count": affected_count,
+                "affected_ids": operation.ids,
+                "update_fields": {"feishu_url": operation.feishu_url, "feishu_password": operation.feishu_password or ""},
+                "remark": f"批量更新飞书链接 {affected_count} 条"
+            }).execute()
+            
+            return {"success": True, "msg": f"成功更新 {affected_count} 条记录"}
         
         return {"success": False, "msg": "未知操作类型"}
             

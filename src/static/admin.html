@@ -1597,6 +1597,9 @@
                         <option value="batch_activate">批量激活</option>
                         <option value="batch_deactivate">批量停用</option>
                         <option value="batch_delete">批量删除</option>
+                        <option value="batch_update_url">更新链接</option>
+                        <option value="single_update">编辑卡密</option>
+                        <option value="single_delete">删除卡密</option>
                     </select>
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="searchOperationLogs()">搜索</button>
@@ -4018,7 +4021,10 @@
                 'batch_update': { text: '批量修改', class: 'status-active' },
                 'batch_activate': { text: '批量激活', class: 'status-active' },
                 'batch_deactivate': { text: '批量停用', class: 'status-danger' },
-                'batch_delete': { text: '批量删除', class: 'status-danger' }
+                'batch_delete': { text: '批量删除', class: 'status-danger' },
+                'batch_update_url': { text: '更新链接', class: 'status-active' },
+                'single_update': { text: '编辑卡密', class: 'status-active' },
+                'single_delete': { text: '删除卡密', class: 'status-danger' }
             };
 
             const saleStatusMap = {
