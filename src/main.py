@@ -20,6 +20,14 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, Pla
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# 确保模块导入路径正确（支持从任意目录运行）
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+# 项目根目录和 src 目录都加入路径，支持 from storage.xxx 导入
+for _p in [_parent_dir, _current_dir]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
