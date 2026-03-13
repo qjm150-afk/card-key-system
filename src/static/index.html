@@ -471,6 +471,45 @@
             pointer-events: auto;
         }
 
+        /* 退出按钮 - 浮动在飞书页面上 */
+        .exit-btn {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 10001;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #5D4E37;
+            transition: all 0.2s ease;
+        }
+
+        .exit-btn:hover {
+            background: rgba(255, 255, 255, 1);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            transform: translateY(-1px);
+        }
+
+        .exit-btn:active {
+            transform: translateY(0);
+        }
+
+        .exit-btn-icon {
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
         /* 飞书顶部右侧遮罩 - 阻挡"进入原应用"按钮 */
         .feishu-top-right-mask {
             position: absolute;
@@ -677,6 +716,11 @@
         </div>
         
         <div class="iframe-container">
+            <!-- 退出按钮 -->
+            <button class="exit-btn" id="exitBtn" title="返回验证页面">
+                <span class="exit-btn-icon">←</span>
+                <span>退出</span>
+            </button>
             <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
             <!-- 协作者头像悬浮层 - 遮挡飞书右上角头像，防止点击跳转 -->
             <div class="collaborators-overlay" id="collaboratorsOverlay">
@@ -781,6 +825,23 @@
             
             // 初始化协作者头像
             initCollaborators();
+            
+            // 绑定退出按钮事件
+            document.getElementById('exitBtn').addEventListener('click', function() {
+                // 清除会话
+                clearSession();
+                // 重置iframe
+                feishuFrame.src = '';
+                // 切换回验证页面
+                document.body.classList.remove('success-mode');
+                document.body.classList.add('validate-mode');
+                successPage.style.display = 'none';
+                validatePage.style.display = 'block';
+                // 清空输入
+                cardKeyInput.value = '';
+                // 隐藏错误信息
+                errorBox.style.display = 'none';
+            });
             
             // 开始追踪会话行为数据
             startSessionTracking();
