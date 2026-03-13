@@ -71,6 +71,9 @@ class AccessLog(Base):
     # 时间
     access_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="访问时间")
     
+    # 会话追踪
+    session_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True, comment="会话ID")
+    
     __table_args__ = (
         Index("ix_access_logs_key_value", "key_value"),
         Index("ix_access_logs_access_time", "access_time"),

@@ -123,7 +123,8 @@ class SQLiteClient:
                     is_first_access INTEGER DEFAULT 0,
                     sales_channel TEXT,
                     session_duration INTEGER,
-                    content_loaded INTEGER
+                    content_loaded INTEGER,
+                    session_id TEXT
                 )
             """)
             
@@ -167,6 +168,7 @@ class SQLiteClient:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_card_keys_status ON card_keys_table(status)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_key_value ON access_logs(key_value)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_access_time ON access_logs(access_time)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_access_logs_session_id ON access_logs(session_id)")
             
             conn.commit()
     
