@@ -196,6 +196,66 @@ def generate_card_key(prefix: str = "CSS") -> str:
     return f"{prefix}-{'-'.join(parts)}"
 
 
+def add_feishu_embed_params(url: str) -> str:
+    """
+    为飞书多维表格嵌入链接添加官方参数
+    
+    官方支持的参数（来源：飞书文档）：
+    - hideHeader=1: 隐藏头部（可解决"进入原应用"按钮问题）
+    - hideSidebar=1: 隐藏侧边栏
+    - vc=true: 隐藏新增视图，工具栏上移
+    
+    注意：飞书官方声明 iframe 嵌入支持不完善，可能有兼容性问题
+    """
+    if not url:
+        return url
+    
+    # 飞书多维表格链接特征
+    feishu_patterns = [
+        'feishu.cn/base/',
+        'feishu.cn/app/',
+        'larksuite.com/base/',
+        'larksuite.com/app/',
+        'bytedance.larkoffice.com/'
+    ]
+    
+    # 检查是否为飞书链接
+    is_feishu = any(pattern in url for pattern in feishu_patterns)
+    if not is_feishu:
+        return url
+    
+    # 嵌入优化参数
+    embed_params = {
+        'hideHeader': '1',      # 隐藏头部（包含"进入原应用"按钮）
+        'hideSidebar': '1',     # 隐藏侧边栏
+        'vc': 'true',           # 隐藏新增视图，工具栏上移
+    }
+    
+    # 解析 URL 并添加参数
+    from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+    
+    parsed = urlparse(url)
+    existing_params = parse_qs(parsed.query)
+    
+    # 合并参数（不覆盖已有参数，用户可能已手动添加）
+    for key, value in embed_params.items():
+        if key not in existing_params:
+            existing_params[key] = [value]
+    
+    # 重建 URL
+    new_query = urlencode(existing_params, doseq=True)
+    new_url = urlunparse((
+        parsed.scheme,
+        parsed.netloc,
+        parsed.path,
+        parsed.params,
+        new_query,
+        parsed.fragment
+    ))
+    
+    return new_url
+
+
 def get_client_ip(request) -> str:
     """获取客户端IP（已禁用，合规要求不再收集IP地址）"""
     # 根据《个人信息保护法》，IP地址属于个人信息
@@ -293,6 +353,10 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         feishu_url = card_data.get('feishu_url', '')
         feishu_password = card_data.get('feishu_password', '')
+        
+        # 添加飞书官方嵌入参数，优化嵌入体验
+        if feishu_url:
+            feishu_url = add_feishu_embed_params(feishu_url)
 
         logger.info(f"验证成功: {card_key}, 设备: {device_id}, 已绑定设备数: {len(bound_devices)}, 首次访问: {is_first_access}")
 
