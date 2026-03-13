@@ -175,6 +175,26 @@ class SQLiteClient:
         return SQLiteTable(self, table_name)
 
 
+class SQLiteNotWrapper:
+    """NOT 条件包装器"""
+    
+    def __init__(self, table: "SQLiteTable"):
+        self.table = table
+    
+    def in_(self, column: str, values: List[Any]) -> "SQLiteTable":
+        """NOT IN 条件"""
+        self.table._filters.append((column, "NOT IN", values))
+        return self.table
+    
+    def is_(self, column: str, value: Any) -> "SQLiteTable":
+        """IS NOT 条件"""
+        if value is None or value == 'null':
+            self.table._filters.append((column, "IS NOT", "NULL"))
+        else:
+            self.table._filters.append((column, "IS NOT", value))
+        return self.table
+
+
 class SQLiteTable:
     """SQLite 表操作 - 模拟 Supabase Table 接口"""
     
@@ -188,6 +208,8 @@ class SQLiteTable:
         self._offset_val: int = None
         self._select_columns: str = "*"
         self._count_mode: bool = False
+        self._not_mode: bool = False
+        self._or_conditions: str = None
     
     def select(self, *columns, count: str = None) -> "SQLiteTable":
         """选择列"""
@@ -208,7 +230,24 @@ class SQLiteTable:
     
     def in_(self, column: str, values: List[Any]) -> "SQLiteTable":
         """IN 条件"""
-        self._filters.append((column, "IN", values))
+        if hasattr(self, '_not_mode') and self._not_mode:
+            self._filters.append((column, "NOT IN", values))
+            self._not_mode = False
+        else:
+            self._filters.append((column, "IN", values))
+        return self
+    
+    def not_(self) -> "SQLiteNotWrapper":
+        """NOT 条件（返回包装器，支持链式调用）"""
+        return SQLiteNotWrapper(self)
+    
+    def or_(self, conditions: str) -> "SQLiteTable":
+        """
+        OR 条件（Supabase 风格）
+        格式：column.op.value,column.op.value,...
+        示例：or_("status.eq.0,sale_status.in.(refunded,disputed)")
+        """
+        self._or_conditions = conditions
         return self
     
     def like(self, column: str, pattern: str) -> "SQLiteTable":
@@ -273,24 +312,148 @@ class SQLiteTable:
     
     def _build_where_clause(self) -> tuple:
         """构建 WHERE 子句"""
-        if not self._filters:
-            return "", []
-        
         clauses = []
         params = []
         
+        # 处理普通条件
         for col, op, val in self._filters:
             if op == "IN":
                 placeholders = ", ".join(["?" for _ in val])
                 clauses.append(f"{col} IN ({placeholders})")
                 params.extend(val)
+            elif op == "NOT IN":
+                placeholders = ", ".join(["?" for _ in val])
+                clauses.append(f"{col} NOT IN ({placeholders})")
+                params.extend(val)
             elif op == "IS":
                 clauses.append(f"{col} IS NULL")
+            elif op == "IS NOT":
+                clauses.append(f"{col} IS NOT NULL")
             else:
                 clauses.append(f"{col} {op} ?")
                 params.append(val)
         
+        # 处理 OR 条件
+        if self._or_conditions:
+            or_clause, or_params = self._parse_or_conditions(self._or_conditions)
+            clauses.append(or_clause)
+            params.extend(or_params)
+        
+        if not clauses:
+            return "", []
+        
         return " AND ".join(clauses), params
+    
+    def _parse_or_conditions(self, conditions: str) -> tuple:
+        """
+        解析 Supabase 风格的 OR 条件字符串
+        格式：column.op.value,column.op.value,...
+        示例："status.eq.0,sale_status.in.(refunded,disputed)"
+              "devices.neq.[],used_count.gt.0"
+              "sale_status.is.null,sale_status.notin.(refunded,disputed)"
+        """
+        import re
+        
+        or_clauses = []
+        params = []
+        
+        # 分割条件（注意处理括号内的逗号）
+        # 先提取括号内的内容
+        parts = []
+        current = ""
+        paren_depth = 0
+        
+        for char in conditions:
+            if char == '(':
+                paren_depth += 1
+                current += char
+            elif char == ')':
+                paren_depth -= 1
+                current += char
+            elif char == ',' and paren_depth == 0:
+                parts.append(current)
+                current = ""
+            else:
+                current += char
+        
+        if current:
+            parts.append(current)
+        
+        for part in parts:
+            part = part.strip()
+            if not part:
+                continue
+            
+            # 解析 column.op.value 格式
+            # 支持：eq, neq, gt, gte, lt, lte, in, notin, like, ilike, is
+            
+            # 处理 IN 条件：column.in.(value1,value2,...)
+            in_match = re.match(r'(\w+)\.in\.\((.+)\)', part)
+            if in_match:
+                col = in_match.group(1)
+                values_str = in_match.group(2)
+                values = [v.strip() for v in values_str.split(',')]
+                placeholders = ", ".join(["?" for _ in values])
+                or_clauses.append(f"{col} IN ({placeholders})")
+                params.extend(values)
+                continue
+            
+            # 处理 NOTIN 条件：column.notin.(value1,value2,...)
+            notin_match = re.match(r'(\w+)\.notin\.\((.+)\)', part)
+            if notin_match:
+                col = notin_match.group(1)
+                values_str = notin_match.group(2)
+                values = [v.strip() for v in values_str.split(',')]
+                placeholders = ", ".join(["?" for _ in values])
+                or_clauses.append(f"{col} NOT IN ({placeholders})")
+                params.extend(values)
+                continue
+            
+            # 处理 IS NULL 条件：column.is.null
+            is_null_match = re.match(r'(\w+)\.is\.null', part)
+            if is_null_match:
+                col = is_null_match.group(1)
+                or_clauses.append(f"{col} IS NULL")
+                continue
+            
+            # 处理 IS NOT NULL 条件：column.isnot.null
+            is_not_null_match = re.match(r'(\w+)\.isnot\.null', part)
+            if is_not_null_match:
+                col = is_not_null_match.group(1)
+                or_clauses.append(f"{col} IS NOT NULL")
+                continue
+            
+            # 处理其他条件：column.op.value
+            match = re.match(r'(\w+)\.(eq|neq|gt|gte|lt|lte|like|ilike|is)\.(.+)', part)
+            if match:
+                col = match.group(1)
+                op = match.group(2)
+                val = match.group(3)
+                
+                op_map = {
+                    'eq': '=',
+                    'neq': '!=',
+                    'gt': '>',
+                    'gte': '>=',
+                    'lt': '<',
+                    'lte': '<=',
+                    'like': 'LIKE',
+                    'ilike': 'LIKE',
+                    'is': 'IS'
+                }
+                
+                sql_op = op_map.get(op, '=')
+                
+                if op == 'is' and val == 'null':
+                    or_clauses.append(f"{col} IS NULL")
+                else:
+                    or_clauses.append(f"{col} {sql_op} ?")
+                    params.append(val)
+        
+        if or_clauses:
+            return f"({' OR '.join(or_clauses)})", params
+        
+        return "", []
     
     def execute(self) -> "SQLiteResponse":
         """执行查询"""

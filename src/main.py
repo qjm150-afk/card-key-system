@@ -452,22 +452,21 @@ async def get_card_keys(
         # - valid（有效）：status=1 且未使用过且销售状态正常
         # - activated（已激活）：status=1 且已使用过且销售状态正常
         # - disabled（已停用）：status=0 或 销售状态为 refunded/disputed
+        # 激活状态筛选（需要在应用层处理）
+        # - valid（有效）：status=1 且未使用过且销售状态正常
+        # - activated（已激活）：status=1 且已使用过且销售状态正常
+        # - disabled（已停用）：status=0 或 销售状态为 refunded/disputed
+        need_activate_filter = False
         if activate_status:
             if activate_status == 'disabled':
                 # 已停用：status=0 或 退款或有纠纷
                 # 使用 or 条件：status=0 OR sale_status in ['refunded', 'disputed']
                 query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
-            elif activate_status == 'valid':
-                # 有效：status=1 且 未使用过且销售状态正常
+            elif activate_status in ['valid', 'activated']:
+                # 有效/已激活：需要在应用层过滤（因为需要处理 NULL 值）
+                need_activate_filter = True
+                # 先获取 status=1 的所有记录
                 query = query.eq('status', 1)
-                query = query.eq('devices', '[]').eq('used_count', 0)
-                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
-            elif activate_status == 'activated':
-                # 已激活：status=1 且 已使用过且销售状态正常
-                query = query.eq('status', 1)
-                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
-                # 使用 or 条件：devices != '[]' OR used_count > 0
-                query = query.or_("devices.neq.[],used_count.gt.0")
         
         if feishu_url:
             query = query.eq('feishu_url', feishu_url)
@@ -525,21 +524,53 @@ async def get_card_keys(
                 except ValueError:
                     pass
         
-        # 如果需要在应用层过滤设备数量，先获取所有数据再过滤
-        if need_device_filter:
+        # 如果需要在应用层过滤设备数量或激活状态，先获取所有数据再过滤
+        if need_device_filter or need_activate_filter:
             # 获取所有匹配的数据
             response = query.order('id', desc=True).execute()
             all_data = response.data
             
-            # 在应用层过滤设备数量
+            # 在应用层过滤
             filtered_data = []
             for card in all_data:
-                try:
-                    devices = json.loads(card.get('devices', '[]'))
-                    if len(devices) == device_count_filter:
-                        filtered_data.append(card)
-                except:
-                    pass
+                # 设备数量过滤
+                if need_device_filter:
+                    try:
+                        devices = json.loads(card.get('devices', '[]'))
+                        if len(devices) != device_count_filter:
+                            continue
+                    except:
+                        if device_count_filter != 0:
+                            continue
+                
+                # 激活状态过滤（需要处理 NULL 值）
+                if need_activate_filter:
+                    sale_status = card.get('sale_status')
+                    # 排除销售状态为 refunded/disputed 的记录（但允许 NULL）
+                    if sale_status in ['refunded', 'disputed']:
+                        continue
+                    
+                    if activate_status == 'valid':
+                        # 有效：未使用过（无绑定设备且used_count=0）
+                        try:
+                            devices = json.loads(card.get('devices', '[]'))
+                            if len(devices) > 0 or (card.get('used_count') and card.get('used_count') > 0):
+                                continue
+                        except:
+                            if card.get('used_count') and card.get('used_count') > 0:
+                                continue
+                    
+                    elif activate_status == 'activated':
+                        # 已激活：已使用过（有绑定设备或used_count>0）
+                        try:
+                            devices = json.loads(card.get('devices', '[]'))
+                            if len(devices) == 0 and (not card.get('used_count') or card.get('used_count') == 0):
+                                continue
+                        except:
+                            if not card.get('used_count') or card.get('used_count') == 0:
+                                continue
+                
+                filtered_data.append(card)
             
             # 手动分页
             total = len(filtered_data)
