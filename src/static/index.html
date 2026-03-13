@@ -440,22 +440,23 @@
         }
 
         .feishu-frame {
-            flex: 1;
-            width: 100%;
             border: none;
-            min-height: 0;
         }
 
-        /* iframe 容器 */
+        /* iframe 容器 - CSS裁剪底部按钮区域 */
         .iframe-container {
             flex: 1;
             position: relative;
             overflow: hidden;
+            width: 100%;
         }
 
         .iframe-container .feishu-frame {
-            height: 100%;
+            height: calc(100% + 80px);
             width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
         }
 
         /* 飞书底部操作栏遮罩 - 阻止点击"进入原应用"按钮 */
