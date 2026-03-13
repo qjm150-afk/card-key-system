@@ -1354,6 +1354,396 @@
             outline: none;
             border-color: #D4A574;
         }
+
+        /* 统计报表样式 */
+        .trend-chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 16px;
+        }
+
+        .trend-chart {
+            height: 200px;
+            display: flex;
+            align-items: flex-end;
+            gap: 4px;
+            padding-bottom: 30px;
+            position: relative;
+        }
+
+        .trend-bar-group {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+        }
+
+        .trend-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 150px;
+        }
+
+        .trend-bar {
+            width: 8px;
+            min-height: 2px;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.3s ease;
+        }
+
+        .trend-bar.visits { background: #D4A574; }
+        .trend-bar.success { background: #10B981; }
+        .trend-bar.users { background: #3B82F6; }
+
+        .trend-label {
+            font-size: 10px;
+            color: #A89070;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .trend-legend {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid #F0E6D8;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #6B5D52;
+        }
+
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+
+        /* 分布图表样式 */
+        .distribution-chart {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+
+        .pie-chart {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: conic-gradient(
+                #9CA3AF 0% var(--unsold, 0%),
+                #10B981 var(--unsold, 0%) var(--sold, 0%),
+                #EF4444 var(--sold, 0%) var(--refunded, 0%),
+                #F59E0B var(--refunded, 0%) 100%
+            );
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .pie-center {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: #5D4E37;
+        }
+
+        .distribution-legend {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #5D4E37;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        .legend-value {
+            margin-left: auto;
+            font-weight: 600;
+            min-width: 30px;
+            text-align: right;
+        }
+
+        /* 设备绑定柱状图 */
+        .device-bars {
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
+            margin-top: 16px;
+        }
+
+        .device-bar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .device-bar-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .device-label {
+            width: 40px;
+            font-size: 12px;
+            color: #A89070;
+        }
+
+        .device-bar {
+            flex: 1;
+            height: 20px;
+            background: #F5EDE3;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .device-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #D4A574, #C49464);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .device-count {
+            width: 40px;
+            font-size: 12px;
+            color: #5D4E37;
+            text-align: right;
+            font-weight: 600;
+        }
+
+        /* 过期状态卡片 */
+        .expire-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-top: 16px;
+        }
+
+        .expire-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .expire-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .expire-label {
+            font-size: 12px;
+            color: #A89070;
+        }
+
+        .expire-expired .expire-value { color: #EF4444; }
+        .expire-warning .expire-value { color: #F59E0B; }
+        .expire-notice .expire-value { color: #3B82F6; }
+        .expire-permanent .expire-value { color: #10B981; }
+
+        @media (max-width: 768px) {
+            .expire-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        /* 链接健康检测样式 */
+        .link-health-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .health-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid transparent;
+        }
+
+        .health-card.health-healthy {
+            border-color: #10B981;
+        }
+
+        .health-card.health-unhealthy {
+            border-color: #EF4444;
+        }
+
+        .health-card.health-unknown {
+            border-color: #9CA3AF;
+        }
+
+        .health-card.health-total {
+            border-color: #D4A574;
+        }
+
+        .health-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+
+        .health-healthy .health-value { color: #10B981; }
+        .health-unhealthy .health-value { color: #EF4444; }
+        .health-unknown .health-value { color: #9CA3AF; }
+        .health-total .health-value { color: #D4A574; }
+
+        .health-label {
+            font-size: 12px;
+            color: #A89070;
+        }
+
+        .link-health-list {
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .link-list-empty {
+            text-align: center;
+            color: #A89070;
+            padding: 40px 20px;
+        }
+
+        .link-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background: #FFF8F0;
+            transition: all 0.2s;
+        }
+
+        .link-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .link-item:hover {
+            background: #F5EDE3;
+        }
+
+        .link-status-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        .link-item.healthy .link-status-icon {
+            background: #D1FAE5;
+            color: #10B981;
+        }
+
+        .link-item.unhealthy .link-status-icon {
+            background: #FEE2E2;
+            color: #EF4444;
+        }
+
+        .link-item.unknown .link-status-icon {
+            background: #F3F4F6;
+            color: #9CA3AF;
+        }
+
+        .link-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .link-name {
+            font-weight: 600;
+            color: #5D4E37;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .link-url {
+            font-size: 12px;
+            color: #A89070;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .link-meta {
+            text-align: right;
+            flex-shrink: 0;
+            margin-left: 12px;
+        }
+
+        .link-check-time {
+            font-size: 11px;
+            color: #A89070;
+        }
+
+        .link-error {
+            font-size: 11px;
+            color: #EF4444;
+            margin-top: 2px;
+        }
+
+        .link-actions {
+            margin-left: 12px;
+        }
+
+        .link-actions .btn-sm {
+            padding: 4px 8px;
+            font-size: 11px;
+        }
+
+        @media (max-width: 768px) {
+            .link-health-summary {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -1747,6 +2137,178 @@
                     <span class="heatmap-legend-color" style="background: #8B7355;"></span>
                     <span class="heatmap-legend-color" style="background: #5D4E37;"></span>
                     <span>多</span>
+                </div>
+            </div>
+
+            <!-- 统计报表区域 -->
+            <div class="analytics-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 class="section-title" style="margin: 0;">📊 统计报表</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <select class="filter-select" id="trendPeriod" style="width: 100px;" onchange="loadTrendData()">
+                            <option value="day">按日</option>
+                            <option value="week">按周</option>
+                            <option value="month">按月</option>
+                        </select>
+                        <select class="filter-select" id="trendDays" style="width: 100px;" onchange="loadTrendData()">
+                            <option value="7">最近7天</option>
+                            <option value="30" selected>最近30天</option>
+                            <option value="90">最近90天</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="exportReport()">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                            导出报表
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 趋势图 -->
+                <div class="trend-chart-container" id="trendChartContainer">
+                    <div class="trend-chart" id="trendChart">
+                        <div class="chart-empty">暂无趋势数据</div>
+                    </div>
+                    <div class="trend-legend">
+                        <span class="legend-item"><span class="legend-color" style="background: #D4A574;"></span>访问量</span>
+                        <span class="legend-item"><span class="legend-color" style="background: #10B981;"></span>成功验证</span>
+                        <span class="legend-item"><span class="legend-color" style="background: #3B82F6;"></span>独立用户</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 分布统计 -->
+            <div class="analytics-grid">
+                <!-- 销售状态分布 -->
+                <div class="analytics-section">
+                    <h3 class="section-title">🏷️ 销售状态分布</h3>
+                    <div class="distribution-chart" id="salesDistribution">
+                        <div class="pie-chart">
+                            <div class="pie-segment" id="pieUnsold" style="--percentage: 0; --color: #9CA3AF;"></div>
+                            <div class="pie-segment" id="pieSold" style="--percentage: 0; --color: #10B981;"></div>
+                            <div class="pie-segment" id="pieRefunded" style="--percentage: 0; --color: #EF4444;"></div>
+                            <div class="pie-segment" id="pieDisputed" style="--percentage: 0; --color: #F59E0B;"></div>
+                            <div class="pie-center" id="pieTotal">0</div>
+                        </div>
+                        <div class="distribution-legend">
+                            <div class="legend-row">
+                                <span class="legend-dot" style="background: #9CA3AF;"></span>
+                                <span>未售出</span>
+                                <span class="legend-value" id="legendUnsold">0</span>
+                            </div>
+                            <div class="legend-row">
+                                <span class="legend-dot" style="background: #10B981;"></span>
+                                <span>已售出</span>
+                                <span class="legend-value" id="legendSold">0</span>
+                            </div>
+                            <div class="legend-row">
+                                <span class="legend-dot" style="background: #EF4444;"></span>
+                                <span>已退款</span>
+                                <span class="legend-value" id="legendRefunded">0</span>
+                            </div>
+                            <div class="legend-row">
+                                <span class="legend-dot" style="background: #F59E0B;"></span>
+                                <span>有纠纷</span>
+                                <span class="legend-value" id="legendDisputed">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 设备绑定分布 -->
+                <div class="analytics-section">
+                    <h3 class="section-title">📱 设备绑定分布</h3>
+                    <div class="device-bars" id="deviceBars">
+                        <div class="device-bar-item">
+                            <span class="device-label">0台</span>
+                            <div class="device-bar"><div class="device-bar-fill" id="device0" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCount0">0</span>
+                        </div>
+                        <div class="device-bar-item">
+                            <span class="device-label">1台</span>
+                            <div class="device-bar"><div class="device-bar-fill" id="device1" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCount1">0</span>
+                        </div>
+                        <div class="device-bar-item">
+                            <span class="device-label">2台</span>
+                            <div class="device-bar"><div class="device-bar-fill" id="device2" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCount2">0</span>
+                        </div>
+                        <div class="device-bar-item">
+                            <span class="device-label">3台</span>
+                            <div class="device-bar"><div class="device-bar-fill" id="device3" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCount3">0</span>
+                        </div>
+                        <div class="device-bar-item">
+                            <span class="device-label">4台</span>
+                            <div class="device-bar"><div class="device-bar-fill" id="device4" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCount4">0</span>
+                        </div>
+                        <div class="device-bar-item">
+                            <span class="device-label">5台</span>
+                            <div class="device-bar"><div class="device-bar-fill" id="device5" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCount5">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 过期状态统计 -->
+            <div class="analytics-section">
+                <h3 class="section-title">⏳ 过期状态统计</h3>
+                <div class="expire-stats" id="expireStats">
+                    <div class="expire-card expire-expired">
+                        <div class="expire-value" id="expireExpired">0</div>
+                        <div class="expire-label">已过期</div>
+                    </div>
+                    <div class="expire-card expire-warning">
+                        <div class="expire-value" id="expire7days">0</div>
+                        <div class="expire-label">7天内过期</div>
+                    </div>
+                    <div class="expire-card expire-notice">
+                        <div class="expire-value" id="expire30days">0</div>
+                        <div class="expire-label">30天内过期</div>
+                    </div>
+                    <div class="expire-card expire-permanent">
+                        <div class="expire-value" id="expirePermanent">0</div>
+                        <div class="expire-label">永久有效</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 链接健康检测 -->
+            <div class="analytics-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 class="section-title" style="margin: 0;">🔗 链接健康检测</h3>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" id="checkAllLinksBtn" onclick="checkAllLinks()">
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
+                            <span id="checkAllLinksText">检测全部</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 健康状态汇总 -->
+                <div class="link-health-summary" id="linkHealthSummary">
+                    <div class="health-card health-healthy">
+                        <div class="health-value" id="linkHealthy">0</div>
+                        <div class="health-label">正常</div>
+                    </div>
+                    <div class="health-card health-unhealthy">
+                        <div class="health-value" id="linkUnhealthy">0</div>
+                        <div class="health-label">异常</div>
+                    </div>
+                    <div class="health-card health-unknown">
+                        <div class="health-value" id="linkUnknown">0</div>
+                        <div class="health-label">未检测</div>
+                    </div>
+                    <div class="health-card health-total">
+                        <div class="health-value" id="linkTotal">0</div>
+                        <div class="health-label">总链接</div>
+                    </div>
+                </div>
+                
+                <!-- 链接列表 -->
+                <div class="link-health-list" id="linkHealthList">
+                    <div class="link-list-empty">暂无链接数据，点击"检测全部"开始检测</div>
                 </div>
             </div>
         </div>
@@ -2353,6 +2915,312 @@
         function resetAnalyticsDate() {
             initAnalyticsDate();
             loadAnalytics();
+            loadStatisticsReport();
+            loadLinkHealth();
+        }
+        
+        // ==================== 链接健康检测功能 ====================
+        
+        // 加载链接健康状态
+        async function loadLinkHealth() {
+            try {
+                const response = await fetch('/api/admin/link-health');
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderLinkHealth(result.data, result.summary);
+                }
+            } catch (e) {
+                console.error('加载链接健康状态失败', e);
+            }
+        }
+        
+        // 渲染链接健康状态
+        function renderLinkHealth(links, summary) {
+            // 更新汇总数据
+            document.getElementById('linkHealthy').textContent = summary.healthy || 0;
+            document.getElementById('linkUnhealthy').textContent = summary.unhealthy || 0;
+            document.getElementById('linkUnknown').textContent = summary.unknown || 0;
+            document.getElementById('linkTotal').textContent = summary.total || 0;
+            
+            // 渲染链接列表
+            const container = document.getElementById('linkHealthList');
+            
+            if (!links || links.length === 0) {
+                container.innerHTML = '<div class="link-list-empty">暂无链接数据，点击"检测全部"开始检测</div>';
+                return;
+            }
+            
+            // 按状态排序：异常 > 未知 > 正常
+            const sortedLinks = [...links].sort((a, b) => {
+                const order = { 'unhealthy': 0, 'unknown': 1, 'healthy': 2 };
+                return (order[a.status] || 1) - (order[b.status] || 1);
+            });
+            
+            container.innerHTML = sortedLinks.map(link => {
+                const statusClass = link.status || 'unknown';
+                const statusIcon = getStatusIcon(link.status);
+                const checkTime = link.last_check_time ? formatCheckTime(link.last_check_time) : '未检测';
+                
+                return `
+                    <div class="link-item ${statusClass}">
+                        <div class="link-status-icon">${statusIcon}</div>
+                        <div class="link-info">
+                            <div class="link-name">${link.name || '未命名链接'}</div>
+                            <div class="link-url">${link.url}</div>
+                        </div>
+                        <div class="link-meta">
+                            <div class="link-check-time">${checkTime}</div>
+                            ${link.error_message ? '<div class="link-error">' + link.error_message + '</div>' : ''}
+                        </div>
+                        <div class="link-actions">
+                            <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测">
+                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 获取状态图标
+        function getStatusIcon(status) {
+            if (status === 'healthy') {
+                return '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>';
+            } else if (status === 'unhealthy') {
+                return '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>';
+            } else {
+                return '<svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>';
+            }
+        }
+        
+        // 格式化检测时间
+        function formatCheckTime(timeStr) {
+            if (!timeStr) return '未检测';
+            try {
+                const date = new Date(timeStr);
+                const now = new Date();
+                const diff = now - date;
+                
+                if (diff < 60000) return '刚刚';
+                if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+                if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+                return date.toLocaleDateString();
+            } catch {
+                return timeStr;
+            }
+        }
+        
+        // 检测所有链接
+        async function checkAllLinks() {
+            const btn = document.getElementById('checkAllLinksBtn');
+            const text = document.getElementById('checkAllLinksText');
+            const list = document.getElementById('linkHealthList');
+            
+            btn.disabled = true;
+            text.textContent = '检测中...';
+            list.innerHTML = '<div class="link-list-empty"><div style="display: inline-block; width: 24px; height: 24px; border: 2px solid #D4A574; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div><br><br>正在检测链接...</div>';
+            
+            try {
+                const response = await fetch('/api/admin/link-health/check', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.msg, 'success');
+                    await loadLinkHealth();
+                } else {
+                    showToast('检测失败: ' + result.msg, 'error');
+                    loadLinkHealth();
+                }
+            } catch (e) {
+                console.error('检测链接失败', e);
+                showToast('检测失败', 'error');
+                loadLinkHealth();
+            } finally {
+                btn.disabled = false;
+                text.textContent = '检测全部';
+            }
+        }
+        
+        // 检测单个链接
+        async function checkSingleLink(encodedUrl) {
+            const url = decodeURIComponent(encodedUrl);
+            
+            try {
+                const response = await fetch('/api/admin/link-health/check-single', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const result = await response.json();
+                
+                if (result.success) {
+                    const status = result.data.status;
+                    const statusText = status === 'healthy' ? '正常' : status === 'unhealthy' ? '异常' : '未知';
+                    showToast('检测结果: ' + statusText, status === 'healthy' ? 'success' : 'warning');
+                    await loadLinkHealth();
+                } else {
+                    showToast('检测失败: ' + result.msg, 'error');
+                }
+            } catch (e) {
+                console.error('检测单个链接失败', e);
+                showToast('检测失败', 'error');
+            }
+        }
+        
+        // ==================== 统计报表功能 ====================
+        
+        // 加载统计报表数据
+        async function loadStatisticsReport() {
+            await Promise.all([
+                loadTrendData(),
+                loadDistributionData()
+            ]);
+        }
+        
+        // 加载趋势数据
+        async function loadTrendData() {
+            const period = document.getElementById('trendPeriod').value;
+            const days = document.getElementById('trendDays').value;
+            
+            try {
+                const response = await fetch(`/api/admin/statistics/trend?period=${period}&days=${days}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderTrendChart(result.data);
+                }
+            } catch (e) {
+                console.error('加载趋势数据失败', e);
+            }
+        }
+        
+        // 渲染趋势图
+        function renderTrendChart(data) {
+            const container = document.getElementById('trendChart');
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div class="chart-empty">暂无趋势数据</div>';
+                return;
+            }
+            
+            // 找出最大值
+            const maxVisits = Math.max(...data.map(d => d.visits), 1);
+            
+            // 生成柱状图
+            let html = '';
+            data.forEach(item => {
+                const height = (item.visits / maxVisits * 140);
+                html += `
+                    <div class="trend-bar-group" title="${item.date}\n访问: ${item.visits}\n成功: ${item.success}\n用户: ${item.unique_users}">
+                        <div class="trend-bars">
+                            <div class="trend-bar visits" style="height: ${Math.max((item.visits / maxVisits * 140), 2)}px;"></div>
+                            <div class="trend-bar success" style="height: ${Math.max((item.success / maxVisits * 140), 2)}px;"></div>
+                            <div class="trend-bar users" style="height: ${Math.max((item.unique_users / maxVisits * 140), 2)}px;"></div>
+                        </div>
+                        <div class="trend-label">${formatTrendLabel(item.date)}</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 格式化趋势标签
+        function formatTrendLabel(dateStr) {
+            if (dateStr.length === 10) { // YYYY-MM-DD
+                return dateStr.substring(5); // MM-DD
+            } else if (dateStr.length === 7) { // YYYY-MM
+                return dateStr.substring(5); // MM
+            }
+            return dateStr;
+        }
+        
+        // 加载分布数据
+        async function loadDistributionData() {
+            try {
+                const response = await fetch('/api/admin/statistics/distribution');
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderDistributionData(result.data);
+                }
+            } catch (e) {
+                console.error('加载分布数据失败', e);
+            }
+        }
+        
+        // 渲染分布数据
+        function renderDistributionData(data) {
+            if (!data) return;
+            
+            const total = data.total || 1;
+            
+            // 销售状态分布
+            const sales = data.sales_distribution;
+            document.getElementById('legendUnsold').textContent = sales.unsold || 0;
+            document.getElementById('legendSold').textContent = sales.sold || 0;
+            document.getElementById('legendRefunded').textContent = sales.refunded || 0;
+            document.getElementById('legendDisputed').textContent = sales.disputed || 0;
+            document.getElementById('pieTotal').textContent = total;
+            
+            // 更新饼图CSS变量
+            const pieChart = document.querySelector('.pie-chart');
+            const unsoldPct = (sales.unsold || 0) / total * 100;
+            const soldPct = (sales.sold || 0) / total * 100;
+            const refundedPct = (sales.refunded || 0) / total * 100;
+            
+            pieChart.style.setProperty('--unsold', `${unsoldPct}%`);
+            pieChart.style.setProperty('--sold', `${unsoldPct + soldPct}%`);
+            pieChart.style.setProperty('--refunded', `${unsoldPct + soldPct + refundedPct}%`);
+            
+            // 设备绑定分布
+            const devices = data.device_distribution;
+            const maxDevices = Math.max(...Object.values(devices), 1);
+            
+            for (let i = 0; i <= 5; i++) {
+                const count = devices[i] || 0;
+                const width = (count / maxDevices * 100);
+                document.getElementById(`device${i}`).style.width = `${width}%`;
+                document.getElementById(`deviceCount${i}`).textContent = count;
+            }
+            
+            // 过期状态统计
+            const expire = data.expire_status;
+            document.getElementById('expireExpired').textContent = expire.expired || 0;
+            document.getElementById('expire7days').textContent = expire.expiring_7days || 0;
+            document.getElementById('expire30days').textContent = expire.expiring_30days || 0;
+            document.getElementById('expirePermanent').textContent = expire.permanent || 0;
+        }
+        
+        // 导出报表
+        async function exportReport() {
+            try {
+                const response = await fetch('/api/admin/statistics/export');
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 创建下载
+                    const data = JSON.stringify(result.data, null, 2);
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `statistics_report_${new Date().toISOString().slice(0, 10)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    
+                    showToast('报表导出成功', 'success');
+                } else {
+                    showToast('导出失败: ' + result.msg, 'error');
+                }
+            } catch (e) {
+                console.error('导出报表失败', e);
+                showToast('导出失败', 'error');
+            }
         }
         
         // 加载所有分析数据

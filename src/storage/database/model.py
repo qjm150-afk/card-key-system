@@ -76,3 +76,38 @@ class AccessLog(Base):
         Index("ix_access_logs_access_time", "access_time"),
         Index("ix_access_logs_card_key_id", "card_key_id"),
     )
+
+
+class LinkHealth(Base):
+    """链接健康状态表"""
+    __tablename__ = "link_health_table"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    
+    # 链接信息
+    feishu_url: Mapped[str] = mapped_column(Text, nullable=False, comment="飞书链接")
+    link_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True, comment="链接名称")
+    
+    # 健康状态
+    status: Mapped[str] = mapped_column(String(20), default='unknown', nullable=False, comment="状态: healthy=正常, unhealthy=失效, unknown=未知")
+    http_code: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, comment="HTTP状态码")
+    error_message: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="错误信息")
+    
+    # 检测时间
+    last_check_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="最后检测时间")
+    next_check_time: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="下次检测时间")
+    
+    # 统计
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="连续失败次数")
+    total_checks: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="总检测次数")
+    successful_checks: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="成功检测次数")
+    
+    # 时间戳
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True, comment="更新时间")
+    
+    __table_args__ = (
+        Index("ix_link_health_feishu_url", "feishu_url"),
+        Index("ix_link_health_status", "status"),
+        Index("ix_link_health_next_check_time", "next_check_time"),
+    )

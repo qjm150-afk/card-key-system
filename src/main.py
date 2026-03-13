@@ -2422,6 +2422,586 @@ async def report_session(request: SessionReport):
         return {"success": False, "msg": str(e)}
 
 
+# ==================== 统计报表 API ====================
+
+@app.get("/api/admin/statistics/trend")
+async def get_statistics_trend(
+    period: str = "day",  # day, week, month
+    days: int = 30
+):
+    """获取卡密使用趋势数据
+    
+    Args:
+        period: 统计周期 - day(按日), week(按周), month(按月)
+        days: 统计天数范围
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 计算日期范围
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=days)
+        
+        # 获取访问日志
+        logs_response = client.table('access_logs').select('*').gte('access_time', start_date.isoformat()).execute()
+        logs = logs_response.data or []
+        
+        # 获取卡密数据
+        cards_response = client.table('card_keys_table').select('*').execute()
+        cards = cards_response.data or []
+        
+        # 按周期分组统计
+        trend_data = {}
+        
+        for log in logs:
+            access_time = datetime.fromisoformat(log['access_time'].replace('Z', '+00:00'))
+            
+            if period == "day":
+                key = access_time.strftime('%Y-%m-%d')
+            elif period == "week":
+                # 获取周起始日期
+                week_start = access_time - timedelta(days=access_time.weekday())
+                key = week_start.strftime('%Y-%m-%d')
+            else:  # month
+                key = access_time.strftime('%Y-%m')
+            
+            if key not in trend_data:
+                trend_data[key] = {
+                    'date': key,
+                    'visits': 0,
+                    'success': 0,
+                    'unique_users': set()
+                }
+            
+            trend_data[key]['visits'] += 1
+            if log.get('success'):
+                trend_data[key]['success'] += 1
+            if log.get('key_value'):
+                trend_data[key]['unique_users'].add(log['key_value'])
+        
+        # 转换为列表并计算唯一用户数
+        result = []
+        for key in sorted(trend_data.keys()):
+            data = trend_data[key]
+            result.append({
+                'date': data['date'],
+                'visits': data['visits'],
+                'success': data['success'],
+                'unique_users': len(data['unique_users'])
+            })
+        
+        return {
+            "success": True,
+            "data": result,
+            "period": period,
+            "total_visits": sum(d['visits'] for d in result),
+            "total_success": sum(d['success'] for d in result)
+        }
+        
+    except Exception as e:
+        logger.error(f"获取趋势数据失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/statistics/distribution")
+async def get_statistics_distribution():
+    """获取销售状态和设备绑定分布统计"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有卡密
+        response = client.table('card_keys_table').select('*').execute()
+        cards = response.data or []
+        
+        # 销售状态分布
+        sales_distribution = {
+            'unsold': 0,
+            'sold': 0,
+            'refunded': 0,
+            'disputed': 0
+        }
+        
+        # 激活状态分布
+        status_distribution = {
+            'valid': 0,
+            'activated': 0,
+            'disabled': 0,
+            'expired': 0
+        }
+        
+        # 设备绑定分布
+        device_distribution = {
+            '0': 0,
+            '1': 0,
+            '2': 0,
+            '3': 0,
+            '4': 0,
+            '5': 0
+        }
+        
+        # 过期状态
+        now = datetime.now()
+        expired_count = 0
+        expiring_7days = 0
+        expiring_30days = 0
+        
+        for card in cards:
+            # 销售状态
+            sales_status = card.get('sales_status', 'unsold') or 'unsold'
+            if sales_status in sales_distribution:
+                sales_distribution[sales_status] += 1
+            
+            # 激活状态
+            status = card.get('status', 1)
+            if status == 1:
+                status_distribution['valid'] += 1
+            else:
+                status_distribution['disabled'] += 1
+            
+            # 设备绑定
+            devices = card.get('devices')
+            if devices:
+                try:
+                    device_list = json.loads(devices) if isinstance(devices, str) else devices
+                    device_count = len(device_list)
+                except:
+                    device_count = 0
+            else:
+                device_count = 0
+            
+            device_key = str(min(device_count, 5))
+            device_distribution[device_key] += 1
+            
+            # 过期状态
+            expire_at = card.get('expire_at')
+            if expire_at:
+                try:
+                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    if expire_time < now:
+                        expired_count += 1
+                    elif expire_time < now + timedelta(days=7):
+                        expiring_7days += 1
+                    elif expire_time < now + timedelta(days=30):
+                        expiring_30days += 1
+                except:
+                    pass
+        
+        return {
+            "success": True,
+            "data": {
+                "total": len(cards),
+                "sales_distribution": sales_distribution,
+                "status_distribution": status_distribution,
+                "device_distribution": device_distribution,
+                "expire_status": {
+                    "expired": expired_count,
+                    "expiring_7days": expiring_7days,
+                    "expiring_30days": expiring_30days,
+                    "permanent": len(cards) - expired_count - expiring_7days - expiring_30days
+                }
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取分布统计失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/statistics/overview")
+async def get_statistics_overview():
+    """获取统计概览数据"""
+    try:
+        client = get_supabase_client()
+        
+        # 卡密统计
+        cards_response = client.table('card_keys_table').select('*', count='exact').execute()
+        total_cards = cards_response.count or 0
+        cards = cards_response.data or []
+        
+        # 有效卡密
+        valid_cards = len([c for c in cards if c.get('status') == 1])
+        
+        # 今日访问量
+        today = datetime.now().strftime('%Y-%m-%d')
+        today_logs = client.table('access_logs').select('id', count='exact').gte('access_time', f'{today}T00:00:00').execute()
+        today_visits = today_logs.count or 0
+        
+        # 今日成功验证
+        today_success = client.table('access_logs').select('id', count='exact').gte('access_time', f'{today}T00:00:00').eq('success', True).execute()
+        today_success_count = today_success.count or 0
+        
+        # 本周新增卡密
+        week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+        week_cards = client.table('card_keys_table').select('id', count='exact').gte('bstudio_create_time', f'{week_start}T00:00:00').execute()
+        week_new_cards = week_cards.count or 0
+        
+        # 总访问量
+        all_logs = client.table('access_logs').select('id', count='exact').execute()
+        total_visits = all_logs.count or 0
+        
+        return {
+            "success": True,
+            "data": {
+                "total_cards": total_cards,
+                "valid_cards": valid_cards,
+                "today_visits": today_visits,
+                "today_success": today_success_count,
+                "week_new_cards": week_new_cards,
+                "total_visits": total_visits
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取统计概览失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/statistics/export")
+async def export_statistics():
+    """导出统计报表数据"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有数据
+        cards_response = client.table('card_keys_table').select('*').execute()
+        cards = cards_response.data or []
+        
+        logs_response = client.table('access_logs').select('*').execute()
+        logs = logs_response.data or []
+        
+        # 汇总统计
+        now = datetime.now()
+        
+        # 卡密统计
+        total_cards = len(cards)
+        valid_cards = len([c for c in cards if c.get('status') == 1])
+        
+        # 销售状态统计
+        sales_stats = {}
+        for card in cards:
+            status = card.get('sales_status', 'unsold') or 'unsold'
+            sales_stats[status] = sales_stats.get(status, 0) + 1
+        
+        # 过期统计
+        expired = 0
+        expiring_7days = 0
+        for card in cards:
+            expire_at = card.get('expire_at')
+            if expire_at:
+                try:
+                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    if expire_time < now:
+                        expired += 1
+                    elif expire_time < now + timedelta(days=7):
+                        expiring_7days += 1
+                except:
+                    pass
+        
+        # 访问统计
+        total_visits = len(logs)
+        success_visits = len([l for l in logs if l.get('success')])
+        
+        # 今日统计
+        today = now.strftime('%Y-%m-%d')
+        today_logs = [l for l in logs if l.get('access_time', '').startswith(today)]
+        today_visits = len(today_logs)
+        
+        # 构建导出数据
+        export_data = {
+            "export_time": now.isoformat(),
+            "summary": {
+                "total_cards": total_cards,
+                "valid_cards": valid_cards,
+                "invalid_cards": total_cards - valid_cards,
+                "expired_cards": expired,
+                "expiring_7days": expiring_7days,
+                "total_visits": total_visits,
+                "success_visits": success_visits,
+                "today_visits": today_visits,
+                "sales_distribution": sales_stats
+            },
+            "cards": cards,
+            "logs": logs
+        }
+        
+        return {
+            "success": True,
+            "data": export_data
+        }
+        
+    except Exception as e:
+        logger.error(f"导出统计报表失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+# ==================== 链接健康检测 API ====================
+
+import httpx
+import asyncio
+
+@app.get("/api/admin/link-health")
+async def get_link_health():
+    """获取所有链接健康状态列表"""
+    try:
+        client = get_supabase_client()
+        
+        # 尝试查询链接健康表（如果存在）
+        try:
+            health_response = client.table('link_health_table').select('*').order('last_check_time', desc=True).execute()
+            health_data = health_response.data or []
+        except Exception:
+            # 表不存在，返回空数据
+            health_data = []
+        
+        # 获取所有唯一的飞书链接
+        cards_response = client.table('card_keys_table').select('feishu_url, link_name').execute()
+        cards = cards_response.data or []
+        
+        # 统计唯一链接
+        unique_links = {}
+        for card in cards:
+            url = card.get('feishu_url')
+            if url and url not in unique_links:
+                unique_links[url] = {
+                    'url': url,
+                    'name': card.get('link_name') or '',
+                    'status': 'unknown',
+                    'last_check_time': None,
+                    'http_code': None,
+                    'error_message': None
+                }
+        
+        # 合并健康状态数据
+        for health in health_data:
+            url = health.get('feishu_url')
+            if url in unique_links:
+                unique_links[url].update({
+                    'status': health.get('status', 'unknown'),
+                    'last_check_time': health.get('last_check_time'),
+                    'http_code': health.get('http_code'),
+                    'error_message': health.get('error_message'),
+                    'consecutive_failures': health.get('consecutive_failures', 0)
+                })
+        
+        # 统计汇总
+        links_list = list(unique_links.values())
+        summary = {
+            'total': len(links_list),
+            'healthy': len([l for l in links_list if l['status'] == 'healthy']),
+            'unhealthy': len([l for l in links_list if l['status'] == 'unhealthy']),
+            'unknown': len([l for l in links_list if l['status'] == 'unknown'])
+        }
+        
+        return {
+            "success": True,
+            "data": links_list,
+            "summary": summary
+        }
+        
+    except Exception as e:
+        logger.error(f"获取链接健康状态失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/link-health/check")
+async def check_all_links():
+    """检测所有链接健康状态"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有唯一的飞书链接
+        cards_response = client.table('card_keys_table').select('feishu_url, link_name').execute()
+        cards = cards_response.data or []
+        
+        unique_links = {}
+        for card in cards:
+            url = card.get('feishu_url')
+            if url and url not in unique_links:
+                unique_links[url] = card.get('link_name') or ''
+        
+        if not unique_links:
+            return {"success": True, "msg": "没有需要检测的链接", "results": []}
+        
+        # 批量检测链接
+        results = []
+        async with httpx.AsyncClient(timeout=10.0) as http_client:
+            for url, name in unique_links.items():
+                result = await check_single_link(http_client, url, name, client)
+                results.append(result)
+        
+        # 统计结果
+        healthy_count = len([r for r in results if r['status'] == 'healthy'])
+        unhealthy_count = len([r for r in results if r['status'] == 'unhealthy'])
+        
+        return {
+            "success": True,
+            "msg": f"检测完成: {healthy_count} 个正常, {unhealthy_count} 个异常",
+            "results": results,
+            "summary": {
+                "total": len(results),
+                "healthy": healthy_count,
+                "unhealthy": unhealthy_count
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"检测链接健康状态失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/link-health/check-single")
+async def check_single_link_api(request: Request):
+    """检测单个链接健康状态"""
+    try:
+        body = await request.json()
+        url = body.get('url')
+        
+        if not url:
+            return {"success": False, "msg": "缺少链接URL"}
+        
+        client = get_supabase_client()
+        
+        # 获取链接名称
+        cards_response = client.table('card_keys_table').select('link_name').eq('feishu_url', url).limit(1).execute()
+        name = ''
+        if cards_response.data:
+            name = cards_response.data[0].get('link_name') or ''
+        
+        async with httpx.AsyncClient(timeout=10.0) as http_client:
+            result = await check_single_link(http_client, url, name, client)
+        
+        return {"success": True, "data": result}
+        
+    except Exception as e:
+        logger.error(f"检测单个链接失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str, db_client) -> dict:
+    """检测单个链接的健康状态"""
+    result = {
+        'url': url,
+        'name': name,
+        'status': 'unknown',
+        'http_code': None,
+        'error_message': None,
+        'check_time': datetime.now().isoformat()
+    }
+    
+    try:
+        # 发送HEAD请求检测链接
+        response = await http_client.head(url, follow_redirects=True)
+        result['http_code'] = response.status_code
+        
+        if response.status_code == 200:
+            result['status'] = 'healthy'
+        elif response.status_code in [301, 302, 303, 307, 308]:
+            result['status'] = 'healthy'  # 重定向也视为正常
+            result['error_message'] = f'重定向到其他地址'
+        elif response.status_code in [401, 403]:
+            result['status'] = 'healthy'  # 需要认证也视为链接有效
+            result['error_message'] = '需要认证访问'
+        elif response.status_code == 404:
+            result['status'] = 'unhealthy'
+            result['error_message'] = '链接不存在(404)'
+        else:
+            result['status'] = 'unhealthy'
+            result['error_message'] = f'HTTP状态码: {response.status_code}'
+            
+    except httpx.TimeoutException:
+        result['status'] = 'unhealthy'
+        result['error_message'] = '请求超时'
+    except httpx.ConnectError:
+        result['status'] = 'unhealthy'
+        result['error_message'] = '连接失败'
+    except Exception as e:
+        result['status'] = 'unhealthy'
+        result['error_message'] = str(e)[:200]
+    
+    # 更新数据库
+    try:
+        # 检查记录是否存在
+        existing = db_client.table('link_health_table').select('id').eq('feishu_url', url).execute()
+        
+        now = datetime.now()
+        next_check = now + timedelta(hours=24)  # 24小时后再检测
+        
+        if existing.data and len(existing.data) > 0:
+            # 更新现有记录
+            record_id = existing.data[0]['id']
+            db_client.table('link_health_table').update({
+                'status': result['status'],
+                'http_code': result['http_code'],
+                'error_message': result['error_message'],
+                'last_check_time': now.isoformat(),
+                'next_check_time': next_check.isoformat(),
+                'consecutive_failures': 0 if result['status'] == 'healthy' else 1,
+                'total_checks': 1,  # 每次检测重置
+                'updated_at': now.isoformat()
+            }).eq('id', record_id).execute()
+        else:
+            # 创建新记录
+            db_client.table('link_health_table').insert({
+                'feishu_url': url,
+                'link_name': name,
+                'status': result['status'],
+                'http_code': result['http_code'],
+                'error_message': result['error_message'],
+                'last_check_time': now.isoformat(),
+                'next_check_time': next_check.isoformat(),
+                'consecutive_failures': 0 if result['status'] == 'healthy' else 1,
+                'total_checks': 1,
+                'successful_checks': 1 if result['status'] == 'healthy' else 0
+            }).execute()
+    except Exception as e:
+        logger.warning(f"保存链接健康状态失败: {str(e)}")
+    
+    return result
+
+
+@app.get("/api/admin/link-health/summary")
+async def get_link_health_summary():
+    """获取链接健康状态汇总"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有卡密
+        cards_response = client.table('card_keys_table').select('feishu_url').execute()
+        cards = cards_response.data or []
+        
+        total_links = len(set(c.get('feishu_url') for c in cards if c.get('feishu_url')))
+        cards_without_link = len([c for c in cards if not c.get('feishu_url')])
+        
+        # 尝试获取健康状态
+        try:
+            health_response = client.table('link_health_table').select('status').execute()
+            health_data = health_response.data or []
+            
+            healthy = len([h for h in health_data if h.get('status') == 'healthy'])
+            unhealthy = len([h for h in health_data if h.get('status') == 'unhealthy'])
+            unknown = len([h for h in health_data if h.get('status') == 'unknown'])
+        except Exception:
+            healthy = 0
+            unhealthy = 0
+            unknown = total_links
+        
+        return {
+            "success": True,
+            "data": {
+                "total_links": total_links,
+                "cards_without_link": cards_without_link,
+                "healthy": healthy,
+                "unhealthy": unhealthy,
+                "unknown": unknown,
+                "needs_check": total_links - healthy - unhealthy
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取链接健康汇总失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 # ==================== 数据分析统计 API ====================
 
 @app.get("/api/admin/analytics/overview")
