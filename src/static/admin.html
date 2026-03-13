@@ -701,27 +701,46 @@
         
         /* 访问日志表格样式 */
         .logs-table {
-            min-width: 1100px;
+            min-width: 1200px;
+        }
+        
+        .logs-table th {
+            background: linear-gradient(135deg, #D4A574, #C49A6C);
+            color: white;
+            font-weight: 600;
+            padding: 14px 12px;
+            text-align: left;
+            border-bottom: 2px solid #B8956A;
+        }
+        
+        .logs-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #E8D5C4;
+            vertical-align: middle;
+        }
+        
+        .logs-table tr:hover {
+            background-color: #FFF8F0;
         }
         
         .logs-table th:nth-child(1),
-        .logs-table td:nth-child(1) { min-width: 150px; }
+        .logs-table td:nth-child(1) { min-width: 160px; font-weight: 500; }
         .logs-table th:nth-child(2),
-        .logs-table td:nth-child(2) { width: 80px; }
+        .logs-table td:nth-child(2) { min-width: 120px; }
         .logs-table th:nth-child(3),
-        .logs-table td:nth-child(3) { width: 80px; text-align: center; }
+        .logs-table td:nth-child(3) { min-width: 100px; font-size: 13px; color: #8B7355; }
         .logs-table th:nth-child(4),
-        .logs-table td:nth-child(4) { width: 80px; }
+        .logs-table td:nth-child(4) { min-width: 80px; text-align: center; }
         .logs-table th:nth-child(5),
-        .logs-table td:nth-child(5) { width: 100px; }
+        .logs-table td:nth-child(5) { min-width: 100px; }
         .logs-table th:nth-child(6),
-        .logs-table td:nth-child(6) { min-width: 140px; }
+        .logs-table td:nth-child(6) { min-width: 120px; font-size: 13px; }
         .logs-table th:nth-child(7),
         .logs-table td:nth-child(7) { width: 60px; text-align: center; }
         .logs-table th:nth-child(8),
-        .logs-table td:nth-child(8) { width: 80px; }
+        .logs-table td:nth-child(8) { min-width: 100px; font-size: 13px; }
         .logs-table th:nth-child(9),
-        .logs-table td:nth-child(9) { width: 120px; }
+        .logs-table td:nth-child(9) { min-width: 150px; font-size: 13px; color: #8B7355; }
         
         /* 操作日志表格样式 */
         .operation-logs-table {

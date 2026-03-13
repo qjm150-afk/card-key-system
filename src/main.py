@@ -2413,11 +2413,15 @@ async def get_access_logs(
                 # 如果有销售状态筛选，在应用层过滤
                 if sale_status:
                     logs = [log for log in logs if log.get('sale_status') == sale_status]
+                    # 更新总数为过滤后的数量
+                    filtered_total = len(logs)
+                else:
+                    filtered_total = response.count
         
         return {
             "success": True,
             "data": logs,
-            "total": response.count,
+            "total": filtered_total if sale_status else response.count,
             "page": page,
             "page_size": page_size
         }
