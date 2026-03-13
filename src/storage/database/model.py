@@ -61,9 +61,7 @@ class AccessLog(Base):
     card_key_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("card_keys_table.id"), nullable=True, comment="卡密ID")
     key_value: Mapped[str] = mapped_column(String(50), nullable=False, comment="卡密值")
     
-    # 访问信息
-    # 注意：根据《个人信息保护法》合规要求，不再收集IP地址
-    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="用户代理")
+    # 注意：根据《个人信息保护法》合规要求，不再收集IP地址、User-Agent、设备类型
     
     # 结果
     success: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否成功")

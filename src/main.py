@@ -210,8 +210,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     client = None
     card_key = request.card_key.strip().upper()
     device_id = request.device_id or "unknown"
-    # IP地址收集已禁用（合规要求）
-    user_agent = fastapi_request.headers.get("User-Agent", "")[:500]
+    # IP地址、User-Agent收集已禁用（合规要求）
     
     try:
         if not card_key:
@@ -225,7 +224,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         response = client.table('card_keys_table').select('*').eq('key_value', card_key).execute()
 
         if not response.data:
-            log_access(client, None, card_key, user_agent, False, "卡密不存在", device_id)
+            log_access(client, None, card_key, False, "卡密不存在", device_id)
             return ValidateResponse(can_access=False, msg="卡密不存在")
 
         card_data = response.data[0]
@@ -240,7 +239,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         # 检查状态 (1=有效, 0=无效)
         if card_data.get('status') != 1:
-            log_access(client, card_id, card_key, user_agent, False, "卡密已失效", device_id, sales_channel, is_first_access)
+            log_access(client, card_id, card_key, False, "卡密已失效", device_id, sales_channel, is_first_access)
             return ValidateResponse(can_access=False, msg="卡密已失效")
 
         # 检查过期时间
@@ -248,7 +247,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if expire_at:
             expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
             if datetime.now(expire_time.tzinfo) > expire_time:
-                log_access(client, card_id, card_key, user_agent, False, "卡密已过期", device_id, sales_channel, is_first_access)
+                log_access(client, card_id, card_key, False, "卡密已过期", device_id, sales_channel, is_first_access)
                 return ValidateResponse(can_access=False, msg="卡密已过期")
 
         # 检查设备限制（最多5台设备）
@@ -266,7 +265,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if not device_already_bound:
             # 新设备，检查是否达到设备限制
             if len(bound_devices) >= max_devices:
-                log_access(client, card_id, card_key, user_agent, False, f"设备数量已达上限({max_devices}台)", device_id, sales_channel, is_first_access)
+                log_access(client, card_id, card_key, False, f"设备数量已达上限({max_devices}台)", device_id, sales_channel, is_first_access)
                 return ValidateResponse(can_access=False, msg=f"该卡密已在{max_devices}台设备上使用，无法在新设备登录")
             
             # 添加新设备
@@ -282,7 +281,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             }).eq('id', card_id).execute()
 
         # 记录成功日志（含行为数据）
-        log_access(client, card_id, card_key, user_agent, True, "验证成功", device_id, sales_channel, is_first_access)
+        log_access(client, card_id, card_key, True, "验证成功", device_id, sales_channel, is_first_access)
 
         feishu_url = card_data.get('feishu_url', '')
         feishu_password = card_data.get('feishu_password', '')
@@ -299,64 +298,34 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     except Exception as e:
         logger.error(f"验证失败: {str(e)}")
         if client:
-            log_access(client, None, card_key, user_agent, False, f"系统错误: {str(e)}", device_id)
+            log_access(client, None, card_key, False, f"系统错误: {str(e)}", device_id)
         return ValidateResponse(can_access=False, msg="系统错误，请稍后重试")
 
 
-def parse_device_type(user_agent: str) -> str:
-    """解析设备类型"""
-    ua = user_agent.lower()
-    if 'mobile' in ua or 'android' in ua or 'iphone' in ua or 'ipad' in ua:
-        if 'ipad' in ua or 'tablet' in ua:
-            return 'Tablet'
-        return 'Mobile'
-    return 'PC'
-
-
-def log_access(client, card_key_id, key_value, user_agent, success, error_msg, device_id=None, sales_channel=None, is_first_access=False):
-    """记录访问日志（增强版，采集更多行为数据）
+def log_access(client, card_key_id, key_value, success, error_msg, device_id=None, sales_channel=None, is_first_access=False):
+    """记录访问日志
     
-    注意：根据《个人信息保护法》合规要求，不再收集IP地址
+    注意：根据《个人信息保护法》合规要求，不再收集IP地址、User-Agent、设备类型
     """
     try:
         now = datetime.now()
         
-        # 解析设备类型
-        device_type = parse_device_type(user_agent)
-        
-        # 基本日志数据（原有字段，始终可用）
-        # 注意：已移除 ip_address 字段（合规要求）
-        basic_log_data = {
+        # 基本日志数据
+        # 注意：已移除 ip_address、user_agent、device_type 字段（合规要求）
+        log_data = {
             "card_key_id": card_key_id,
             "key_value": key_value,
-            "user_agent": user_agent[:500] if user_agent else '',
             "success": success,
             "error_msg": error_msg if not success else None,
             "access_time": now.isoformat(),
-        }
-        
-        # 尝试插入完整数据（包含新字段）
-        full_log_data = {
-            **basic_log_data,
             "access_date": now.strftime('%Y-%m-%d'),
             "access_hour": now.hour,
-            "device_type": device_type,
             "is_first_access": is_first_access,
             "sales_channel": sales_channel
         }
         
-        try:
-            client.table('access_logs').insert(full_log_data).execute()
-            logger.info(f"访问日志记录成功（完整数据）: {key_value}")
-        except Exception as insert_error:
-            # 如果插入失败（可能是新字段不存在），回退到基本字段
-            error_msg_str = str(insert_error)
-            if 'does not exist' in error_msg_str or 'column' in error_msg_str.lower():
-                logger.warning(f"新字段不存在，回退到基本字段插入: {error_msg_str}")
-                client.table('access_logs').insert(basic_log_data).execute()
-                logger.info(f"访问日志记录成功（基本数据）: {key_value}")
-            else:
-                raise insert_error  # 其他错误继续抛出
+        client.table('access_logs').insert(log_data).execute()
+        logger.info(f"访问日志记录成功: {key_value}")
                 
     except Exception as e:
         logger.error(f"记录日志失败: {str(e)}")
@@ -1733,12 +1702,6 @@ async def get_analytics_overview(
         content_success = len([l for l in content_loaded_logs if l.get('content_loaded')])
         content_success_rate = content_success / len(content_loaded_logs) if content_loaded_logs else 0
         
-        # 设备分布（如果字段存在）
-        device_dist = {}
-        for log in logs:
-            dt = log.get('device_type') or 'Unknown'
-            device_dist[dt] = device_dist.get(dt, 0) + 1
-        
         # 时段分布（如果字段存在）
         hour_dist = {}
         for log in logs:
@@ -1755,7 +1718,6 @@ async def get_analytics_overview(
                 "avg_duration": round(avg_duration),
                 "new_user_ratio": round(new_user_ratio, 2),
                 "content_success_rate": round(content_success_rate, 2),
-                "device_distribution": device_dist,
                 "hour_distribution": hour_dist
             }
         }

@@ -2,7 +2,7 @@
 -- 为 access_logs 表添加行为数据采集字段
 -- 请在 Supabase 控制台的 SQL Editor 中执行此脚本
 -- 
--- 注意：根据《个人信息保护法》合规要求，不再收集IP地址相关数据
+-- 注意：根据《个人信息保护法》合规要求，不再收集IP地址、User-Agent、设备类型
 
 -- 添加访问日期字段（用于按日期统计）
 ALTER TABLE access_logs 
@@ -11,10 +11,6 @@ ADD COLUMN IF NOT EXISTS access_date DATE;
 -- 添加访问小时字段（用于时段分析）
 ALTER TABLE access_logs 
 ADD COLUMN IF NOT EXISTS access_hour INTEGER;
-
--- 添加设备类型字段（用于设备分布分析）
-ALTER TABLE access_logs 
-ADD COLUMN IF NOT EXISTS device_type VARCHAR(20);
 
 -- 添加是否首次访问字段（用于新用户分析）
 ALTER TABLE access_logs 
@@ -35,14 +31,12 @@ ADD COLUMN IF NOT EXISTS content_loaded BOOLEAN;
 -- 创建索引以提升查询性能
 CREATE INDEX IF NOT EXISTS idx_access_logs_access_date ON access_logs(access_date);
 CREATE INDEX IF NOT EXISTS idx_access_logs_access_hour ON access_logs(access_hour);
-CREATE INDEX IF NOT EXISTS idx_access_logs_device_type ON access_logs(device_type);
 CREATE INDEX IF NOT EXISTS idx_access_logs_sales_channel ON access_logs(sales_channel);
 CREATE INDEX IF NOT EXISTS idx_access_logs_is_first_access ON access_logs(is_first_access);
 
 -- 注释
 COMMENT ON COLUMN access_logs.access_date IS '访问日期，用于按日期统计';
 COMMENT ON COLUMN access_logs.access_hour IS '访问小时（0-23），用于时段分析';
-COMMENT ON COLUMN access_logs.device_type IS '设备类型：PC/Mobile/Tablet';
 COMMENT ON COLUMN access_logs.is_first_access IS '是否首次访问该卡密';
 COMMENT ON COLUMN access_logs.sales_channel IS '销售渠道';
 COMMENT ON COLUMN access_logs.session_duration IS '会话停留时长（秒）';

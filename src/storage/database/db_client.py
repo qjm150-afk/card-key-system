@@ -81,7 +81,6 @@ class SQLiteClient:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     card_key_id INTEGER,
                     key_value TEXT NOT NULL,
-                    user_agent TEXT,
                     success INTEGER DEFAULT 0,
                     error_msg TEXT,
                     access_time TEXT DEFAULT CURRENT_TIMESTAMP,

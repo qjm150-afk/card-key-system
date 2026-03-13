@@ -923,70 +923,6 @@
             color: #5D4E37;
         }
 
-        /* 设备分布 */
-        .device-chart {
-            height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-            margin-bottom: 16px;
-        }
-
-        .pie-chart {
-            width: 160px;
-            height: 160px;
-            border-radius: 50%;
-            position: relative;
-        }
-
-        .pie-center {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 80px;
-            height: 80px;
-            background: white;
-            border-radius: 50%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .pie-center-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #5D4E37;
-        }
-
-        .pie-center-label {
-            font-size: 10px;
-            color: #A89070;
-        }
-
-        .device-legend {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 16px;
-            justify-content: center;
-        }
-
-        .device-legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #5D4E37;
-        }
-
-        .device-legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 3px;
-        }
-
         /* 时段热力图 */
         .hour-heatmap {
             display: grid;
@@ -1770,15 +1706,6 @@
                         </table>
                     </div>
                 </div>
-
-                <!-- 设备分布 -->
-                <div class="analytics-section">
-                    <h3 class="section-title">📱 设备分布</h3>
-                    <div class="device-chart" id="deviceChart">
-                        <div class="chart-empty">暂无设备数据</div>
-                    </div>
-                    <div class="device-legend" id="deviceLegend"></div>
-                </div>
             </div>
 
             <!-- 时段分布 -->
@@ -2222,9 +2149,6 @@
             document.getElementById('analyticsContentSuccessRate').textContent = 
                 (data.content_success_rate * 100).toFixed(1) + '%';
             
-            // 渲染设备分布
-            renderDeviceChart(data.device_distribution);
-            
             // 渲染时段分布
             renderHourHeatmap(data.hour_distribution);
         }
@@ -2277,61 +2201,6 @@
                     <td>${channel.first_access}</td>
                     <td>${formatDuration(channel.avg_duration)}</td>
                 </tr>
-            `).join('');
-        }
-        
-        // 渲染设备分布
-        function renderDeviceChart(deviceData) {
-            const chartContainer = document.getElementById('deviceChart');
-            const legendContainer = document.getElementById('deviceLegend');
-            
-            if (!deviceData || Object.keys(deviceData).length === 0) {
-                chartContainer.innerHTML = '<div class="chart-empty">暂无设备数据</div>';
-                legendContainer.innerHTML = '';
-                return;
-            }
-            
-            const total = Object.values(deviceData).reduce((a, b) => a + b, 0);
-            const colors = {
-                'PC': '#5D4E37',
-                'Mobile': '#8B7355',
-                'Tablet': '#A89070',
-                'Unknown': '#C4B8A0'
-            };
-            
-            // 计算饼图角度
-            let currentAngle = 0;
-            const gradientParts = [];
-            
-            Object.entries(deviceData).forEach(([device, count]) => {
-                const percentage = count / total;
-                const angle = percentage * 360;
-                const color = colors[device] || '#D4C4A8';
-                
-                gradientParts.push(`${color} ${currentAngle}deg ${currentAngle + angle}deg`);
-                currentAngle += angle;
-            });
-            
-            // 确保闭合
-            if (gradientParts.length > 0) {
-                gradientParts.push(`${gradientParts[0].split(' ')[0]} ${currentAngle}deg 360deg`);
-            }
-            
-            chartContainer.innerHTML = `
-                <div class="pie-chart" style="background: conic-gradient(${gradientParts.join(', ')});">
-                    <div class="pie-center">
-                        <div class="pie-center-value">${total}</div>
-                        <div class="pie-center-label">总访问</div>
-                    </div>
-                </div>
-            `;
-            
-            // 渲染图例
-            legendContainer.innerHTML = Object.entries(deviceData).map(([device, count]) => `
-                <div class="device-legend-item">
-                    <div class="device-legend-color" style="background: ${colors[device] || '#D4C4A8'}"></div>
-                    <span>${device}: ${count} (${(count/total*100).toFixed(1)}%)</span>
-                </div>
             `).join('');
         }
         
