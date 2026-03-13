@@ -782,7 +782,7 @@
         .operation-logs-table td:nth-child(7) { min-width: 180px; font-size: 13px; }
         
         .col-narrow {
-            max-width: 140px;
+            max-width: 120px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
@@ -795,10 +795,12 @@
         th:nth-child(3), td:nth-child(3) { min-width: 160px; }
         th:nth-child(4), td:nth-child(4) { width: 80px; }
         th:nth-child(5), td:nth-child(5) { width: 80px; text-align: center; }
-        th:nth-child(6), td:nth-child(6) { width: 120px; }
-        th:nth-child(7), td:nth-child(7) { max-width: 100px; }
+        th:nth-child(6), td:nth-child(6) { width: 100px; }
+        th:nth-child(7), td:nth-child(7) { min-width: 100px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        th:nth-child(8), td:nth-child(8) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        th:nth-child(9), td:nth-child(9) { width: 140px; }
         th:nth-child(10), td:nth-child(10) { width: 80px; }
-        th:nth-child(11), td:nth-child(11) { width: 90px; }
+        th:nth-child(11), td:nth-child(11) { width: 80px; }
         th:nth-child(13), td:nth-child(13) { width: 140px; }
 
         /* 统计卡片 */
@@ -3846,13 +3848,13 @@
                     </td>
                     <td>${deviceCount} / ${card.max_devices || 5} 台</td>
                     <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
-                    <td>${card.user_note || '-'}</td>
+                    <td title="${card.user_note || ''}">${card.user_note || '-'}</td>
                     <td title="${feishuUrl}">${linkNameDisplay}</td>
                     <td class="text-small">${formatDate(card.bstudio_create_time)}</td>
                     <td>
                         <span class="status-badge ${saleStatusClass}">${saleStatusText}</span>
                     </td>
-                    <td>${card.sales_channel || '-'}</td>
+                    <td title="${card.sales_channel || ''}">${card.sales_channel || '-'}</td>
                     <td class="col-narrow" title="${orderId}">${orderIdDisplay}</td>
                     <td>
                         <div class="actions-cell">
