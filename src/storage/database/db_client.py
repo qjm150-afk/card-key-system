@@ -246,6 +246,12 @@ class SQLiteTable:
         self._offset_val = count
         return self
     
+    def range(self, start: int, end: int) -> "SQLiteTable":
+        """范围查询（Supabase 风格：start 到 end，包含两端）"""
+        self._offset_val = start
+        self._limit_val = end - start + 1
+        return self
+    
     def _build_where_clause(self) -> tuple:
         """构建 WHERE 子句"""
         if not self._filters:
