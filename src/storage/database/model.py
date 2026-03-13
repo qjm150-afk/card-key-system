@@ -62,7 +62,7 @@ class AccessLog(Base):
     key_value: Mapped[str] = mapped_column(String(50), nullable=False, comment="卡密值")
     
     # 访问信息
-    ip_address: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, comment="访问IP")
+    # 注意：根据《个人信息保护法》合规要求，不再收集IP地址
     user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="用户代理")
     
     # 结果

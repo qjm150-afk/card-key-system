@@ -46,7 +46,7 @@ export const accessLogs = pgTable("access_logs", {
 	id: serial().primaryKey().notNull(),
 	cardKeyId: integer("card_key_id"),
 	keyValue: varchar("key_value", { length: 50 }).notNull(),
-	ipAddress: varchar("ip_address", { length: 50 }),
+	// 注意：根据《个人信息保护法》合规要求，不再收集IP地址
 	userAgent: varchar("user_agent", { length: 500 }),
 	success: boolean().default(false).notNull(),
 	errorMsg: varchar("error_msg", { length: 200 }),

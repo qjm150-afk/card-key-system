@@ -189,11 +189,10 @@ def generate_card_key(prefix: str = "CSS") -> str:
 
 
 def get_client_ip(request) -> str:
-    """获取客户端IP"""
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """获取客户端IP（已禁用，合规要求不再收集IP地址）"""
+    # 根据《个人信息保护法》，IP地址属于个人信息
+    # 本项目已决定不收集用户IP地址
+    return ""  # 返回空字符串
 
 
 # ==================== 验证 API ====================
@@ -211,14 +210,14 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     client = None
     card_key = request.card_key.strip().upper()
     device_id = request.device_id or "unknown"
-    ip_address = get_client_ip(fastapi_request)
+    # IP地址收集已禁用（合规要求）
     user_agent = fastapi_request.headers.get("User-Agent", "")[:500]
     
     try:
         if not card_key:
             return ValidateResponse(can_access=False, msg="请输入卡密")
 
-        logger.info(f"验证卡密: {card_key}, 设备: {device_id}, IP: {ip_address}")
+        logger.info(f"验证卡密: {card_key}, 设备: {device_id}")
 
         client = get_supabase_client()
 
@@ -226,7 +225,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         response = client.table('card_keys_table').select('*').eq('key_value', card_key).execute()
 
         if not response.data:
-            log_access(client, None, card_key, ip_address, user_agent, False, "卡密不存在", device_id)
+            log_access(client, None, card_key, user_agent, False, "卡密不存在", device_id)
             return ValidateResponse(can_access=False, msg="卡密不存在")
 
         card_data = response.data[0]
@@ -241,7 +240,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         # 检查状态 (1=有效, 0=无效)
         if card_data.get('status') != 1:
-            log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已失效", device_id, sales_channel, is_first_access)
+            log_access(client, card_id, card_key, user_agent, False, "卡密已失效", device_id, sales_channel, is_first_access)
             return ValidateResponse(can_access=False, msg="卡密已失效")
 
         # 检查过期时间
@@ -249,7 +248,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if expire_at:
             expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
             if datetime.now(expire_time.tzinfo) > expire_time:
-                log_access(client, card_id, card_key, ip_address, user_agent, False, "卡密已过期", device_id, sales_channel, is_first_access)
+                log_access(client, card_id, card_key, user_agent, False, "卡密已过期", device_id, sales_channel, is_first_access)
                 return ValidateResponse(can_access=False, msg="卡密已过期")
 
         # 检查设备限制（最多5台设备）
@@ -267,7 +266,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if not device_already_bound:
             # 新设备，检查是否达到设备限制
             if len(bound_devices) >= max_devices:
-                log_access(client, card_id, card_key, ip_address, user_agent, False, f"设备数量已达上限({max_devices}台)", device_id, sales_channel, is_first_access)
+                log_access(client, card_id, card_key, user_agent, False, f"设备数量已达上限({max_devices}台)", device_id, sales_channel, is_first_access)
                 return ValidateResponse(can_access=False, msg=f"该卡密已在{max_devices}台设备上使用，无法在新设备登录")
             
             # 添加新设备
@@ -283,7 +282,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             }).eq('id', card_id).execute()
 
         # 记录成功日志（含行为数据）
-        log_access(client, card_id, card_key, ip_address, user_agent, True, "验证成功", device_id, sales_channel, is_first_access)
+        log_access(client, card_id, card_key, user_agent, True, "验证成功", device_id, sales_channel, is_first_access)
 
         feishu_url = card_data.get('feishu_url', '')
         feishu_password = card_data.get('feishu_password', '')
@@ -300,7 +299,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     except Exception as e:
         logger.error(f"验证失败: {str(e)}")
         if client:
-            log_access(client, None, card_key, ip_address, user_agent, False, f"系统错误: {str(e)}", device_id)
+            log_access(client, None, card_key, user_agent, False, f"系统错误: {str(e)}", device_id)
         return ValidateResponse(can_access=False, msg="系统错误，请稍后重试")
 
 
@@ -314,37 +313,10 @@ def parse_device_type(user_agent: str) -> str:
     return 'PC'
 
 
-def get_ip_province(ip_address: str) -> str:
-    """根据IP获取省份（脱敏处理）"""
-    # 简单的IP归属地查询（可替换为专业IP库）
-    # 这里返回空字符串，实际使用时可以接入IP库
-    # 注意：IP地址属于个人信息，只保留省级别符合最小必要原则
-    try:
-        if not ip_address or ip_address in ['127.0.0.1', 'localhost', '::1']:
-            return '本地'
-        
-        # IPv6 本地地址
-        if ip_address.startswith('fe80:') or ip_address.startswith('::'):
-            return '本地'
-        
-        # 实际项目中可以接入IP库，这里暂时返回空
-        # 接入IP库示例：
-        # import requests
-        # resp = requests.get(f'http://ip-api.com/json/{ip_address}?lang=zh-CN', timeout=2)
-        # data = resp.json()
-        # return data.get('regionName', '')[:20]  # 截断防止过长
-        
-        return ''
-    except Exception as e:
-        logger.error(f"IP解析失败: {str(e)}")
-        return ''
-
-
-def log_access(client, card_key_id, key_value, ip_address, user_agent, success, error_msg, device_id=None, sales_channel=None, is_first_access=False):
+def log_access(client, card_key_id, key_value, user_agent, success, error_msg, device_id=None, sales_channel=None, is_first_access=False):
     """记录访问日志（增强版，采集更多行为数据）
     
-    注意：新增字段需要先执行数据库迁移脚本 src/migrations/001_add_analytics_fields.sql
-    如果字段不存在，会自动降级到基本字段插入
+    注意：根据《个人信息保护法》合规要求，不再收集IP地址
     """
     try:
         now = datetime.now()
@@ -352,14 +324,11 @@ def log_access(client, card_key_id, key_value, ip_address, user_agent, success, 
         # 解析设备类型
         device_type = parse_device_type(user_agent)
         
-        # 获取IP所属省份（脱敏）
-        ip_province = get_ip_province(ip_address)
-        
         # 基本日志数据（原有字段，始终可用）
+        # 注意：已移除 ip_address 字段（合规要求）
         basic_log_data = {
             "card_key_id": card_key_id,
             "key_value": key_value,
-            "ip_address": ip_address,  # 完整IP存储用于问题排查，展示时脱敏
             "user_agent": user_agent[:500] if user_agent else '',
             "success": success,
             "error_msg": error_msg if not success else None,
@@ -372,7 +341,6 @@ def log_access(client, card_key_id, key_value, ip_address, user_agent, success, 
             "access_date": now.strftime('%Y-%m-%d'),
             "access_hour": now.hour,
             "device_type": device_type,
-            "ip_province": ip_province,
             "is_first_access": is_first_access,
             "sales_channel": sales_channel
         }
