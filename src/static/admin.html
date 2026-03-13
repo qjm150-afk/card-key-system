@@ -2366,8 +2366,8 @@
                     result.data.forEach(item => {
                         const option = document.createElement('option');
                         option.value = item.url;
-                        // 显示链接名称，如果没有名称则显示URL前20字符
-                        let displayName = item.name || (item.url ? item.url.substring(0, 20) + '...' : '未设置');
+                        // 显示链接名称，如果没有名称则显示"未设置"
+                        let displayName = (item.name && item.name.trim()) || '未设置';
                         option.textContent = `${displayName} (${item.count}条)`;
                         option.title = item.url || '无链接'; // 鼠标悬停显示完整URL
                         select.appendChild(option);
