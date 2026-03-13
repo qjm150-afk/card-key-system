@@ -1561,6 +1561,7 @@
                             <tr>
                                 <th>卡密</th>
                                 <th>链接名称</th>
+                                <th>备注</th>
                                 <th>销售状态</th>
                                 <th>销售渠道</th>
                                 <th>订单号</th>
@@ -3214,7 +3215,7 @@
             const tbody = document.getElementById('logsTableBody');
             
             if (!data || data.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center" style="padding:40px">暂无日志</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center" style="padding:40px">暂无日志</td></tr>`;
                 return;
             }
             
@@ -3232,6 +3233,7 @@
                 <tr>
                     <td class="key-value-cell"><strong>${log.key_value || '-'}</strong></td>
                     <td>${log.link_name || '-'}</td>
+                    <td>${log.card_note || '-'}</td>
                     <td>
                         <span class="status-badge ${saleInfo.class}">${saleInfo.text}</span>
                     </td>
