@@ -6,5 +6,6 @@ build = ["pip", "install", "-r", "requirements.txt"]
 run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
 
 [deploy]
-build = ["pip", "install", "-r", "requirements.txt"]
+# 部署前自动执行数据备份
+build = ["sh", "-c", "python scripts/backup_data.py && pip install -r requirements.txt"]
 run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
