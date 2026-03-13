@@ -103,7 +103,8 @@ class SQLiteClient:
                     bstudio_create_time TEXT,
                     sale_status TEXT,
                     order_id TEXT,
-                    sales_channel TEXT
+                    sales_channel TEXT,
+                    sold_at TEXT
                 )
             """)
             
@@ -134,6 +135,10 @@ class SQLiteClient:
                     affected_count INTEGER,
                     operator TEXT,
                     operation_time TEXT DEFAULT CURRENT_TIMESTAMP,
+                    filter_conditions TEXT,
+                    affected_ids TEXT,
+                    update_fields TEXT,
+                    remark TEXT,
                     details TEXT
                 )
             """)
@@ -327,11 +332,19 @@ class SQLiteInsert:
         with self.table.client._get_connection() as conn:
             cursor = conn.cursor()
             
+            # 将字典/列表类型的值转换为 JSON 字符串
+            processed_values = []
+            for v in self.data.values():
+                if isinstance(v, (dict, list)):
+                    processed_values.append(json.dumps(v, ensure_ascii=False))
+                else:
+                    processed_values.append(v)
+            
             columns = ", ".join(self.data.keys())
             placeholders = ", ".join(["?" for _ in self.data])
             sql = f"INSERT INTO {self.table.table_name} ({columns}) VALUES ({placeholders})"
             
-            cursor.execute(sql, list(self.data.values()))
+            cursor.execute(sql, processed_values)
             conn.commit()
             
             # 返回插入的数据

@@ -1469,6 +1469,344 @@ async def import_sale_status(file: UploadFile = File(...)):
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/cards/import-template")
+async def download_cards_import_template():
+    """
+    下载卡密信息导入模板
+    包含所有可导入字段的说明和示例
+    """
+    try:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        
+        # 模板表头（与后台字段一致）
+        headers = [
+            '卡密值', '飞书链接', '访问密码', '链接名称', 
+            '激活状态', '销售状态', '订单号', '销售渠道',
+            '过期时间', '最大设备数', '备注'
+        ]
+        writer.writerow(headers)
+        
+        # 示例数据行
+        writer.writerow([
+            'CSS-XXXX-XXXX-XXXX',  # 卡密值
+            'https://my.feishu.cn/base/xxx',  # 飞书链接
+            'pwd123',  # 访问密码
+            '春招信息表',  # 链接名称
+            '有效',  # 激活状态：有效/无效
+            '未售出',  # 销售状态：未售出/已售出/已核销/已退款/有纠纷
+            'ORDER123456',  # 订单号
+            '小红书',  # 销售渠道
+            '2026-12-31 23:59:59',  # 过期时间
+            '5',  # 最大设备数
+            '测试备注'  # 备注
+        ])
+        
+        writer.writerow([
+            'CSS-YYYY-YYYY-YYYY',
+            'https://my.feishu.cn/base/yyy',
+            '',
+            '秋招信息表',
+            '有效',
+            '已售出',
+            'ORDER789012',
+            '淘宝',
+            '',
+            '5',
+            ''
+        ])
+        
+        output.seek(0)
+        bom = b'\xef\xbb\xbf'
+        content = bom + output.getvalue().encode('utf-8')
+        
+        return StreamingResponse(
+            iter([content]),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": "attachment; filename=cards_import_template.csv"
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"下载卡密导入模板失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/cards/import")
+async def import_cards(file: UploadFile = File(...)):
+    """
+    批量导入卡密信息（智能匹配）
+    
+    功能：
+    - 按卡密值匹配，已存在则更新，不存在则新增
+    - 支持所有卡密字段的导入
+    - 空值字段不更新（保留原值）
+    
+    CSV字段说明：
+    - 卡密值（必填）：用于匹配的唯一标识
+    - 飞书链接：卡密对应的飞书链接
+    - 访问密码：飞书访问密码
+    - 链接名称：链接的中文名称
+    - 激活状态：有效/无效
+    - 销售状态：未售出/已售出/已核销/已退款/有纠纷
+    - 订单号：销售订单号
+    - 销售渠道：如小红书、淘宝等
+    - 过期时间：格式 YYYY-MM-DD HH:MM:SS
+    - 最大设备数：数字，默认5
+    - 备注：用户备注信息
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 读取上传的CSV文件
+        content = await file.read()
+        
+        # 尝试多种编码解码
+        text = None
+        encodings = ['utf-8-sig', 'utf-8', 'gbk', 'gb2312', 'gb18030']
+        for encoding in encodings:
+            try:
+                text = content.decode(encoding)
+                break
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        
+        if text is None:
+            return {"success": False, "msg": "无法识别文件编码，请确保文件为 UTF-8 或 GBK 编码"}
+        
+        # 字段映射（中文列名 -> 数据库字段）
+        field_mapping = {
+            '卡密值': 'key_value',
+            '飞书链接': 'feishu_url',
+            '访问密码': 'feishu_password',
+            '链接名称': 'link_name',
+            '激活状态': 'status',
+            '销售状态': 'sale_status',
+            '订单号': 'order_id',
+            '销售渠道': 'sales_channel',
+            '过期时间': 'expire_at',
+            '最大设备数': 'max_devices',
+            '备注': 'user_note'
+        }
+        
+        # 状态映射
+        status_map = {
+            '有效': 1, '无效': 0,
+            '1': 1, '0': 0
+        }
+        
+        sale_status_map = {
+            '未售出': 'unsold',
+            '已售出': 'sold',
+            '已销售': 'sold',
+            '已核销': 'used',
+            '已退款': 'refunded',
+            '有纠纷': 'disputed'
+        }
+        
+        # 解析CSV
+        reader = csv.DictReader(io.StringIO(text))
+        
+        # 标准化列名
+        if not reader.fieldnames:
+            return {"success": False, "msg": "CSV文件为空或格式错误"}
+        
+        # 创建列名映射（处理空格和大小写）
+        column_map = {}
+        for fieldname in reader.fieldnames:
+            clean_name = fieldname.strip()
+            column_map[clean_name] = fieldname
+        
+        logger.info(f"CSV列名: {reader.fieldnames}")
+        
+        # 统计
+        added_count = 0
+        updated_count = 0
+        skipped_count = 0
+        error_list = []
+        
+        for row_num, row in enumerate(reader, start=2):  # 从第2行开始（第1行是表头）
+            try:
+                # 获取卡密值（必填）
+                key_value = None
+                for col_name in ['卡密值', '卡密', 'key_value', 'Key']:
+                    if col_name in column_map and column_map[col_name] in row:
+                        key_value = row[column_map[col_name]].strip().upper()
+                        break
+                
+                if not key_value:
+                    skipped_count += 1
+                    error_list.append(f"第{row_num}行: 卡密值为空，已跳过")
+                    continue
+                
+                # 构建更新数据
+                update_data = {}
+                
+                # 飞书链接
+                if '飞书链接' in column_map and column_map['飞书链接'] in row:
+                    val = row[column_map['飞书链接']].strip()
+                    if val:
+                        update_data['feishu_url'] = val
+                
+                # 访问密码
+                if '访问密码' in column_map and column_map['访问密码'] in row:
+                    val = row[column_map['访问密码']].strip()
+                    if val:
+                        update_data['feishu_password'] = val
+                
+                # 链接名称
+                if '链接名称' in column_map and column_map['链接名称'] in row:
+                    val = row[column_map['链接名称']].strip()
+                    if val:
+                        update_data['link_name'] = val
+                
+                # 激活状态
+                if '激活状态' in column_map and column_map['激活状态'] in row:
+                    val = row[column_map['激活状态']].strip()
+                    if val:
+                        if val in status_map:
+                            update_data['status'] = status_map[val]
+                        else:
+                            error_list.append(f"第{row_num}行: 激活状态'{val}'无效，已跳过该字段")
+                
+                # 销售状态
+                if '销售状态' in column_map and column_map['销售状态'] in row:
+                    val = row[column_map['销售状态']].strip()
+                    if val:
+                        if val in sale_status_map:
+                            update_data['sale_status'] = sale_status_map[val]
+                            # 已退款/有纠纷自动停用
+                            if sale_status_map[val] in ['refunded', 'disputed']:
+                                update_data['status'] = 0
+                            # 已售出记录时间
+                            if sale_status_map[val] == 'sold':
+                                update_data['sold_at'] = datetime.now().isoformat()
+                        else:
+                            error_list.append(f"第{row_num}行: 销售状态'{val}'无效，已跳过该字段")
+                
+                # 订单号
+                if '订单号' in column_map and column_map['订单号'] in row:
+                    val = row[column_map['订单号']].strip()
+                    if val:
+                        update_data['order_id'] = val
+                
+                # 销售渠道
+                if '销售渠道' in column_map and column_map['销售渠道'] in row:
+                    val = row[column_map['销售渠道']].strip()
+                    if val:
+                        update_data['sales_channel'] = val
+                
+                # 过期时间
+                if '过期时间' in column_map and column_map['过期时间'] in row:
+                    val = row[column_map['过期时间']].strip()
+                    if val:
+                        try:
+                            # 支持多种时间格式
+                            for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d', '%Y/%m/%d']:
+                                try:
+                                    dt = datetime.strptime(val, fmt)
+                                    update_data['expire_at'] = dt.isoformat()
+                                    break
+                                except ValueError:
+                                    continue
+                            if 'expire_at' not in update_data:
+                                error_list.append(f"第{row_num}行: 过期时间格式错误'{val}'，已跳过该字段")
+                        except Exception as e:
+                            error_list.append(f"第{row_num}行: 过期时间解析失败: {str(e)}")
+                
+                # 最大设备数
+                if '最大设备数' in column_map and column_map['最大设备数'] in row:
+                    val = row[column_map['最大设备数']].strip()
+                    if val:
+                        try:
+                            update_data['max_devices'] = int(val)
+                        except ValueError:
+                            error_list.append(f"第{row_num}行: 最大设备数'{val}'不是有效数字，已跳过该字段")
+                
+                # 备注
+                if '备注' in column_map and column_map['备注'] in row:
+                    val = row[column_map['备注']].strip()
+                    if val:
+                        update_data['user_note'] = val
+                
+                # 检查卡密是否存在
+                existing = client.table('card_keys_table').select('id').eq('key_value', key_value).execute()
+                
+                if existing.data:
+                    # 更新现有卡密
+                    if update_data:
+                        client.table('card_keys_table').update(update_data).eq('key_value', key_value).execute()
+                        updated_count += 1
+                        logger.info(f"更新卡密: {key_value}, 字段: {list(update_data.keys())}")
+                    else:
+                        skipped_count += 1
+                else:
+                    # 新增卡密
+                    new_card = {
+                        'key_value': key_value,
+                        'status': update_data.get('status', 1),
+                        'feishu_url': update_data.get('feishu_url', ''),
+                        'feishu_password': update_data.get('feishu_password', ''),
+                        'link_name': update_data.get('link_name', ''),
+                        'sale_status': update_data.get('sale_status', 'unsold'),
+                        'order_id': update_data.get('order_id'),
+                        'sales_channel': update_data.get('sales_channel', ''),
+                        'user_note': update_data.get('user_note', ''),
+                        'max_devices': update_data.get('max_devices', 5),
+                        'sys_platform': '卡密系统',
+                        'uuid': str(uuid.uuid4()),
+                        'bstudio_create_time': datetime.now().isoformat(),
+                        'used_count': 0,
+                        'devices': '[]'
+                    }
+                    
+                    # 处理过期时间
+                    if 'expire_at' in update_data:
+                        new_card['expire_at'] = update_data['expire_at']
+                    
+                    # 处理已售出时间
+                    if 'sold_at' in update_data:
+                        new_card['sold_at'] = update_data['sold_at']
+                    
+                    client.table('card_keys_table').insert(new_card).execute()
+                    added_count += 1
+                    logger.info(f"新增卡密: {key_value}")
+                    
+            except Exception as e:
+                error_list.append(f"第{row_num}行处理失败: {str(e)}")
+                logger.error(f"第{row_num}行处理失败: {str(e)}")
+        
+        # 记录操作日志
+        if added_count > 0 or updated_count > 0:
+            client.table('batch_operation_logs').insert({
+                "operator": "admin",
+                "operation_type": "import_cards",
+                "filter_conditions": {"filename": file.filename},
+                "affected_count": added_count + updated_count,
+                "affected_ids": [],
+                "update_fields": {"added": added_count, "updated": updated_count},
+                "remark": f"导入卡密: 新增{added_count}条, 更新{updated_count}条"
+            }).execute()
+        
+        result_msg = f"导入完成：新增 {added_count} 条，更新 {updated_count} 条"
+        if skipped_count > 0:
+            result_msg += f"，跳过 {skipped_count} 条"
+        
+        return {
+            "success": True,
+            "msg": result_msg,
+            "added": added_count,
+            "updated": updated_count,
+            "skipped": skipped_count,
+            "errors": error_list[:20]  # 只返回前20条错误
+        }
+        
+    except Exception as e:
+        logger.error(f"导入卡密失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/admin/cards/{card_id}")
 async def get_card_key(card_id: int):
     """获取单个卡密"""
