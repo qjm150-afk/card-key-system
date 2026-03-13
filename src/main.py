@@ -155,32 +155,23 @@ def get_token_from_request(request: Request) -> str:
     return request.cookies.get("admin_token", "")
 
 
-# ==================== Supabase 客户端 ====================
+# ==================== 数据库客户端 ====================
 
 def get_supabase_client():
-    """获取 Supabase 客户端"""
-    from supabase import create_client, Client, ClientOptions
-    import httpx
+    """
+    获取数据库客户端（自动选择模式）
+    - 云端部署：使用 Coze Supabase
+    - 本地开发：使用 SQLite
+    """
+    from storage.database.db_client import get_db_client
+    client, _ = get_db_client()
+    return client
 
-    url = os.getenv("COZE_SUPABASE_URL")
-    anon_key = os.getenv("COZE_SUPABASE_ANON_KEY")
 
-    if not url or not anon_key:
-        raise ValueError("COZE_SUPABASE_URL 或 COZE_SUPABASE_ANON_KEY 未设置")
-
-    http_client = httpx.Client(
-        timeout=httpx.Timeout(connect=20.0, read=60.0, write=60.0, pool=10.0),
-        limits=httpx.Limits(max_connections=100, max_keepalive_connections=20, keepalive_expiry=30.0),
-        http2=True,
-        follow_redirects=True,
-    )
-
-    options = ClientOptions(
-        httpx_client=http_client,
-        auto_refresh_token=False,
-    )
-
-    return create_client(url, anon_key, options=options)
+def get_db_mode():
+    """获取当前数据库模式"""
+    from storage.database.db_client import get_db_mode as _get_db_mode
+    return _get_db_mode()
 
 
 def generate_card_key(prefix: str = "CSS") -> str:
