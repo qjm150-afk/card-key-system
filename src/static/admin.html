@@ -1560,7 +1560,7 @@
                         <thead>
                             <tr>
                                 <th>卡密</th>
-                                <th>备注</th>
+                                <th>链接名称</th>
                                 <th>销售状态</th>
                                 <th>销售渠道</th>
                                 <th>订单号</th>
@@ -2416,8 +2416,10 @@
             
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
             if (feishuUrl) {
-                const displayUrl = feishuUrl.length > 20 ? feishuUrl.substring(0, 20) + '...' : feishuUrl;
-                tags.push({ field: 'feishuUrl', label: `飞书链接: ${displayUrl}`, value: feishuUrl });
+                // 获取选中项的文本（显示名称而非URL）
+                const selectedOption = document.getElementById('feishuUrlFilter').selectedOptions[0];
+                const displayText = selectedOption ? selectedOption.textContent.split(' (')[0] : feishuUrl;
+                tags.push({ field: 'feishuUrl', label: `链接名称: ${displayText}`, value: feishuUrl });
             }
             
             const deviceFilter = document.getElementById('deviceFilter').value;
@@ -3229,7 +3231,7 @@
                 return `
                 <tr>
                     <td class="key-value-cell"><strong>${log.key_value || '-'}</strong></td>
-                    <td>${log.card_note || '-'}</td>
+                    <td>${log.link_name || '-'}</td>
                     <td>
                         <span class="status-badge ${saleInfo.class}">${saleInfo.text}</span>
                     </td>
@@ -3496,12 +3498,22 @@
                 const currentFeishuUrl = headerFilters.feishu_url;
                 let feishuHtml = `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="" ${!currentFeishuUrl ? 'checked' : ''} onchange="applyHeaderFilter('feishu_url', '')"> <label>全部</label></div>`;
                 
+                // URL到名称的映射
+                const urlNames = data.feishu_url_names || {};
+                
                 for (const [url, count] of Object.entries(data.feishu_url)) {
                     if (count > 0) {
-                        const displayUrl = url ? (url.length > 25 ? url.substring(0, 25) + '...' : url) : '(空)';
+                        // 显示链接名称，优先使用名称映射，其次显示截断的URL
+                        const linkName = urlNames[url];
+                        let displayText;
+                        if (linkName && linkName.trim()) {
+                            displayText = linkName;
+                        } else {
+                            displayText = url ? (url.length > 25 ? url.substring(0, 25) + '...' : url) : '(空)';
+                        }
                         const checked = currentFeishuUrl === url ? 'checked' : '';
                         const escapedUrl = url.replace(/'/g, "\\'");
-                        feishuHtml += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${url}" ${checked} onchange="applyHeaderFilter('feishu_url', '${escapedUrl}')"> <label title="${url}">${displayUrl} (${count})</label></div>`;
+                        feishuHtml += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${url}" ${checked} onchange="applyHeaderFilter('feishu_url', '${escapedUrl}')"> <label title="${url}">${displayText} (${count})</label></div>`;
                     }
                 }
                 feishuDropdown.innerHTML = feishuHtml;
@@ -3554,8 +3566,14 @@
                     let html = '<div class="filter-option"><input type="radio" name="filter-feishu_url" value="" checked onchange="applyHeaderFilter(\'feishu_url\', \'\')"> <label>全部</label></div>';
                     
                     result.data.forEach(item => {
-                        const displayUrl = item.url.length > 20 ? item.url.substring(0, 20) + '...' : item.url;
-                        html += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${item.url}" onchange="applyHeaderFilter('feishu_url', '${item.url}')"> <label title="${item.url}">${displayUrl} (${item.count}条)</label></div>`;
+                        // 显示链接名称，优先使用名称，其次显示截断的URL
+                        let displayText;
+                        if (item.name && item.name.trim()) {
+                            displayText = item.name;
+                        } else {
+                            displayText = item.url.length > 20 ? item.url.substring(0, 20) + '...' : item.url;
+                        }
+                        html += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${item.url}" onchange="applyHeaderFilter('feishu_url', '${item.url}')"> <label title="${item.url}">${displayText} (${item.count}条)</label></div>`;
                     });
                     
                     dropdown.innerHTML = html;
@@ -3606,7 +3624,12 @@
                 const saleStatusText = { unsold: '未售出', sold: '已售出', refunded: '已退款', disputed: '有纠纷' };
                 summaryHtml += `<div class="filter-summary-item">销售状态: ${saleStatusText[saleStatus] || saleStatus}</div>`;
             }
-            if (feishuUrl) summaryHtml += `<div class="filter-summary-item">飞书链接: ${feishuUrl.substring(0, 30)}...</div>`;
+            if (feishuUrl) {
+                // 获取选中项的文本（显示名称而非URL）
+                const selectedOption = document.getElementById('feishuUrlFilter').selectedOptions[0];
+                const displayText = selectedOption ? selectedOption.textContent.split(' (')[0] : feishuUrl.substring(0, 30);
+                summaryHtml += `<div class="filter-summary-item">链接名称: ${displayText}</div>`;
+            }
             if (deviceFilter) {
                 summaryHtml += `<div class="filter-summary-item">绑定设备: ${deviceFilter} 台</div>`;
             }

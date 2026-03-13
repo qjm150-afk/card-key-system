@@ -948,7 +948,7 @@ async def get_filter_options(
         client = get_supabase_client()
         
         # 构建基础查询（排除当前要获取的字段）
-        query = client.table('card_keys_table').select('status, sale_status, feishu_url')
+        query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name')
         
         # 应用筛选条件（排除当前字段）
         if status is not None and status != '' and exclude_field != 'status':
@@ -983,6 +983,7 @@ async def get_filter_options(
         status_count = {}
         sale_status_count = {}
         feishu_url_count = {}
+        feishu_url_names = {}  # URL到名称的映射
         
         for item in response.data:
             # 激活状态
@@ -997,6 +998,11 @@ async def get_filter_options(
             # 飞书链接
             fu = item.get('feishu_url') or ''
             feishu_url_count[fu] = feishu_url_count.get(fu, 0) + 1
+            
+            # 记录URL对应的名称（优先使用最后设置的非空名称）
+            link_name = item.get('link_name') or ''
+            if link_name:
+                feishu_url_names[fu] = link_name
         
         return {
             "success": True,
@@ -1004,6 +1010,7 @@ async def get_filter_options(
                 "status": status_count,  # {"1": 10, "0": 5}
                 "sale_status": sale_status_count,  # {"unsold": 3, "sold": 8, ...}
                 "feishu_url": feishu_url_count,
+                "feishu_url_names": feishu_url_names,  # {"url1": "名称1", ...}
                 "total": len(response.data)
             }
         }
@@ -1621,7 +1628,7 @@ async def get_access_logs(
             if key_values:
                 # 批量查询卡密详细信息
                 cards_response = client.table('card_keys_table').select(
-                    'key_value,user_note,sale_status,sales_channel,order_id,status,devices,max_devices,expire_at'
+                    'key_value,user_note,sale_status,sales_channel,order_id,status,devices,max_devices,expire_at,link_name'
                 ).in_('key_value', key_values).execute()
                 
                 # 构建key_value到卡密信息的映射
@@ -1640,6 +1647,7 @@ async def get_access_logs(
                     log['devices'] = card_info.get('devices', '[]')
                     log['max_devices'] = card_info.get('max_devices', 5)
                     log['expire_at'] = card_info.get('expire_at', '')
+                    log['link_name'] = card_info.get('link_name', '')
                 
                 # 如果有销售状态筛选，在应用层过滤
                 if sale_status:
