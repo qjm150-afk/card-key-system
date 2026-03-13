@@ -143,6 +143,25 @@ class SQLiteClient:
                 )
             """)
             
+            # 链接健康状态表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS link_health_table (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    feishu_url TEXT NOT NULL UNIQUE,
+                    link_name TEXT,
+                    status TEXT DEFAULT 'unknown' NOT NULL,
+                    http_code INTEGER,
+                    error_message TEXT,
+                    last_check_time TEXT,
+                    next_check_time TEXT,
+                    consecutive_failures INTEGER DEFAULT 0,
+                    total_checks INTEGER DEFAULT 0,
+                    successful_checks INTEGER DEFAULT 0,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TEXT
+                )
+            """)
+            
             # 创建索引
             conn.execute("CREATE INDEX IF NOT EXISTS idx_card_keys_key_value ON card_keys_table(key_value)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_card_keys_status ON card_keys_table(status)")
