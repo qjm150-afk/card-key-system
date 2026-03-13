@@ -323,36 +323,65 @@ class SQLiteTable:
 class SQLiteInsert:
     """SQLite 插入操作"""
     
-    def __init__(self, table: SQLiteTable, data: Dict):
+    def __init__(self, table: SQLiteTable, data):
         self.table = table
         self.data = data
     
     def execute(self) -> SQLiteResponse:
-        """执行插入"""
+        """执行插入（支持单条和批量）"""
         with self.table.client._get_connection() as conn:
             cursor = conn.cursor()
             
-            # 将字典/列表类型的值转换为 JSON 字符串
-            processed_values = []
-            for v in self.data.values():
-                if isinstance(v, (dict, list)):
-                    processed_values.append(json.dumps(v, ensure_ascii=False))
-                else:
-                    processed_values.append(v)
-            
-            columns = ", ".join(self.data.keys())
-            placeholders = ", ".join(["?" for _ in self.data])
-            sql = f"INSERT INTO {self.table.table_name} ({columns}) VALUES ({placeholders})"
-            
-            cursor.execute(sql, processed_values)
-            conn.commit()
-            
-            # 返回插入的数据
-            last_id = cursor.lastrowid
-            cursor.execute(f"SELECT * FROM {self.table.table_name} WHERE id = ?", [last_id])
-            row = cursor.fetchone()
-            
-            return SQLiteResponse([dict(row)] if row else [])
+            # 判断是单条插入还是批量插入
+            if isinstance(self.data, list):
+                # 批量插入
+                if not self.data:
+                    return SQLiteResponse([])
+                
+                all_inserted = []
+                for item in self.data:
+                    processed_values = []
+                    for v in item.values():
+                        if isinstance(v, (dict, list)):
+                            processed_values.append(json.dumps(v, ensure_ascii=False))
+                        else:
+                            processed_values.append(v)
+                    
+                    columns = ", ".join(item.keys())
+                    placeholders = ", ".join(["?" for _ in item])
+                    sql = f"INSERT INTO {self.table.table_name} ({columns}) VALUES ({placeholders})"
+                    
+                    cursor.execute(sql, processed_values)
+                    last_id = cursor.lastrowid
+                    cursor.execute(f"SELECT * FROM {self.table.table_name} WHERE id = ?", [last_id])
+                    row = cursor.fetchone()
+                    if row:
+                        all_inserted.append(dict(row))
+                
+                conn.commit()
+                return SQLiteResponse(all_inserted)
+            else:
+                # 单条插入
+                processed_values = []
+                for v in self.data.values():
+                    if isinstance(v, (dict, list)):
+                        processed_values.append(json.dumps(v, ensure_ascii=False))
+                    else:
+                        processed_values.append(v)
+                
+                columns = ", ".join(self.data.keys())
+                placeholders = ", ".join(["?" for _ in self.data])
+                sql = f"INSERT INTO {self.table.table_name} ({columns}) VALUES ({placeholders})"
+                
+                cursor.execute(sql, processed_values)
+                conn.commit()
+                
+                # 返回插入的数据
+                last_id = cursor.lastrowid
+                cursor.execute(f"SELECT * FROM {self.table.table_name} WHERE id = ?", [last_id])
+                row = cursor.fetchone()
+                
+                return SQLiteResponse([dict(row)] if row else [])
 
 
 class SQLiteUpdate:
