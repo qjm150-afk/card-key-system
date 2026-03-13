@@ -1600,7 +1600,8 @@ async def get_access_logs(
     card_key_id: Optional[int] = None,
     success: Optional[bool] = None,
     search: Optional[str] = None,
-    sale_status: Optional[str] = None
+    sale_status: Optional[str] = None,
+    days: Optional[int] = None  # 时间范围筛选：最近N天
 ):
     """获取访问日志，关联卡密详细信息"""
     try:
@@ -1614,6 +1615,10 @@ async def get_access_logs(
             query = query.eq('success', success)
         if search:
             query = query.ilike('key_value', f'%{search}%')
+        if days and days > 0:
+            # 筛选最近N天的日志
+            cutoff_time = (datetime.now() - timedelta(days=days)).isoformat()
+            query = query.gte('access_time', cutoff_time)
         
         start = (page - 1) * page_size
         end = start + page_size - 1
@@ -1663,6 +1668,112 @@ async def get_access_logs(
         
     except Exception as e:
         logger.error(f"获取访问日志失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+class CleanLogsRequest(BaseModel):
+    """清理日志请求"""
+    condition: str  # all, fail, success, expired
+    days: int  # 0表示不限时间
+
+
+@app.post("/api/admin/logs/preview-clean")
+async def preview_clean_logs(request: CleanLogsRequest):
+    """预览清理数量"""
+    try:
+        client = get_supabase_client()
+        
+        query = client.table('access_logs').select('id, key_value', count='exact')
+        
+        # 应用条件筛选
+        if request.condition == 'fail':
+            query = query.eq('success', False)
+        elif request.condition == 'success':
+            query = query.eq('success', True)
+        elif request.condition == 'expired':
+            # 查找过期卡密的日志
+            now = datetime.now().isoformat()
+            expired_cards = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now).execute()
+            expired_keys = [card['key_value'] for card in (expired_cards.data or [])]
+            if expired_keys:
+                query = query.in_('key_value', expired_keys)
+            else:
+                return {"success": True, "count": 0, "condition": request.condition, "days": request.days}
+        
+        # 应用时间筛选
+        if request.days > 0:
+            cutoff_time = (datetime.now() - timedelta(days=request.days)).isoformat()
+            query = query.lt('access_time', cutoff_time)
+        
+        response = query.execute()
+        
+        return {
+            "success": True,
+            "count": response.count or 0,
+            "condition": request.condition,
+            "days": request.days
+        }
+        
+    except Exception as e:
+        logger.error(f"预览清理数量失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/logs/clean")
+async def clean_logs(request: CleanLogsRequest):
+    """批量清理访问日志"""
+    try:
+        client = get_supabase_client()
+        
+        # 先获取符合条件的日志ID
+        query = client.table('access_logs').select('id')
+        
+        # 应用条件筛选
+        if request.condition == 'fail':
+            query = query.eq('success', False)
+        elif request.condition == 'success':
+            query = query.eq('success', True)
+        elif request.condition == 'expired':
+            # 查找过期卡密的日志
+            now = datetime.now().isoformat()
+            expired_cards = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now).execute()
+            expired_keys = [card['key_value'] for card in (expired_cards.data or [])]
+            if expired_keys:
+                query = query.in_('key_value', expired_keys)
+            else:
+                # 没有过期卡密，无需清理
+                return {"success": True, "msg": "没有符合条件的日志", "deleted_count": 0}
+        
+        # 应用时间筛选
+        if request.days > 0:
+            cutoff_time = (datetime.now() - timedelta(days=request.days)).isoformat()
+            query = query.lt('access_time', cutoff_time)
+        
+        response = query.execute()
+        
+        if not response.data:
+            return {"success": True, "msg": "没有符合条件的日志", "deleted_count": 0}
+        
+        # 获取要删除的ID列表
+        ids_to_delete = [log['id'] for log in response.data]
+        deleted_count = len(ids_to_delete)
+        
+        # 执行删除（分批处理，每批最多1000条）
+        batch_size = 1000
+        for i in range(0, deleted_count, batch_size):
+            batch_ids = ids_to_delete[i:i + batch_size]
+            client.table('access_logs').delete().in_('id', batch_ids).execute()
+        
+        logger.info(f"批量清理访问日志完成: 条件={request.condition}, 天数={request.days}, 删除数量={deleted_count}")
+        
+        return {
+            "success": True,
+            "msg": f"成功清理 {deleted_count} 条日志",
+            "deleted_count": deleted_count
+        }
+        
+    except Exception as e:
+        logger.error(f"清理访问日志失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 

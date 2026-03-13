@@ -1547,9 +1547,17 @@
                         <option value="refunded">已退款</option>
                         <option value="disputed">有纠纷</option>
                     </select>
+                    <select class="filter-select" id="logDaysFilter" onchange="searchLogs()">
+                        <option value="">时间范围</option>
+                        <option value="7">最近7天</option>
+                        <option value="30">最近30天</option>
+                        <option value="90">最近90天</option>
+                        <option value="365">最近1年</option>
+                    </select>
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="searchLogs()">搜索</button>
                         <button class="btn btn-secondary" onclick="resetLogFilters()">重置</button>
+                        <button class="btn btn-danger" onclick="openCleanLogsModal()">批量清理</button>
                     </div>
                 </div>
             </div>
@@ -2007,6 +2015,57 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeBatchUpdateConfirm()">取消</button>
                 <button class="btn btn-danger" onclick="executeBatchUpdate()">确认执行修改</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量清理访问日志模态框 -->
+    <div class="modal-overlay" id="cleanLogsModalOverlay">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>🗑️ 批量清理访问日志</h2>
+                <button class="modal-close" onclick="closeCleanLogsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>清理条件</label>
+                    <select class="form-input" id="cleanLogsCondition">
+                        <option value="all">清理全部日志</option>
+                        <option value="fail">仅清理失败记录</option>
+                        <option value="success">仅清理成功记录</option>
+                        <option value="expired">清理过期卡密的日志</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>时间范围</label>
+                    <select class="form-input" id="cleanLogsTimeRange">
+                        <option value="0">不限时间</option>
+                        <option value="7">7天前</option>
+                        <option value="30" selected>30天前</option>
+                        <option value="90">90天前</option>
+                        <option value="180">180天前</option>
+                        <option value="365">1年前</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>预计删除数量</label>
+                    <div id="cleanLogsPreview" style="color: #666; padding: 10px; background: #f5f5f5; border-radius: 6px;">
+                        点击"预览"按钮查看
+                    </div>
+                </div>
+                <div style="background: #fff3cd; padding: 12px; border-radius: 6px; margin-top: 16px;">
+                    <strong>⚠️ 注意事项：</strong>
+                    <ul style="margin: 8px 0 0 20px; padding: 0; color: #856404;">
+                        <li>删除后无法恢复，请谨慎操作</li>
+                        <li>建议先导出备份再清理</li>
+                        <li>清理操作会记录到操作日志</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCleanLogsModal()">取消</button>
+                <button class="btn btn-primary" onclick="previewCleanLogs()">预览</button>
+                <button class="btn btn-danger" onclick="executeCleanLogs()" id="executeCleanLogsBtn" disabled>确认清理</button>
             </div>
         </div>
     </div>
@@ -3183,6 +3242,12 @@
                     params.append('sale_status', saleStatusFilter);
                 }
                 
+                // 时间范围筛选
+                const daysFilter = document.getElementById('logDaysFilter')?.value || '';
+                if (daysFilter) {
+                    params.append('days', daysFilter);
+                }
+                
                 const response = await fetch(`/api/admin/logs?${params.toString()}`);
                 const result = await response.json();
                 
@@ -3206,8 +3271,94 @@
             document.getElementById('logSearchInput').value = '';
             document.getElementById('logResultFilter').value = '';
             document.getElementById('logSaleStatusFilter').value = '';
+            document.getElementById('logDaysFilter').value = '';
             logPage = 1;
             loadLogs();
+        }
+
+        // ==================== 批量清理访问日志功能 ====================
+        
+        // 打开清理日志弹窗
+        function openCleanLogsModal() {
+            document.getElementById('cleanLogsModalOverlay').classList.add('active');
+            document.getElementById('cleanLogsPreview').textContent = '点击"预览"按钮查看';
+            document.getElementById('executeCleanLogsBtn').disabled = true;
+        }
+        
+        // 关闭清理日志弹窗
+        function closeCleanLogsModal() {
+            document.getElementById('cleanLogsModalOverlay').classList.remove('active');
+        }
+        
+        // 预览清理数量
+        async function previewCleanLogs() {
+            const condition = document.getElementById('cleanLogsCondition').value;
+            const days = parseInt(document.getElementById('cleanLogsTimeRange').value);
+            
+            try {
+                const response = await fetch('/api/admin/logs/preview-clean', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ condition, days })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    const conditionText = {
+                        'all': '全部日志',
+                        'fail': '失败记录',
+                        'success': '成功记录',
+                        'expired': '过期卡密的日志'
+                    };
+                    const daysText = days > 0 ? `${days}天前` : '不限时间';
+                    
+                    document.getElementById('cleanLogsPreview').innerHTML = `
+                        <div style="font-size: 16px; color: #333;">
+                            <strong>条件：</strong>${conditionText[condition]} · ${daysText}<br>
+                            <strong style="color: #d32f2f; font-size: 24px;">${result.count}</strong> 条日志将被删除
+                        </div>
+                    `;
+                    document.getElementById('executeCleanLogsBtn').disabled = result.count === 0;
+                } else {
+                    document.getElementById('cleanLogsPreview').innerHTML = `<span style="color: #d32f2f;">预览失败：${result.msg}</span>`;
+                    document.getElementById('executeCleanLogsBtn').disabled = true;
+                }
+            } catch (error) {
+                document.getElementById('cleanLogsPreview').innerHTML = `<span style="color: #d32f2f;">预览失败：${error.message}</span>`;
+                document.getElementById('executeCleanLogsBtn').disabled = true;
+            }
+        }
+        
+        // 执行清理日志
+        async function executeCleanLogs() {
+            const condition = document.getElementById('cleanLogsCondition').value;
+            const days = parseInt(document.getElementById('cleanLogsTimeRange').value);
+            
+            if (!confirm('确认删除这些日志？此操作不可恢复！')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/logs/clean', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ condition, days })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.msg, 'success');
+                    closeCleanLogsModal();
+                    loadLogs();
+                    loadStats();
+                } else {
+                    showToast(result.msg, 'error');
+                }
+            } catch (error) {
+                showToast('清理失败：' + error.message, 'error');
+            }
         }
 
         // 渲染日志表格
