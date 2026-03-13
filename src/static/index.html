@@ -472,43 +472,34 @@
             pointer-events: auto;
         }
 
-        /* 退出按钮 - 浮动在飞书页面右上角，在线人数左侧 */
+        /* 退出按钮 - 集成在协作者悬浮层中 */
         .exit-btn {
-            position: absolute;
-            top: 10px;
-            right: 200px;
-            display: flex;
+            display: none;
             align-items: center;
             gap: 4px;
-            padding: 5px 12px;
-            background: rgba(255, 255, 255, 0.75);
-            border: 1px solid rgba(0, 0, 0, 0.05);
-            border-radius: 16px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-            z-index: 10001;
+            padding: 4px 10px;
+            background: rgba(220, 80, 80, 0.1);
+            border: none;
+            border-radius: 12px;
             cursor: pointer;
             font-size: 12px;
             font-weight: 450;
-            color: #6B5744;
+            color: #C05050;
             transition: all 0.2s ease;
+            margin-left: 4px;
         }
 
         .exit-btn:hover {
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
-        }
-
-        .exit-btn:active {
-            transform: translateY(0);
+            background: rgba(220, 80, 80, 0.2);
         }
 
         .exit-btn-icon {
-            width: 14px;
-            height: 14px;
+            width: 12px;
+            height: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 11px;
+            font-size: 10px;
         }
 
         /* 飞书顶部右侧遮罩 - 阻挡"进入原应用"按钮 */
@@ -547,8 +538,17 @@
             border-radius: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             z-index: 1000;
-            cursor: default;
+            cursor: pointer;
             animation: fadeInSlide 0.5s ease-out;
+            transition: all 0.2s ease;
+        }
+
+        .collaborators-overlay:hover {
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .collaborators-overlay.expanded {
+            background: rgba(255, 255, 255, 0.98);
         }
 
         @keyframes fadeInSlide {
@@ -717,11 +717,6 @@
         </div>
         
         <div class="iframe-container">
-            <!-- 退出按钮 -->
-            <button class="exit-btn" id="exitBtn" title="返回验证页面">
-                <span class="exit-btn-icon">✕</span>
-                <span>退出</span>
-            </button>
             <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
             <!-- 协作者头像悬浮层 - 遮挡飞书右上角头像，防止点击跳转 -->
             <div class="collaborators-overlay" id="collaboratorsOverlay">
@@ -729,6 +724,11 @@
                     <!-- 头像将通过 JS 动态生成 -->
                 </div>
                 <span class="collaborators-count" id="collaboratorsCount">正在查看...</span>
+                <!-- 退出按钮 - 点击后显示 -->
+                <button class="exit-btn" id="exitBtn" title="返回验证页面" style="display: none;">
+                    <span class="exit-btn-icon">✕</span>
+                    <span>退出</span>
+                </button>
             </div>
             <!-- 飞书顶部右侧遮罩 - 阻挡"进入原应用"按钮 -->
             <div class="feishu-top-right-mask"></div>
@@ -827,8 +827,27 @@
             // 初始化协作者头像
             initCollaborators();
             
+            // 点击协作者悬浮层显示/隐藏退出按钮
+            const collaboratorsOverlay = document.getElementById('collaboratorsOverlay');
+            const exitBtn = document.getElementById('exitBtn');
+            
+            collaboratorsOverlay.addEventListener('click', function(e) {
+                // 如果点击的是退出按钮，不处理
+                if (e.target.closest('.exit-btn')) return;
+                
+                // 切换显示退出按钮
+                if (exitBtn.style.display === 'none' || !exitBtn.style.display) {
+                    exitBtn.style.display = 'flex';
+                    collaboratorsOverlay.classList.add('expanded');
+                } else {
+                    exitBtn.style.display = 'none';
+                    collaboratorsOverlay.classList.remove('expanded');
+                }
+            });
+            
             // 绑定退出按钮事件
-            document.getElementById('exitBtn').addEventListener('click', function() {
+            exitBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
                 // 清除会话
                 clearSession();
                 // 重置iframe
@@ -842,6 +861,9 @@
                 cardKeyInput.value = '';
                 // 隐藏错误信息
                 errorBox.style.display = 'none';
+                // 隐藏退出按钮
+                exitBtn.style.display = 'none';
+                collaboratorsOverlay.classList.remove('expanded');
             });
             
             // 开始追踪会话行为数据
