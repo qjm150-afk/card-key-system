@@ -924,13 +924,18 @@
         }
 
         /* 时段热力图 */
-        .hour-heatmap {
-            display: grid;
-            grid-template-columns: repeat(24, 1fr);
-            gap: 4px;
+        .hour-heatmap-container {
             padding: 16px;
             background: #fffbf5;
             border-radius: 12px;
+            overflow-x: auto;
+        }
+
+        .hour-heatmap {
+            display: grid;
+            grid-template-columns: repeat(24, minmax(28px, 1fr));
+            gap: 3px;
+            min-width: fit-content;
         }
 
         .heatmap-cell {
@@ -944,7 +949,8 @@
             font-weight: 500;
             transition: all 0.2s ease;
             cursor: pointer;
-            min-height: 40px;
+            min-width: 28px;
+            min-height: 28px;
         }
 
         .heatmap-cell:hover {
@@ -954,15 +960,17 @@
 
         .heatmap-labels {
             display: grid;
-            grid-template-columns: repeat(24, 1fr);
-            gap: 4px;
-            margin-top: 8px;
+            grid-template-columns: repeat(24, minmax(28px, 1fr));
+            gap: 3px;
+            margin-top: 6px;
+            min-width: fit-content;
         }
 
         .heatmap-label {
             text-align: center;
             font-size: 10px;
             color: #A89070;
+            min-width: 28px;
         }
 
         .heatmap-legend {
@@ -1726,8 +1734,11 @@
             <!-- 时段分布 -->
             <div class="analytics-section">
                 <h3 class="section-title">⏰ 时段分布（24小时访问热力图）</h3>
-                <div class="hour-heatmap" id="hourHeatmap">
-                    <div class="heatmap-empty">暂无时段数据</div>
+                <div class="hour-heatmap-container">
+                    <div class="hour-heatmap" id="hourHeatmap">
+                        <div class="heatmap-empty">暂无时段数据</div>
+                    </div>
+                    <div class="heatmap-labels" id="heatmapLabels"></div>
                 </div>
                 <div class="heatmap-legend" id="heatmapLegend" style="display: none;">
                     <span>访问量：</span>
@@ -2290,10 +2301,12 @@
         // 渲染时段热力图
         function renderHourHeatmap(hourData) {
             const container = document.getElementById('hourHeatmap');
+            const labelsContainer = document.getElementById('heatmapLabels');
             const legend = document.getElementById('heatmapLegend');
             
             if (!hourData || Object.keys(hourData).length === 0) {
                 container.innerHTML = '<div class="heatmap-empty">暂无时段数据</div>';
+                labelsContainer.innerHTML = '';
                 legend.style.display = 'none';
                 return;
             }
@@ -2319,14 +2332,14 @@
                     </div>
                 `;
             }
-            
-            // 添加小时标签
-            html += '</div><div class="heatmap-labels">';
-            for (let hour = 0; hour < 24; hour++) {
-                html += `<div class="heatmap-label">${hour}</div>`;
-            }
-            
             container.innerHTML = html;
+            
+            // 生成小时标签
+            let labelsHtml = '';
+            for (let hour = 0; hour < 24; hour++) {
+                labelsHtml += `<div class="heatmap-label">${hour}</div>`;
+            }
+            labelsContainer.innerHTML = labelsHtml;
         }
         
         // 获取热力图颜色
