@@ -472,25 +472,24 @@
             pointer-events: auto;
         }
 
-        /* 退出按钮 - 浮动在飞书页面顶部中间 */
+        /* 退出按钮 - 浮动在飞书页面右上角，在线人数左侧 */
         .exit-btn {
             position: absolute;
             top: 10px;
-            left: 50%;
-            transform: translateX(-50%);
+            right: 120px;
             display: flex;
             align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            background: rgba(255, 255, 255, 0.85);
-            border: 1px solid rgba(0, 0, 0, 0.06);
-            border-radius: 18px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+            gap: 4px;
+            padding: 5px 12px;
+            background: rgba(255, 255, 255, 0.75);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            border-radius: 16px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
             z-index: 10001;
             cursor: pointer;
             font-size: 12px;
-            font-weight: 500;
-            color: #5D4E37;
+            font-weight: 450;
+            color: #6B5744;
             transition: all 0.2s ease;
         }
 
@@ -504,11 +503,12 @@
         }
 
         .exit-btn-icon {
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 11px;
         }
 
         /* 飞书顶部右侧遮罩 - 阻挡"进入原应用"按钮 */
@@ -719,7 +719,7 @@
         <div class="iframe-container">
             <!-- 退出按钮 -->
             <button class="exit-btn" id="exitBtn" title="返回验证页面">
-                <span class="exit-btn-icon">←</span>
+                <span class="exit-btn-icon">✕</span>
                 <span>退出</span>
             </button>
             <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
