@@ -1096,18 +1096,49 @@ async def get_sales_channels():
 async def export_cards(
     ids: Optional[str] = None,
     status: Optional[int] = None,
-    format: str = "csv"
+    format: str = "csv",
+    fields: Optional[str] = None
 ):
     """
     导出卡密
     - ids: 逗号分隔的ID列表，不传则导出全部
     - format: csv 或 txt
-    - 适配阿奇索平台格式（卡号,密码）
+    - fields: 逗号分隔的字段列表，如 "key_value,feishu_password,status"
     """
     try:
         client = get_supabase_client()
         
-        query = client.table('card_keys_table').select('key_value,feishu_password,status,user_note')
+        # 定义所有可导出的字段及其显示名称
+        field_config = {
+            'key_value': {'db_field': 'key_value', 'label': '卡密值'},
+            'feishu_password': {'db_field': 'feishu_password', 'label': '访问密码'},
+            'status': {'db_field': 'status', 'label': '激活状态'},
+            'sale_status': {'db_field': 'sale_status', 'label': '销售状态'},
+            'feishu_url': {'db_field': 'feishu_url', 'label': '飞书链接'},
+            'link_name': {'db_field': 'link_name', 'label': '链接名称'},
+            'expire_at': {'db_field': 'expire_at', 'label': '过期时间'},
+            'devices': {'db_field': 'devices', 'label': '绑定设备'},
+            'max_devices': {'db_field': 'max_devices', 'label': '最大设备数'},
+            'sales_channel': {'db_field': 'sales_channel', 'label': '销售渠道'},
+            'order_id': {'db_field': 'order_id', 'label': '订单号'},
+            'user_note': {'db_field': 'user_note', 'label': '备注'},
+            'bstudio_create_time': {'db_field': 'bstudio_create_time', 'label': '创建时间'},
+            'last_used_at': {'db_field': 'last_used_at', 'label': '最后使用时间'}
+        }
+        
+        # 解析要导出的字段
+        if fields:
+            selected_fields = [f.strip() for f in fields.split(',') if f.strip() in field_config]
+        else:
+            # 默认只导出卡密值和密码（兼容旧版）
+            selected_fields = ['key_value', 'feishu_password']
+        
+        if not selected_fields:
+            return {"success": False, "msg": "请选择至少一个导出字段"}
+        
+        # 构建 SQL 查询字段列表
+        db_fields = [field_config[f]['db_field'] for f in selected_fields]
+        query = client.table('card_keys_table').select(','.join(db_fields))
         
         if ids:
             id_list = [int(x) for x in ids.split(',')]
@@ -1120,25 +1151,83 @@ async def export_cards(
         if not response.data:
             return {"success": False, "msg": "没有可导出的数据"}
         
-        # 生成 CSV
-        output = io.StringIO()
-        writer = csv.writer(output)
+        # 状态映射
+        status_map = {1: '有效', 0: '无效'}
+        sale_status_map = {
+            'unsold': '未售出', 
+            'sold': '已售出', 
+            'refunded': '已退款', 
+            'disputed': '有纠纷',
+            'used': '已核销'
+        }
         
-        # 阿奇索格式：卡号,密码（无表头）
-        for card in response.data:
-            writer.writerow([
-                card['key_value'],
-                card['feishu_password'] or ''
-            ])
+        # 格式化数据
+        def format_value(field, value):
+            if value is None:
+                return ''
+            if field == 'status':
+                return status_map.get(value, str(value))
+            if field == 'sale_status':
+                return sale_status_map.get(value, str(value))
+            if field == 'devices':
+                # 解析 JSON 数组，显示设备数量
+                try:
+                    import json
+                    devices = json.loads(value) if value else []
+                    return f"{len(devices)}台" if devices else '无'
+                except:
+                    return value
+            if field in ['expire_at', 'bstudio_create_time', 'last_used_at']:
+                # 格式化时间
+                if isinstance(value, str):
+                    return value.replace('T', ' ').split('.')[0][:19]
+                return str(value)
+            return str(value)
+        
+        # 生成输出
+        output = io.StringIO()
+        
+        if format == 'txt':
+            # TXT 格式：每行一个卡密，格式为 "字段1:值1 字段2:值2 ..."
+            for card in response.data:
+                parts = []
+                for field in selected_fields:
+                    label = field_config[field]['label']
+                    value = format_value(field, card.get(field_config[field]['db_field']))
+                    parts.append(f"{label}:{value}")
+                output.write(' | '.join(parts) + '\n')
+        else:
+            # CSV 格式：带表头
+            writer = csv.writer(output)
+            
+            # 写入表头
+            headers = [field_config[f]['label'] for f in selected_fields]
+            writer.writerow(headers)
+            
+            # 写入数据行
+            for card in response.data:
+                row = [format_value(f, card.get(field_config[f]['db_field'])) for f in selected_fields]
+                writer.writerow(row)
         
         output.seek(0)
         
-        # 返回文件流
+        # 确定文件扩展名
+        ext = 'txt' if format == 'txt' else 'csv'
+        media_type = 'text/plain' if format == 'txt' else 'text/csv; charset=utf-8'
+        
+        # 返回文件流（CSV 添加 BOM 头以支持 Excel）
+        content = output.getvalue()
+        if format == 'csv':
+            bom = b'\xef\xbb\xbf'
+            content = bom + content.encode('utf-8')
+        else:
+            content = content.encode('utf-8')
+        
         return StreamingResponse(
-            iter([output.getvalue()]),
-            media_type="text/csv",
+            iter([content]),
+            media_type=media_type,
             headers={
-                "Content-Disposition": f"attachment; filename=cards_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+                "Content-Disposition": f"attachment; filename=cards_{datetime.now().strftime('%Y%m%d_%H%M%S')}.{ext}"
             }
         )
         

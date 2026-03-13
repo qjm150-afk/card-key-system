@@ -2085,6 +2085,103 @@
         </div>
     </div>
 
+    <!-- 导出卡密模态框 -->
+    <div class="modal-overlay" id="exportCardsModalOverlay">
+        <div class="modal" style="max-width: 550px;">
+            <div class="modal-header">
+                <h2>📤 导出卡密</h2>
+                <button class="modal-close" onclick="closeExportCardsModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>导出范围</label>
+                    <div id="exportRangeInfo" style="color: #666; padding: 10px; background: #f5f5f5; border-radius: 6px;">
+                        加载中...
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>选择导出字段 <span style="color: #999; font-size: 12px;">（至少选择一个）</span></label>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px;">
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="key_value" checked>
+                            <span>卡密值</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="feishu_password" checked>
+                            <span>访问密码</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="status">
+                            <span>激活状态</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="sale_status">
+                            <span>销售状态</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="feishu_url">
+                            <span>飞书链接</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="link_name">
+                            <span>链接名称</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="expire_at">
+                            <span>过期时间</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="devices">
+                            <span>绑定设备</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="max_devices">
+                            <span>最大设备数</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="sales_channel">
+                            <span>销售渠道</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="order_id">
+                            <span>订单号</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="user_note">
+                            <span>备注</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="bstudio_create_time">
+                            <span>创建时间</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="last_used_at">
+                            <span>最后使用时间</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>导出格式</label>
+                    <select class="form-input" id="exportFormat">
+                        <option value="csv">CSV (Excel 兼容)</option>
+                        <option value="txt">TXT (纯文本)</option>
+                    </select>
+                </div>
+                <div style="background: #e8f4fd; padding: 12px; border-radius: 6px; margin-top: 16px;">
+                    <strong>💡 提示：</strong>
+                    <ul style="margin: 8px 0 0 20px; padding: 0; color: #0c5460; font-size: 13px;">
+                        <li>CSV 格式带 BOM 头，可直接用 Excel 打开</li>
+                        <li>导出勾选的卡密或全部卡密（未勾选时）</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeExportCardsModal()">取消</button>
+                <button class="btn btn-primary" onclick="executeExportCards()">导出</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 导入销售状态模态框 -->
     <div class="modal-overlay" id="importSaleStatusModalOverlay">
         <div class="modal">
@@ -3074,16 +3171,76 @@
             }
         }
 
-        // 导出卡密
+        // 导出卡密 - 打开模态框
         function exportCards() {
+            // 显示导出范围信息
+            const rangeInfo = document.getElementById('exportRangeInfo');
+            if (selectedIds.size > 0) {
+                rangeInfo.innerHTML = `<span style="color: #ff7b00; font-weight: 500;">📋 已选中 ${selectedIds.size} 条卡密</span>（将导出选中的卡密）`;
+            } else {
+                rangeInfo.innerHTML = `<span style="color: #666;">📁 将导出全部卡密</span>（未选中任何卡密）`;
+            }
+            
+            // 重置字段选择（默认选中卡密值和密码）
+            document.querySelectorAll('.export-field-checkbox').forEach(cb => {
+                cb.checked = (cb.value === 'key_value' || cb.value === 'feishu_password');
+            });
+            
+            // 重置格式选择
+            document.getElementById('exportFormat').value = 'csv';
+            
+            document.getElementById('exportCardsModalOverlay').classList.add('active');
+        }
+        
+        function closeExportCardsModal() {
+            document.getElementById('exportCardsModalOverlay').classList.remove('active');
+        }
+        
+        // 执行导出
+        function executeExportCards() {
+            // 获取选中的字段
+            const selectedFields = [];
+            document.querySelectorAll('.export-field-checkbox:checked').forEach(cb => {
+                selectedFields.push(cb.value);
+            });
+            
+            if (selectedFields.length === 0) {
+                showToast('请至少选择一个导出字段', 'error');
+                return;
+            }
+            
+            const format = document.getElementById('exportFormat').value;
             const ids = selectedIds.size > 0 ? Array.from(selectedIds).join(',') : '';
-            const activateStatus = document.getElementById('statusFilter').value;
             
-            let url = `/api/admin/cards/export?format=csv`;
+            let url = `/api/admin/cards/export?format=${format}&fields=${selectedFields.join(',')}`;
             if (ids) url += `&ids=${ids}`;
-            if (activateStatus) url += `&activate_status=${activateStatus}`;
             
+            // 记录操作日志
+            logOperation('export_cards', {
+                field_count: selectedFields.length,
+                fields: selectedFields,
+                card_count: selectedIds.size > 0 ? selectedIds.size : 'all',
+                format: format
+            });
+            
+            closeExportCardsModal();
             window.open(url, '_blank');
+        }
+        
+        // 记录操作日志
+        async function logOperation(operationType, details) {
+            try {
+                await fetch('/api/admin/operation-logs', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        operation_type: operationType,
+                        details: details
+                    })
+                });
+            } catch (error) {
+                console.error('记录操作日志失败:', error);
+            }
         }
 
         // 打开批量改链模态框
