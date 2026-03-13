@@ -2,10 +2,11 @@
 requires = ["python-3.11"]
 
 [dev]
+# 本地开发模式：使用 SQLite 数据库，与云端 Supabase 完全隔离
 build = ["pip", "install", "-r", "requirements.txt"]
-run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
+run = ["sh", "-c", "LOCAL_DEV_MODE=true python -m uvicorn src.main:app --host 0.0.0.0 --port 5000"]
 
 [deploy]
-# 部署前自动执行数据备份
+# 生产部署：使用云端 Supabase 数据库，部署前自动执行数据备份
 build = ["sh", "-c", "python scripts/backup_data.py && pip install -r requirements.txt"]
 run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]

@@ -2,6 +2,15 @@
 数据库客户端 - 支持双模式切换
 - 云端部署：使用 Coze Supabase
 - 本地开发：使用 SQLite
+
+环境变量说明：
+- LOCAL_DEV_MODE=true: 强制使用本地 SQLite 数据库（本地开发/测试）
+- COZE_SUPABASE_URL: 云端 Supabase 地址（生产环境）
+
+判断逻辑：
+1. 如果 LOCAL_DEV_MODE=true，强制使用 SQLite（优先级最高）
+2. 如果 COZE_SUPABASE_URL 存在且 LOCAL_DEV_MODE 未设置，使用 Supabase
+3. 否则默认使用 SQLite
 """
 
 import os
@@ -15,17 +24,39 @@ from contextlib import contextmanager
 # 环境判断
 # ============================================
 
+def is_local_dev_mode() -> bool:
+    """判断是否为本地开发模式"""
+    local_dev = os.getenv("LOCAL_DEV_MODE", "").lower()
+    return local_dev in ("true", "1", "yes")
+
+
 def is_production() -> bool:
-    """判断是否为生产环境（云端部署）"""
-    # 如果有 COZE_SUPABASE_URL 环境变量，认为是生产环境
+    """判断是否为生产环境（云端部署）
+    
+    优先级：
+    1. LOCAL_DEV_MODE=true → 返回 False（强制本地模式）
+    2. COZE_SUPABASE_URL 存在 → 返回 True（生产环境）
+    3. 默认 → 返回 False（本地模式）
+    """
+    # 本地开发模式优先级最高
+    if is_local_dev_mode():
+        return False
+    
+    # 有 Supabase URL 且未设置本地模式，则为生产环境
     return bool(os.getenv("COZE_SUPABASE_URL"))
+
+
+def get_db_mode() -> str:
+    """获取当前数据库模式名称"""
+    return "sqlite (local)" if not is_production() else "supabase (production)"
 
 
 # ============================================
 # SQLite 客户端（本地开发）
 # ============================================
 
-SQLITE_DB_PATH = os.getenv("LOCAL_DB_PATH", "/tmp/card_key_test.db")
+# 本地数据库默认路径
+SQLITE_DB_PATH = os.getenv("LOCAL_DB_PATH", "/tmp/card_key_local.db")
 
 
 class SQLiteResponse:
@@ -451,8 +482,3 @@ def reset_db_client():
     global _db_client, _is_sqlite
     _db_client = None
     _is_sqlite = False
-
-
-def get_db_mode() -> str:
-    """获取当前数据库模式"""
-    return "sqlite" if not is_production() else "supabase"
