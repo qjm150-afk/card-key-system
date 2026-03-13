@@ -2566,10 +2566,10 @@
                     deviceCount = devices.length;
                 } catch (e) {}
                 
-                // 显示链接名称（优先显示名称，否则显示"有链接"或"-"）
+                // 显示链接名称（没有则显示"-"）
                 const linkName = card.link_name || '';
                 const feishuUrl = card.feishu_url || '';
-                const linkNameDisplay = linkName || (feishuUrl ? '有链接' : '-');
+                const linkNameDisplay = linkName || '-';
                 
                 // 截断显示订单号
                 const orderId = card.order_id || '';
