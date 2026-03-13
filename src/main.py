@@ -95,7 +95,7 @@ class BatchGenerateRequest(BaseModel):
     prefix: str = "CSS"  # 卡密前缀
     feishu_url: str = ""  # 飞书链接
     feishu_password: str = ""  # 飞书密码
-    expire_days: Optional[int] = None  # 有效期天数
+    expire_at: Optional[str] = None  # 过期时间（ISO格式）
     max_uses: int = 1  # 最大使用次数
     user_note: str = ""  # 备注
     sales_channel: str = ""  # 销售渠道
@@ -1417,10 +1417,8 @@ async def batch_generate_cards(req: BatchGenerateRequest):
         
         client = get_supabase_client()
         
-        # 计算过期时间
-        expire_at = None
-        if req.expire_days:
-            expire_at = (datetime.now() + timedelta(days=req.expire_days)).isoformat()
+        # 直接使用传入的过期时间
+        expire_at = req.expire_at
         
         # 批量生成卡密
         cards = []

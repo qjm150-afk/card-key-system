@@ -1826,8 +1826,8 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>有效期（天）</label>
-                        <input type="number" class="form-input" id="generateExpireDays" placeholder="不填则永不过期" min="1">
+                        <label>过期时间</label>
+                        <input type="datetime-local" class="form-input" id="generateExpireAt">
                     </div>
                     <div class="form-group">
                         <label>销售渠道</label>
@@ -2865,12 +2865,19 @@
         async function generateCards() {
             const shouldExport = document.getElementById('generateAndExport').checked;
             
+            // 处理过期时间
+            const expireAtValue = document.getElementById('generateExpireAt').value;
+            let expireAt = null;
+            if (expireAtValue) {
+                expireAt = new Date(expireAtValue).toISOString();
+            }
+            
             const data = {
                 count: parseInt(document.getElementById('generateCount').value) || 10,
                 prefix: document.getElementById('generatePrefix').value || 'CSS',
                 feishu_url: document.getElementById('generateFeishuUrl').value,
                 feishu_password: document.getElementById('generateFeishuPassword').value,
-                expire_days: parseInt(document.getElementById('generateExpireDays').value) || null,
+                expire_at: expireAt,
                 user_note: document.getElementById('generateNote').value,
                 sales_channel: document.getElementById('generateSalesChannel').value
             };
