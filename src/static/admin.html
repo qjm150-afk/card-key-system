@@ -1593,6 +1593,7 @@
                     <input type="text" class="search-input search-input-wide" id="operationLogSearchInput" placeholder="搜索操作人..." autocomplete="off">
                     <select class="filter-select" id="operationTypeFilter" onchange="searchOperationLogs()">
                         <option value="">操作类型</option>
+                        <option value="batch_generate">批量生成</option>
                         <option value="batch_update">批量修改</option>
                         <option value="batch_activate">批量激活</option>
                         <option value="batch_deactivate">批量停用</option>
@@ -4023,6 +4024,7 @@
                 'batch_deactivate': { text: '批量停用', class: 'status-danger' },
                 'batch_delete': { text: '批量删除', class: 'status-danger' },
                 'batch_update_url': { text: '更新链接', class: 'status-active' },
+                'batch_generate': { text: '批量生成', class: 'status-active' },
                 'single_update': { text: '编辑卡密', class: 'status-active' },
                 'single_delete': { text: '删除卡密', class: 'status-danger' }
             };

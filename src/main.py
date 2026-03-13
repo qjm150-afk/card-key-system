@@ -1471,11 +1471,31 @@ async def batch_generate_cards(req: BatchGenerateRequest):
         
         # 批量插入
         response = client.table('card_keys_table').insert(cards).execute()
+        generated_count = len(response.data)
+        generated_ids = [card['id'] for card in response.data]
+        
+        # 记录操作日志
+        client.table('batch_operation_logs').insert({
+            "operator": "admin",
+            "operation_type": "batch_generate",
+            "filter_conditions": {
+                "count": req.count,
+                "prefix": req.prefix,
+                "link_name": req.link_name,
+                "feishu_url": req.feishu_url,
+                "expire_at": expire_at,
+                "sales_channel": req.sales_channel
+            },
+            "affected_count": generated_count,
+            "affected_ids": generated_ids,
+            "update_fields": {},
+            "remark": f"批量生成 {generated_count} 条卡密"
+        }).execute()
         
         return {
             "success": True,
             "data": response.data,
-            "msg": f"成功生成 {len(response.data)} 个卡密"
+            "msg": f"成功生成 {generated_count} 个卡密"
         }
         
     except Exception as e:
