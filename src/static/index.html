@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>内容解锁</title>
+    <title>求职快通车 - 内容解锁</title>
     <!-- Favicon - 卡通头像 -->
     <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png">
     <link rel="icon" type="image/png" sizes="64x64" href="/static/favicon-64.png">
@@ -18,7 +18,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background-color: #FFF8F0;
+            background: linear-gradient(180deg, #FFF8F0 0%, #FFF0E5 100%);
             min-height: 100vh;
         }
 
@@ -34,7 +34,7 @@
             width: 40px;
             height: 40px;
             border: 3px solid #F5E6D3;
-            border-top-color: #D4A574;
+            border-top-color: #FF8A5C;
             border-radius: 50%;
             animation: spin 0.8s linear infinite;
         }
@@ -64,125 +64,254 @@
 
         .container {
             width: 100%;
-            max-width: 400px;
+            max-width: 420px;
         }
 
         .card {
             background: white;
-            border-radius: 24px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-            padding: 32px;
-            border: 1px solid #F5E6D3;
+            border-radius: 28px;
+            box-shadow: 0 8px 32px rgba(255, 138, 92, 0.12);
+            padding: 0;
+            border: none;
+            overflow: hidden;
         }
 
-        .icon-wrapper {
-            display: flex;
-            justify-content: center;
-            margin-bottom: 24px;
+        /* 顶部视觉区 */
+        .header-section {
+            background: linear-gradient(135deg, #FFF5EE 0%, #FFE8DC 100%);
+            padding: 40px 32px 32px;
+            text-align: center;
+            position: relative;
         }
 
-        .icon {
-            width: 64px;
-            height: 64px;
-            background-color: #D4A574;
+        .header-section::before {
+            content: '';
+            position: absolute;
+            top: -20px;
+            left: -20px;
+            width: 100px;
+            height: 100px;
+            background: radial-gradient(circle, rgba(255, 138, 92, 0.15) 0%, transparent 70%);
             border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
 
-        .icon svg {
-            width: 32px;
-            height: 32px;
-            color: white;
+        .header-section::after {
+            content: '';
+            position: absolute;
+            bottom: -30px;
+            right: -30px;
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle, rgba(45, 156, 219, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .mascot-wrapper {
+            margin-bottom: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .mascot-img {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 12px rgba(255, 138, 92, 0.2));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
         }
 
         .title {
-            font-size: 24px;
-            font-weight: bold;
-            color: #5D4E37;
-            text-align: center;
+            font-size: 26px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
             margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
         }
 
         .subtitle {
-            font-size: 14px;
-            color: #A89070;
-            text-align: center;
-            margin-bottom: 32px;
+            font-size: 15px;
+            color: #8B7355;
+            position: relative;
+            z-index: 1;
         }
 
-        .input-group {
-            margin-bottom: 16px;
+        /* 表单区域 */
+        .form-section {
+            padding: 28px 32px 32px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .input-container {
+            display: flex;
+            align-items: center;
+            background: #F8F9FA;
+            border: 1.5px solid #E0E0E0;
+            border-radius: 24px;
+            padding: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .input-container:focus-within {
+            border-color: #FF8A5C;
+            background: #FFFAF7;
+            box-shadow: 0 0 0 4px rgba(255, 138, 92, 0.1);
+        }
+
+        .input-icon {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
+            border-radius: 20px;
+            font-size: 18px;
+            flex-shrink: 0;
         }
 
         .input {
-            width: 100%;
-            height: 48px;
-            padding: 0 16px;
-            font-size: 18px;
-            text-align: center;
-            border: 2px solid #F5E6D3;
-            border-radius: 12px;
-            background-color: #FFF8F0;
+            flex: 1;
+            height: 44px;
+            padding: 0 12px;
+            font-size: 16px;
+            border: none;
+            background: transparent;
             outline: none;
-            transition: border-color 0.2s;
-        }
-
-        .input:focus {
-            border-color: #D4A574;
+            color: #5D4E37;
         }
 
         .input::placeholder {
-            color: #C4B5A0;
+            color: #A8A8A8;
         }
 
-        .hint {
-            font-size: 12px;
-            color: #A89070;
-            text-align: center;
-            margin-top: 8px;
+        .paste-btn {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #F0F0F0;
+            border: none;
+            border-radius: 20px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+        }
+
+        .paste-btn:hover {
+            background: #E8E8E8;
+            transform: scale(1.05);
+        }
+
+        .paste-btn:active {
+            transform: scale(0.95);
+        }
+
+        /* 智能提示 */
+        .smart-hint {
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #FFF9F5 0%, #FFF5EE 100%);
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 138, 92, 0.15);
+        }
+
+        .smart-hint-icon {
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-top: 1px;
+        }
+
+        .smart-hint-text {
+            font-size: 13px;
+            color: #8B7355;
+            line-height: 1.5;
         }
 
         .error-box {
             background-color: #FEF2F2;
             border: 1px solid #FECACA;
-            border-radius: 12px;
-            padding: 12px;
+            border-radius: 16px;
+            padding: 14px 16px;
             margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .error-text {
             color: #DC2626;
             font-size: 14px;
-            text-align: center;
+            flex: 1;
         }
 
+        /* 按钮样式 */
         .button {
             width: 100%;
-            height: 48px;
-            background-color: #D4A574;
+            height: 52px;
+            background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
             color: white;
-            font-size: 18px;
-            font-weight: 500;
+            font-size: 17px;
+            font-weight: 600;
             border: none;
-            border-radius: 12px;
+            border-radius: 26px;
             cursor: pointer;
-            transition: background-color 0.2s;
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 8px;
+            box-shadow: 0 4px 16px rgba(255, 138, 92, 0.35);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .button:hover::before {
+            left: 100%;
         }
 
         .button:hover {
-            background-color: #C49464;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(255, 138, 92, 0.45);
+        }
+
+        .button:active {
+            transform: translateY(0);
         }
 
         .button:disabled {
-            background-color: #D4A574;
+            background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
             opacity: 0.7;
             cursor: not-allowed;
+            transform: none;
         }
 
         .spinner {
@@ -194,24 +323,25 @@
             animation: spin 0.8s linear infinite;
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
         .footer {
-            margin-top: 32px;
-            padding-top: 24px;
-            border-top: 1px solid #F5E6D3;
-        }
-
-        .footer-text {
-            font-size: 12px;
-            color: #A89070;
+            margin-top: 24px;
             text-align: center;
         }
 
-        .footer-text + .footer-text {
-            margin-top: 4px;
+        .footer-text {
+            font-size: 13px;
+            color: #A89070;
+            line-height: 1.8;
+        }
+
+        .footer-text a {
+            color: #FF8A5C;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .footer-text a:hover {
+            text-decoration: underline;
         }
 
         /* 成功页面样式 */
@@ -437,42 +567,53 @@
     <!-- 验证页面 -->
     <div id="validatePage" class="container">
         <div class="card">
-            <div class="icon-wrapper">
-                <div class="icon">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                    </svg>
+            <!-- 顶部视觉区 -->
+            <div class="header-section">
+                <div class="mascot-wrapper">
+                    <img src="/static/mascot.png" alt="学长卡通" class="mascot-img" onerror="this.style.display='none'">
                 </div>
+                <h1 class="title">🚀 离Offer只差这一步</h1>
+                <p class="subtitle">输入卡密，解锁专属求职资源</p>
             </div>
 
-            <h1 class="title">内容解锁</h1>
-            <p class="subtitle">请输入您的专属卡密</p>
+            <!-- 表单区域 -->
+            <div class="form-section">
+                <form id="validateForm">
+                    <div class="input-wrapper">
+                        <div class="input-container">
+                            <div class="input-icon">🔑</div>
+                            <input 
+                                type="text" 
+                                id="cardKey" 
+                                class="input" 
+                                placeholder="请输入您的专属卡密"
+                                maxlength="50"
+                                autocomplete="off"
+                            >
+                            <button type="button" class="paste-btn" id="pasteBtn" title="粘贴卡密">📋</button>
+                        </div>
+                    </div>
 
-            <form id="validateForm">
-                <div class="input-group">
-                    <input 
-                        type="text" 
-                        id="cardKey" 
-                        class="input" 
-                        placeholder="CSS-XXXX-XXXX-XXXX"
-                        maxlength="18"
-                        autocomplete="off"
-                    >
-                    <p class="hint">示例: CSS-A1B2-C3D4-E5F6</p>
+                    <!-- 智能提示 -->
+                    <div class="smart-hint">
+                        <span class="smart-hint-icon">💡</span>
+                        <span class="smart-hint-text">卡密已在您下单后自动发送，若未收到请检查私信/短信</span>
+                    </div>
+
+                    <div id="errorBox" class="error-box" style="display: none;">
+                        <span>⚠️</span>
+                        <p id="errorText" class="error-text"></p>
+                    </div>
+
+                    <button type="submit" id="submitBtn" class="button">
+                        ⚡ 立即解锁 · 抢占春招先机
+                    </button>
+                </form>
+
+                <div class="footer">
+                    <p class="footer-text">验证通过后可访问专属内容</p>
+                    <p class="footer-text">如需帮助请<a href="javascript:void(0)">联系客服</a></p>
                 </div>
-
-                <div id="errorBox" class="error-box" style="display: none;">
-                    <p id="errorText" class="error-text"></p>
-                </div>
-
-                <button type="submit" id="submitBtn" class="button">
-                    立即解锁
-                </button>
-            </form>
-
-            <div class="footer">
-                <p class="footer-text">验证通过后可访问专属内容</p>
-                <p class="footer-text">如需帮助请联系客服</p>
             </div>
         </div>
     </div>
@@ -867,6 +1008,26 @@
             // 其他格式的卡密保持原样（只转大写）
         });
 
+        // 粘贴按钮功能
+        const pasteBtn = document.getElementById('pasteBtn');
+        if (pasteBtn) {
+            pasteBtn.addEventListener('click', async function() {
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text) {
+                        cardKeyInput.value = text.toUpperCase();
+                        // 触发 input 事件以应用格式化
+                        cardKeyInput.dispatchEvent(new Event('input'));
+                        cardKeyInput.focus();
+                    }
+                } catch (err) {
+                    // 如果无法访问剪贴板，尝试使用旧方法
+                    cardKeyInput.focus();
+                    document.execCommand('paste');
+                }
+            });
+        }
+
         // 显示错误
         function showError(message) {
             errorText.textContent = message;
@@ -884,7 +1045,7 @@
             if (loading) {
                 submitBtn.innerHTML = '<div class="spinner"></div>验证中...';
             } else {
-                submitBtn.innerHTML = '立即解锁';
+                submitBtn.innerHTML = '⚡ 立即解锁 · 抢占春招先机';
             }
         }
 
