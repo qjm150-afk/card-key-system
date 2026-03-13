@@ -1414,11 +1414,15 @@
                 </div>
                 <div class="stat-card">
                     <h3>有效卡密</h3>
-                    <div class="value" id="statActive">0</div>
+                    <div class="value" id="statValid">0</div>
                 </div>
                 <div class="stat-card">
-                    <h3>已绑定设备</h3>
-                    <div class="value" id="statUsed">0</div>
+                    <h3>已激活</h3>
+                    <div class="value" id="statActivated">0</div>
+                </div>
+                <div class="stat-card">
+                    <h3>已停用</h3>
+                    <div class="value" id="statDisabled">0</div>
                 </div>
             </div>
 
@@ -2466,22 +2470,31 @@
                     const allCards = result.data || [];
                     const total = result.total || 0;
                     
-                    // 有效卡密：status=1
-                    const activeCards = allCards.filter(c => c.status === 1);
+                    // 有效卡密：status=1 且销售状态正常（非退款/纠纷）
+                    const validCards = allCards.filter(c => 
+                        c.status === 1 && !['refunded', 'disputed'].includes(c.sale_status)
+                    );
                     
-                    // 已绑定设备的卡密：devices不为空数组
-                    const boundCards = allCards.filter(c => {
+                    // 已激活：status=1 且已使用过（有绑定设备或used_count>0）且销售状态正常
+                    const activatedCards = allCards.filter(c => {
+                        if (c.status !== 1 || ['refunded', 'disputed'].includes(c.sale_status)) return false;
                         try {
                             const devices = JSON.parse(c.devices || '[]');
-                            return devices.length > 0;
+                            return devices.length > 0 || (c.used_count && c.used_count > 0);
                         } catch {
-                            return false;
+                            return c.used_count && c.used_count > 0;
                         }
                     });
                     
+                    // 已停用：status=0 或 销售状态为退款/纠纷
+                    const disabledCards = allCards.filter(c => 
+                        c.status === 0 || ['refunded', 'disputed'].includes(c.sale_status)
+                    );
+                    
                     document.getElementById('statTotal').textContent = total;
-                    document.getElementById('statActive').textContent = activeCards.length;
-                    document.getElementById('statUsed').textContent = boundCards.length;
+                    document.getElementById('statValid').textContent = validCards.length;
+                    document.getElementById('statActivated').textContent = activatedCards.length;
+                    document.getElementById('statDisabled').textContent = disabledCards.length;
                 }
             } catch (error) {
                 console.error('加载统计失败:', error);
