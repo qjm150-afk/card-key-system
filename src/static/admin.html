@@ -2105,43 +2105,46 @@
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>选择导出字段 <span style="color: #999; font-size: 12px;">（至少选择一个）</span></label>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label style="margin: 0;">选择导出字段 <span style="color: #999; font-size: 12px;">（至少选择一个）</span></label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: #ff7b00;">
+                            <input type="checkbox" id="exportSelectAllFields" onchange="toggleExportSelectAll()">
+                            <span>全选</span>
+                        </label>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                        <!-- 按列表字段顺序排列 -->
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="key_value" checked>
                             <span>卡密值</span>
-                        </label>
-                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="feishu_password" checked>
-                            <span>访问密码</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="status">
                             <span>激活状态</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="sale_status">
-                            <span>销售状态</span>
-                        </label>
-                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="feishu_url">
-                            <span>飞书链接</span>
-                        </label>
-                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="link_name">
-                            <span>链接名称</span>
+                            <input type="checkbox" class="export-field-checkbox" value="devices">
+                            <span>绑定设备</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="expire_at">
                             <span>过期时间</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="devices">
-                            <span>绑定设备</span>
+                            <input type="checkbox" class="export-field-checkbox" value="user_note">
+                            <span>备注</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="max_devices">
-                            <span>最大设备数</span>
+                            <input type="checkbox" class="export-field-checkbox" value="link_name">
+                            <span>链接名称</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="bstudio_create_time">
+                            <span>创建时间</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="sale_status">
+                            <span>销售状态</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="sales_channel">
@@ -2151,13 +2154,18 @@
                             <input type="checkbox" class="export-field-checkbox" value="order_id">
                             <span>订单号</span>
                         </label>
+                        <!-- 额外字段 -->
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="user_note">
-                            <span>备注</span>
+                            <input type="checkbox" class="export-field-checkbox" value="feishu_password" checked>
+                            <span>访问密码</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" class="export-field-checkbox" value="bstudio_create_time">
-                            <span>创建时间</span>
+                            <input type="checkbox" class="export-field-checkbox" value="feishu_url">
+                            <span>飞书链接</span>
+                        </label>
+                        <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" class="export-field-checkbox" value="max_devices">
+                            <span>最大设备数</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="last_used_at">
@@ -3263,6 +3271,15 @@
             }
         }
 
+        // 导出卡密 - 全选/取消全选字段
+        function toggleExportSelectAll() {
+            const selectAllCheckbox = document.getElementById('exportSelectAllFields');
+            const checkboxes = document.querySelectorAll('.export-field-checkbox');
+            checkboxes.forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+        }
+
         // 导出卡密 - 打开模态框
         function exportCards() {
             // 显示导出范围信息
@@ -3277,6 +3294,9 @@
             document.querySelectorAll('.export-field-checkbox').forEach(cb => {
                 cb.checked = (cb.value === 'key_value' || cb.value === 'feishu_password');
             });
+            
+            // 重置全选状态
+            document.getElementById('exportSelectAllFields').checked = false;
             
             // 重置格式选择
             document.getElementById('exportFormat').value = 'csv';

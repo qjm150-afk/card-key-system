@@ -1108,21 +1108,21 @@ async def export_cards(
     try:
         client = get_supabase_client()
         
-        # 定义所有可导出的字段及其显示名称
+        # 定义所有可导出的字段及其显示名称（按列表字段顺序排列）
         field_config = {
             'key_value': {'db_field': 'key_value', 'label': '卡密值'},
-            'feishu_password': {'db_field': 'feishu_password', 'label': '访问密码'},
             'status': {'db_field': 'status', 'label': '激活状态'},
-            'sale_status': {'db_field': 'sale_status', 'label': '销售状态'},
-            'feishu_url': {'db_field': 'feishu_url', 'label': '飞书链接'},
-            'link_name': {'db_field': 'link_name', 'label': '链接名称'},
-            'expire_at': {'db_field': 'expire_at', 'label': '过期时间'},
             'devices': {'db_field': 'devices', 'label': '绑定设备'},
-            'max_devices': {'db_field': 'max_devices', 'label': '最大设备数'},
+            'expire_at': {'db_field': 'expire_at', 'label': '过期时间'},
+            'user_note': {'db_field': 'user_note', 'label': '备注'},
+            'link_name': {'db_field': 'link_name', 'label': '链接名称'},
+            'bstudio_create_time': {'db_field': 'bstudio_create_time', 'label': '创建时间'},
+            'sale_status': {'db_field': 'sale_status', 'label': '销售状态'},
             'sales_channel': {'db_field': 'sales_channel', 'label': '销售渠道'},
             'order_id': {'db_field': 'order_id', 'label': '订单号'},
-            'user_note': {'db_field': 'user_note', 'label': '备注'},
-            'bstudio_create_time': {'db_field': 'bstudio_create_time', 'label': '创建时间'},
+            'feishu_password': {'db_field': 'feishu_password', 'label': '访问密码'},
+            'feishu_url': {'db_field': 'feishu_url', 'label': '飞书链接'},
+            'max_devices': {'db_field': 'max_devices', 'label': '最大设备数'},
             'last_used_at': {'db_field': 'last_used_at', 'label': '最后使用时间'}
         }
         
