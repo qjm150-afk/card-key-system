@@ -59,6 +59,7 @@ class SQLiteClient:
                     status INTEGER DEFAULT 1,
                     feishu_url TEXT,
                     feishu_password TEXT,
+                    link_name TEXT,
                     expire_at TEXT,
                     max_uses INTEGER DEFAULT 1,
                     used_count INTEGER DEFAULT 0,

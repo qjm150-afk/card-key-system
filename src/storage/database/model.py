@@ -26,6 +26,7 @@ class CardKey(Base):
     # 飞书内容
     feishu_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="飞书链接")
     feishu_password: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="飞书访问密码")
+    link_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="链接名称")
     
     # 过期与使用限制
     expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="过期时间")

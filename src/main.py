@@ -71,6 +71,7 @@ class CardKeyCreate(BaseModel):
     user_note: Optional[str] = ""
     feishu_url: Optional[str] = ""
     feishu_password: Optional[str] = ""
+    link_name: Optional[str] = ""
     expire_days: Optional[int] = None  # 有效期天数
     max_uses: int = 1  # 最大使用次数
 
@@ -82,6 +83,7 @@ class CardKeyUpdate(BaseModel):
     user_note: Optional[str] = None
     feishu_url: Optional[str] = None
     feishu_password: Optional[str] = None
+    link_name: Optional[str] = None
     expire_at: Optional[str] = None
     max_uses: Optional[int] = None
     sale_status: Optional[str] = None  # 销售状态
@@ -95,6 +97,7 @@ class BatchGenerateRequest(BaseModel):
     prefix: str = "CSS"  # 卡密前缀
     feishu_url: str = ""  # 飞书链接
     feishu_password: str = ""  # 飞书密码
+    link_name: str = ""  # 链接名称
     expire_at: Optional[str] = None  # 过期时间（ISO格式）
     max_uses: int = 1  # 最大使用次数
     user_note: str = ""  # 备注
@@ -705,6 +708,9 @@ async def batch_update_cards(request: BatchUpdateRequest):
         if 'feishu_password' in updates:
             update_data['feishu_password'] = updates['feishu_password'] or ''
         
+        if 'link_name' in updates:
+            update_data['link_name'] = updates['link_name'] or ''
+        
         if 'expire_at' in updates:
             update_data['expire_at'] = updates['expire_at'] or None
         
@@ -1013,17 +1019,24 @@ async def get_feishu_urls():
     try:
         client = get_supabase_client()
         
-        # 获取所有记录的飞书链接
-        response = client.table('card_keys_table').select('feishu_url').execute()
+        # 获取所有记录的飞书链接和链接名称
+        response = client.table('card_keys_table').select('feishu_url,link_name').execute()
         
-        # 统计每个链接的数量
-        url_count = {}
+        # 统计每个链接的数量和名称
+        url_info = {}
         for item in response.data:
-            url = item.get('feishu_url') or '(空)'
-            url_count[url] = url_count.get(url, 0) + 1
+            url = item.get('feishu_url') or ''
+            name = item.get('link_name') or ''
+            key = url if url else '(空)'
+            if key not in url_info:
+                url_info[key] = {"url": url, "name": name, "count": 0}
+            url_info[key]["count"] += 1
+            # 如果有名称，更新名称
+            if name and not url_info[key]["name"]:
+                url_info[key]["name"] = name
         
         # 转换为列表并按数量排序
-        urls = [{"url": k, "count": v} for k, v in url_count.items()]
+        urls = list(url_info.values())
         urls.sort(key=lambda x: x['count'], reverse=True)
         
         return {"success": True, "data": urls}
@@ -1387,6 +1400,7 @@ async def create_card_key(card: CardKeyCreate):
             "user_note": card.user_note or "",
             "feishu_url": card.feishu_url or "",
             "feishu_password": card.feishu_password or "",
+            "link_name": card.link_name or "",
             "sys_platform": "卡密系统",
             "uuid": str(uuid.uuid4()),
             "bstudio_create_time": datetime.now().isoformat(),
@@ -1438,6 +1452,7 @@ async def batch_generate_cards(req: BatchGenerateRequest):
                 "user_note": req.user_note,
                 "feishu_url": req.feishu_url,
                 "feishu_password": req.feishu_password,
+                "link_name": req.link_name,
                 "sys_platform": "卡密系统",
                 "uuid": str(uuid.uuid4()),
                 "bstudio_create_time": datetime.now().isoformat(),
@@ -1481,6 +1496,8 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
             update_data["feishu_url"] = card.feishu_url
         if card.feishu_password is not None:
             update_data["feishu_password"] = card.feishu_password
+        if card.link_name is not None:
+            update_data["link_name"] = card.link_name
         if card.expire_at is not None:
             update_data["expire_at"] = card.expire_at
         if card.max_uses is not None:

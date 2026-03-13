@@ -1461,7 +1461,7 @@
                         <option value="permanent">永久有效</option>
                     </select>
                     <select class="filter-select" id="feishuUrlFilter" onchange="searchCards()">
-                        <option value="">飞书链接</option>
+                        <option value="">链接名称</option>
                     </select>
                 </div>
                 <div class="filter-row filter-row-second">
@@ -1513,7 +1513,7 @@
                                 <th>绑定设备</th>
                                 <th>过期时间</th>
                                 <th>备注</th>
-                                <th class="col-narrow">飞书链接</th>
+                                <th>链接名称</th>
                                 <th>创建时间</th>
                                 <th>销售状态</th>
                                 <th>销售渠道</th>
@@ -1790,6 +1790,10 @@
                         <input type="text" class="form-input" id="userNote" placeholder="可选备注">
                     </div>
                     <div class="form-group">
+                        <label>链接名称</label>
+                        <input type="text" class="form-input" id="linkName" placeholder="如：春招信息汇总表">
+                    </div>
+                    <div class="form-group">
                         <label>飞书链接</label>
                         <input type="text" class="form-input" id="feishuUrl" placeholder="https://...">
                     </div>
@@ -1834,7 +1838,11 @@
                         <input type="text" class="form-input" id="generateSalesChannel" list="salesChannelList" placeholder="选择或输入渠道名称">
                     </div>
                     <div class="form-group">
-                        <label>飞书链接（所有卡密共用）</label>
+                        <label>链接名称</label>
+                        <input type="text" class="form-input" id="generateLinkName" placeholder="如：春招信息汇总表">
+                    </div>
+                    <div class="form-group">
+                        <label>飞书链接</label>
                         <input type="text" class="form-input" id="generateFeishuUrl" placeholder="https://...">
                     </div>
                     <div class="form-group">
@@ -1941,6 +1949,13 @@
                         <span class="update-field-label">飞书链接</span>
                         <div class="update-field-input">
                             <input type="text" id="updateValueFeishuUrl" placeholder="输入新的飞书链接" disabled>
+                        </div>
+                    </div>
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldLinkName" onchange="toggleUpdateField('link_name')">
+                        <span class="update-field-label">链接名称</span>
+                        <div class="update-field-input">
+                            <input type="text" id="updateValueLinkName" placeholder="输入新的链接名称" disabled>
                         </div>
                     </div>
                     <div class="update-field-row">
@@ -2346,15 +2361,15 @@
                     const currentValue = select.value;
                     
                     // 保留第一个option
-                    select.innerHTML = '<option value="">飞书链接</option>';
+                    select.innerHTML = '<option value="">链接名称</option>';
                     
                     result.data.forEach(item => {
                         const option = document.createElement('option');
                         option.value = item.url;
-                        // 截断过长的URL显示
-                        const displayUrl = item.url.length > 40 ? item.url.substring(0, 40) + '...' : item.url;
-                        option.textContent = `${displayUrl} (${item.count}条)`;
-                        option.title = item.url; // 鼠标悬停显示完整URL
+                        // 显示链接名称，如果没有名称则显示URL前20字符
+                        let displayName = item.name || (item.url ? item.url.substring(0, 20) + '...' : '未设置');
+                        option.textContent = `${displayName} (${item.count}条)`;
+                        option.title = item.url || '无链接'; // 鼠标悬停显示完整URL
                         select.appendChild(option);
                     });
                     
@@ -2362,7 +2377,7 @@
                     if (currentValue) select.value = currentValue;
                 }
             } catch (error) {
-                console.error('加载飞书链接列表失败:', error);
+                console.error('加载链接名称列表失败:', error);
             }
         }
 
@@ -2551,9 +2566,10 @@
                     deviceCount = devices.length;
                 } catch (e) {}
                 
-                // 截断显示飞书链接
+                // 显示链接名称（优先显示名称，否则显示"有链接"或"-"）
+                const linkName = card.link_name || '';
                 const feishuUrl = card.feishu_url || '';
-                const feishuUrlDisplay = feishuUrl.length > 25 ? feishuUrl.substring(0, 25) + '...' : feishuUrl || '-';
+                const linkNameDisplay = linkName || (feishuUrl ? '有链接' : '-');
                 
                 // 截断显示订单号
                 const orderId = card.order_id || '';
@@ -2577,7 +2593,7 @@
                     <td>${deviceCount} / ${card.max_devices || 5} 台</td>
                     <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
                     <td>${card.user_note || '-'}</td>
-                    <td class="col-narrow" title="${feishuUrl}">${feishuUrlDisplay}</td>
+                    <td title="${feishuUrl}">${linkNameDisplay}</td>
                     <td class="text-small">${formatDate(card.bstudio_create_time)}</td>
                     <td>
                         <span class="status-badge ${saleStatusClass}">${saleStatusText}</span>
@@ -2789,6 +2805,7 @@
                     document.getElementById('salesChannel').value = card.sales_channel || '';
                     document.getElementById('orderId').value = card.order_id || '';
                     document.getElementById('userNote').value = card.user_note || '';
+                    document.getElementById('linkName').value = card.link_name || '';
                     document.getElementById('feishuUrl').value = card.feishu_url || '';
                     document.getElementById('feishuPassword').value = card.feishu_password || '';
                     
@@ -2822,6 +2839,7 @@
                 sales_channel: document.getElementById('salesChannel').value,
                 order_id: document.getElementById('orderId').value || null,
                 user_note: document.getElementById('userNote').value,
+                link_name: document.getElementById('linkName').value,
                 feishu_url: document.getElementById('feishuUrl').value,
                 feishu_password: document.getElementById('feishuPassword').value
             };
@@ -2875,6 +2893,7 @@
             const data = {
                 count: parseInt(document.getElementById('generateCount').value) || 10,
                 prefix: document.getElementById('generatePrefix').value || 'CSS',
+                link_name: document.getElementById('generateLinkName').value,
                 feishu_url: document.getElementById('generateFeishuUrl').value,
                 feishu_password: document.getElementById('generateFeishuPassword').value,
                 expire_at: expireAt,
@@ -3663,6 +3682,7 @@
                 'status': 'updateFieldStatus',
                 'sale_status': 'updateFieldSaleStatus',
                 'feishu_url': 'updateFieldFeishuUrl',
+                'link_name': 'updateFieldLinkName',
                 'user_note': 'updateFieldUserNote',
                 'sales_channel': 'updateFieldSalesChannel'
             };
@@ -3671,6 +3691,7 @@
                 'status': 'updateValueStatus',
                 'sale_status': 'updateValueSaleStatus',
                 'feishu_url': 'updateValueFeishuUrl',
+                'link_name': 'updateValueLinkName',
                 'user_note': 'updateValueUserNote',
                 'sales_channel': 'updateValueSalesChannel'
             };
@@ -3679,6 +3700,7 @@
                 'status': '激活状态',
                 'sale_status': '销售状态',
                 'feishu_url': '飞书链接',
+                'link_name': '链接名称',
                 'user_note': '备注',
                 'sales_channel': '销售渠道'
             };
