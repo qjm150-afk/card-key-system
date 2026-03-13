@@ -3756,90 +3756,31 @@
         // ==================== 批量修改功能 ====================
         
         let batchUpdateData = {
-            filters: {},
+            ids: [],
             updates: {},
             affectedCount: 0
         };
 
         // 打开批量修改弹窗
         async function openBatchUpdateModal() {
-            // 收集当前筛选条件
-            const search = document.getElementById('searchInput').value;
-            const activateStatus = document.getElementById('statusFilter').value;
-            const feishuUrl = document.getElementById('feishuUrlFilter').value;
-            const deviceFilter = document.getElementById('deviceFilter').value;
-            const expireDays = document.getElementById('expireDaysFilter').value;
-            const createdStart = document.getElementById('createdStart').value;
-            const createdEnd = document.getElementById('createdEnd').value;
-            const saleStatus = document.getElementById('saleStatusFilter').value;
-            
-            batchUpdateData.filters = {
-                search,
-                activate_status: activateStatus,
-                feishu_url: feishuUrl,
-                device_filter: deviceFilter,
-                expire_days: expireDays,
-                created_start: createdStart,
-                created_end: createdEnd,
-                sale_status: saleStatus
-            };
-            
-            // 生成筛选条件摘要
-            let summaryHtml = '';
-            if (activateStatus) {
-                const statusTextMap = { valid: '有效', activated: '已激活', disabled: '已停用' };
-                summaryHtml += `<div class="filter-summary-item">激活状态: ${statusTextMap[activateStatus] || activateStatus}</div>`;
-            }
-            if (saleStatus) {
-                const saleStatusText = { unsold: '未售出', sold: '已售出', refunded: '已退款', disputed: '有纠纷' };
-                summaryHtml += `<div class="filter-summary-item">销售状态: ${saleStatusText[saleStatus] || saleStatus}</div>`;
-            }
-            if (feishuUrl) {
-                // 获取选中项的文本（显示名称而非URL）
-                const selectedOption = document.getElementById('feishuUrlFilter').selectedOptions[0];
-                const displayText = selectedOption ? selectedOption.textContent.split(' (')[0] : feishuUrl.substring(0, 30);
-                summaryHtml += `<div class="filter-summary-item">链接名称: ${displayText}</div>`;
-            }
-            if (deviceFilter) {
-                summaryHtml += `<div class="filter-summary-item">绑定设备: ${deviceFilter} 台</div>`;
-            }
-            if (expireDays) {
-                const expireText = { expired: '已过期', permanent: '永久有效' };
-                const label = expireText[expireDays] || `未来${expireDays}天`;
-                summaryHtml += `<div class="filter-summary-item">过期时间: ${label}</div>`;
-            }
-            if (search) summaryHtml += `<div class="filter-summary-item">搜索: ${search}</div>`;
-            if (createdStart || createdEnd) summaryHtml += `<div class="filter-summary-item">创建时间: ${createdStart || '...'} 至 ${createdEnd || '...'}</div>`;
-            
-            if (!summaryHtml) {
-                summaryHtml = '<div class="filter-summary-item">无筛选条件（将影响全部记录）</div>';
-            }
-            
-            document.getElementById('batchUpdateFilterSummary').innerHTML = summaryHtml;
-            
-            // 获取符合条件的记录数
-            try {
-                const params = new URLSearchParams();
-                if (activateStatus) params.append('activate_status', activateStatus);
-                if (saleStatus) params.append('sale_status', saleStatus);
-                if (feishuUrl) params.append('feishu_url', feishuUrl);
-                if (deviceFilter) params.append('device_filter', deviceFilter);
-                if (expireDays) params.append('expire_days', expireDays);
-                if (search) params.append('search', search);
-                if (createdStart) params.append('created_start', createdStart);
-                if (createdEnd) params.append('created_end', createdEnd);
-                
-                const response = await fetch(`/api/admin/cards/count-by-filters?${params}`);
-                const result = await response.json();
-                
-                if (result.success) {
-                    batchUpdateData.affectedCount = result.count;
-                    document.getElementById('batchUpdateAffectedCount').textContent = result.count;
-                }
-            } catch (error) {
-                showToast('获取记录数失败', 'error');
+            // 检查是否有选中的卡密
+            if (selectedIds.size === 0) {
+                showToast('请先勾选要修改的卡密', 'error');
                 return;
             }
+            
+            // 使用选中的ID列表
+            batchUpdateData.ids = Array.from(selectedIds);
+            batchUpdateData.affectedCount = selectedIds.size;
+            
+            // 显示选中的记录数
+            document.getElementById('batchUpdateAffectedCount').textContent = selectedIds.size;
+            
+            // 显示提示信息（基于选中的卡密）
+            document.getElementById('batchUpdateFilterSummary').innerHTML = 
+                `<div class="filter-summary-item" style="color: #ff7b00; font-weight: 500;">
+                    📋 已选中 ${selectedIds.size} 条卡密进行批量修改
+                </div>`;
             
             // 重置表单
             document.querySelectorAll('.update-field-checkbox').forEach(cb => cb.checked = false);
@@ -3958,7 +3899,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        filters: batchUpdateData.filters,
+                        ids: batchUpdateData.ids,
                         updates: updatePayload,
                         remark: remark
                     })
@@ -3969,6 +3910,12 @@
                 if (result.success) {
                     closeBatchUpdateConfirm();
                     showToast(result.msg, 'success');
+                    // 清空选中状态
+                    selectedIds.clear();
+                    updateSelectedInfo();
+                    // 更新全选复选框状态
+                    const selectAllCheckbox = document.getElementById('selectAll');
+                    if (selectAllCheckbox) selectAllCheckbox.checked = false;
                     loadCards();
                     loadStats();
                 } else {
