@@ -1,6 +1,8 @@
 -- 数据分析功能数据库迁移脚本
 -- 为 access_logs 表添加行为数据采集字段
 -- 请在 Supabase 控制台的 SQL Editor 中执行此脚本
+-- 
+-- 注意：根据《个人信息保护法》合规要求，不再收集IP地址相关数据
 
 -- 添加访问日期字段（用于按日期统计）
 ALTER TABLE access_logs 
@@ -13,10 +15,6 @@ ADD COLUMN IF NOT EXISTS access_hour INTEGER;
 -- 添加设备类型字段（用于设备分布分析）
 ALTER TABLE access_logs 
 ADD COLUMN IF NOT EXISTS device_type VARCHAR(20);
-
--- 添加IP省份字段（用于地域分布分析，已脱敏）
-ALTER TABLE access_logs 
-ADD COLUMN IF NOT EXISTS ip_province VARCHAR(50);
 
 -- 添加是否首次访问字段（用于新用户分析）
 ALTER TABLE access_logs 
@@ -38,7 +36,6 @@ ADD COLUMN IF NOT EXISTS content_loaded BOOLEAN;
 CREATE INDEX IF NOT EXISTS idx_access_logs_access_date ON access_logs(access_date);
 CREATE INDEX IF NOT EXISTS idx_access_logs_access_hour ON access_logs(access_hour);
 CREATE INDEX IF NOT EXISTS idx_access_logs_device_type ON access_logs(device_type);
-CREATE INDEX IF NOT EXISTS idx_access_logs_ip_province ON access_logs(ip_province);
 CREATE INDEX IF NOT EXISTS idx_access_logs_sales_channel ON access_logs(sales_channel);
 CREATE INDEX IF NOT EXISTS idx_access_logs_is_first_access ON access_logs(is_first_access);
 
@@ -46,7 +43,6 @@ CREATE INDEX IF NOT EXISTS idx_access_logs_is_first_access ON access_logs(is_fir
 COMMENT ON COLUMN access_logs.access_date IS '访问日期，用于按日期统计';
 COMMENT ON COLUMN access_logs.access_hour IS '访问小时（0-23），用于时段分析';
 COMMENT ON COLUMN access_logs.device_type IS '设备类型：PC/Mobile/Tablet';
-COMMENT ON COLUMN access_logs.ip_province IS 'IP所属省份（已脱敏），用于地域分布分析';
 COMMENT ON COLUMN access_logs.is_first_access IS '是否首次访问该卡密';
 COMMENT ON COLUMN access_logs.sales_channel IS '销售渠道';
 COMMENT ON COLUMN access_logs.session_duration IS '会话停留时长（秒）';

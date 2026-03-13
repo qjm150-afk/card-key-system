@@ -1053,36 +1053,6 @@
             font-size: 14px;
         }
 
-        /* 地域表格 */
-        .province-table table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .province-table th, .province-table td {
-            padding: 12px 16px;
-            text-align: left;
-            border-bottom: 1px solid #f5f0e8;
-        }
-
-        .province-table th {
-            color: #A89070;
-            font-weight: 500;
-            font-size: 13px;
-        }
-
-        .province-table td {
-            color: #5D4E37;
-            font-size: 14px;
-        }
-
-        .province-bar {
-            height: 8px;
-            background: linear-gradient(90deg, #8B7355 0%, #5D4E37 100%);
-            border-radius: 4px;
-            max-width: 200px;
-        }
-
         /* 响应式 */
         @media (max-width: 768px) {
             .analytics-grid {
@@ -1826,25 +1796,6 @@
                     <span class="heatmap-legend-item" style="background: #5D4E37;">多</span>
                 </div>
             </div>
-
-            <!-- 地域分布 -->
-            <div class="analytics-section">
-                <h3 class="section-title">🗺️ 地域分布（省级）</h3>
-                <div class="province-table">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>省份</th>
-                                <th>访问量</th>
-                                <th>占比</th>
-                            </tr>
-                        </thead>
-                        <tbody id="provinceTableBody">
-                            <tr><td colspan="3" class="text-center" style="color: #A89070; padding: 20px;">暂无地域数据</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -2241,25 +2192,20 @@
             const startDate = document.getElementById('analyticsStartDate').value;
             const endDate = document.getElementById('analyticsEndDate').value;
             
-            // 并行加载所有数据
-            const [overviewRes, channelsRes, provincesRes] = await Promise.all([
+            // 并行加载数据
+            const [overviewRes, channelsRes] = await Promise.all([
                 fetch(`/api/admin/analytics/overview?start_date=${startDate}&end_date=${endDate}`),
-                fetch(`/api/admin/analytics/channels?start_date=${startDate}&end_date=${endDate}`),
-                fetch(`/api/admin/analytics/provinces?start_date=${startDate}&end_date=${endDate}`)
+                fetch(`/api/admin/analytics/channels?start_date=${startDate}&end_date=${endDate}`)
             ]);
             
             const overview = await overviewRes.json();
             const channels = await channelsRes.json();
-            const provinces = await provincesRes.json();
             
             // 渲染概览
             renderAnalyticsOverview(overview.data);
             
             // 渲染渠道分析
             renderChannelAnalysis(channels.data);
-            
-            // 渲染地域分布
-            renderProvinceAnalysis(provinces.data);
         }
         
         // 渲染概览统计
@@ -2434,37 +2380,6 @@
             if (intensity < 0.5) return '#d4c4a8';
             if (intensity < 0.75) return '#8B7355';
             return '#5D4E37';
-        }
-        
-        // 渲染地域分布
-        function renderProvinceAnalysis(data) {
-            const tableBody = document.getElementById('provinceTableBody');
-            
-            if (!data || data.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="3" class="text-center" style="color: #A89070; padding: 20px;">暂无地域数据</td></tr>';
-                return;
-            }
-            
-            const total = data.reduce((sum, p) => sum + p.visits, 0);
-            const maxVisits = Math.max(...data.map(d => d.visits));
-            
-            tableBody.innerHTML = data.map(province => {
-                const barWidth = maxVisits > 0 ? (province.visits / maxVisits * 100) : 0;
-                const percentage = total > 0 ? (province.visits / total * 100).toFixed(1) : 0;
-                
-                return `
-                    <tr>
-                        <td>${province.province}</td>
-                        <td>
-                            <div style="display: flex; align-items: center; gap: 12px;">
-                                <div class="province-bar" style="width: ${barWidth}%;"></div>
-                                <strong>${province.visits}</strong>
-                            </div>
-                        </td>
-                        <td>${percentage}%</td>
-                    </tr>
-                `;
-            }).join('');
         }
 
         // 加载统计

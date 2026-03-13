@@ -1843,59 +1843,6 @@ async def get_analytics_channels(
         return {"success": False, "msg": str(e)}
 
 
-@app.get("/api/admin/analytics/provinces")
-async def get_analytics_provinces(
-    start_date: Optional[str] = None,
-    end_date: Optional[str] = None
-):
-    """获取地域分布分析（省级别）
-    
-    注意：完整统计需要先执行数据库迁移脚本 src/migrations/001_add_analytics_fields.sql
-    如果新字段不存在，会使用 access_time 字段进行基础统计
-    """
-    try:
-        client = get_supabase_client()
-        
-        # 默认最近7天
-        if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
-        if not start_date:
-            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
-        
-        # 尝试使用 access_date 字段查询（新字段）
-        try:
-            logs_response = client.table('access_logs').select('*').gte('access_date', start_date).lte('access_date', end_date).execute()
-            logs = logs_response.data or []
-        except Exception:
-            # 如果 access_date 字段不存在，使用 access_time 字段
-            logger.warning("access_date 字段不存在，使用 access_time 字段进行日期过滤")
-            start_datetime = f"{start_date}T00:00:00"
-            end_datetime = f"{end_date}T23:59:59"
-            logs_response = client.table('access_logs').select('*').gte('access_time', start_datetime).lte('access_time', end_datetime).execute()
-            logs = logs_response.data or []
-        
-        # 按省份分组统计
-        province_stats = {}
-        for log in logs:
-            province = log.get('ip_province') or '未知'
-            if province not in province_stats:
-                province_stats[province] = 0
-            province_stats[province] += 1
-        
-        # 转换为列表并排序
-        result = [{'province': k, 'visits': v} for k, v in province_stats.items()]
-        result.sort(key=lambda x: x['visits'], reverse=True)
-        
-        return {
-            "success": True,
-            "data": result[:20]  # 返回前20个省份
-        }
-        
-    except Exception as e:
-        logger.error(f"获取地域分析失败: {str(e)}")
-        return {"success": False, "msg": str(e)}
-
-
 @app.get("/api/admin/check-auth")
 async def check_auth(request: Request):
     """检查登录状态"""
