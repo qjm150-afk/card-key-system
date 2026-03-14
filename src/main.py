@@ -3187,13 +3187,18 @@ async def check_single_link_api(request: Request):
 
 async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str, db_client) -> dict:
     """检测单个链接的健康状态"""
+    # 使用带时区的时间格式，确保前端正确解析
+    from datetime import timezone
+    beijing_tz = timezone(timedelta(hours=8))
+    now = datetime.now(beijing_tz)
+    
     result = {
         'url': url,
         'name': name,
         'status': 'unknown',
         'http_code': None,
         'error_message': None,
-        'check_time': datetime.now().isoformat()
+        'check_time': now.isoformat()
     }
     
     try:
@@ -3259,7 +3264,6 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
         # 检查记录是否存在
         existing = db_client.table('link_health_table').select('id').eq('feishu_url', url).execute()
         
-        now = datetime.now()
         next_check = now + timedelta(hours=24)  # 24小时后再检测
         
         if existing.data and len(existing.data) > 0:
