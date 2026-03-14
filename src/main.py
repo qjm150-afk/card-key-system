@@ -49,6 +49,61 @@ app.add_middleware(
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
+# ==================== 权限验证中间件 ====================
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import JSONResponse
+
+class AdminAuthMiddleware(BaseHTTPMiddleware):
+    """管理员权限验证中间件"""
+    
+    # 不需要验证的路径
+    PUBLIC_PATHS = [
+        "/api/admin/login",
+        "/api/admin/logout",
+        "/api/admin/check-auth",
+        "/api/validate",
+        "/api/online-users",
+        "/health",
+    ]
+    
+    async def dispatch(self, request, call_next):
+        path = request.url.path
+        
+        # 检查是否是需要验证的admin API
+        if path.startswith("/api/admin") and path not in self.PUBLIC_PATHS:
+            # 获取token
+            token = None
+            
+            # 从 Authorization header 获取
+            auth_header = request.headers.get("Authorization", "")
+            if auth_header.startswith("Bearer "):
+                token = auth_header[7:]
+            
+            # 从 cookie 获取
+            if not token:
+                token = request.cookies.get("admin_token")
+            
+            # 验证token
+            if not token or token not in VALID_TOKENS:
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "未授权访问，请先登录"}
+                )
+            
+            # 检查token是否过期
+            if datetime.now() > VALID_TOKENS[token]:
+                del VALID_TOKENS[token]
+                return JSONResponse(
+                    status_code=401,
+                    content={"detail": "登录已过期，请重新登录"}
+                )
+        
+        return await call_next(request)
+
+# 添加中间件
+app.add_middleware(AdminAuthMiddleware)
+
+
 # ==================== API 模型 ====================
 
 class ValidateRequest(BaseModel):
@@ -165,6 +220,28 @@ def get_token_from_request(request: Request) -> str:
         return auth_header[7:]
     # 从 cookie 获取
     return request.cookies.get("admin_token", "")
+
+
+from fastapi import Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+# HTTP Bearer 安全方案
+security = HTTPBearer(auto_error=False)
+
+
+async def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security), request: Request = None):
+    """验证管理员权限的依赖项"""
+    # 首先尝试从 Authorization header 获取
+    token = None
+    if credentials:
+        token = credentials.credentials
+    # 如果没有，尝试从 cookie 获取
+    if not token and request:
+        token = request.cookies.get("admin_token")
+    
+    if not verify_token(token):
+        raise HTTPException(status_code=401, detail="未授权访问，请先登录")
+    return token
 
 
 # ==================== 数据库客户端 ====================
@@ -3460,6 +3537,14 @@ async def serve_admin():
     raise HTTPException(status_code=404, detail="Admin page not found")
 
 
+# ==================== 健康检查 ====================
+
+@app.get("/health")
+async def health_check():
+    """健康检查"""
+    return {"status": "ok"}
+
+
 # 微信验证文件路由（放在具体路由之后）
 @app.get("/{verify_file}")
 async def serve_wechat_verify(verify_file: str):
@@ -3474,14 +3559,6 @@ async def serve_wechat_verify(verify_file: str):
 # 挂载静态文件目录
 if os.path.exists(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-
-
-# ==================== 健康检查 ====================
-
-@app.get("/health")
-async def health_check():
-    """健康检查"""
-    return {"status": "ok"}
 
 
 if __name__ == "__main__":
