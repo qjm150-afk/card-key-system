@@ -577,6 +577,15 @@
             margin-bottom: 20px;
         }
 
+        .form-hint {
+            font-size: 13px;
+            color: #8B7355;
+            text-align: center;
+            padding: 8px 0;
+            margin-top: -10px;
+            margin-bottom: 5px;
+        }
+
         .form-group label {
             display: block;
             font-size: 14px;
@@ -2552,7 +2561,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label>生成数量 *</label>
-                            <input type="number" class="form-input" id="generateCount" value="10" min="1" max="1000" required>
+                            <input type="number" class="form-input" id="generateCount" value="10" min="1" max="1000" required oninput="updateGenerateCountHint()">
                         </div>
                         <div class="form-group">
                             <label>卡密前缀</label>
@@ -2590,6 +2599,7 @@
                         </label>
                     </div>
                 </form>
+                <div class="form-hint" id="generateCountHint">最多生成 1000 条</div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" onclick="closeBatchGenerateModal()">取消</button>
@@ -4095,6 +4105,23 @@
         function openBatchGenerateModal() {
             document.getElementById('batchForm').reset();
             document.getElementById('batchModalOverlay').classList.add('active');
+            // 重置提示文字显示
+            updateGenerateCountHint();
+        }
+
+        // 更新生成数量提示文字
+        function updateGenerateCountHint() {
+            const input = document.getElementById('generateCount');
+            const hint = document.getElementById('generateCountHint');
+            if (!input || !hint) return;
+            
+            const value = parseInt(input.value) || 0;
+            // 超过最大值时自动限制
+            if (value > 1000) {
+                input.value = 1000;
+            }
+            // 有值时隐藏提示，无值时显示提示
+            hint.style.display = input.value ? 'none' : 'block';
         }
 
         // 关闭批量生成模态框
