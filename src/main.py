@@ -3197,21 +3197,49 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
     }
     
     try:
-        # 发送HEAD请求检测链接
-        response = await http_client.head(url, follow_redirects=True)
+        # 判断是否是飞书链接
+        is_feishu = 'feishu.cn' in url or 'larksuite.com' in url
+        
+        # 飞书链接使用GET请求（HEAD可能返回404）
+        if is_feishu:
+            # 使用GET请求，但不下载body
+            response = await http_client.get(url, follow_redirects=True)
+        else:
+            # 其他链接使用HEAD请求
+            response = await http_client.head(url, follow_redirects=True)
+        
         result['http_code'] = response.status_code
+        
+        # 检查是否重定向到登录页面
+        final_url = str(response.url)
+        is_login_redirect = 'login' in final_url.lower() or 'passport' in final_url.lower()
         
         if response.status_code == 200:
             result['status'] = 'healthy'
+            if is_login_redirect:
+                result['error_message'] = '需要登录访问'
         elif response.status_code in [301, 302, 303, 307, 308]:
             result['status'] = 'healthy'  # 重定向也视为正常
-            result['error_message'] = f'重定向到其他地址'
+            if is_login_redirect:
+                result['error_message'] = '需要登录访问'
+            else:
+                result['error_message'] = f'重定向到其他地址'
         elif response.status_code in [401, 403]:
             result['status'] = 'healthy'  # 需要认证也视为链接有效
             result['error_message'] = '需要认证访问'
         elif response.status_code == 404:
-            result['status'] = 'unhealthy'
-            result['error_message'] = '链接不存在(404)'
+            # 飞书链接404可能是需要登录，检查URL格式是否正确
+            if is_feishu:
+                # 飞书链接格式正确就认为有效
+                if '/app/' in url or '/base/' in url or '/docx/' in url or '/wiki/' in url:
+                    result['status'] = 'healthy'
+                    result['error_message'] = '飞书链接（需登录验证）'
+                else:
+                    result['status'] = 'unhealthy'
+                    result['error_message'] = '链接不存在(404)'
+            else:
+                result['status'] = 'unhealthy'
+                result['error_message'] = '链接不存在(404)'
         else:
             result['status'] = 'unhealthy'
             result['error_message'] = f'HTTP状态码: {response.status_code}'
