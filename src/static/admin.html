@@ -3906,7 +3906,7 @@
                     <td>${deviceCount} / ${card.max_devices || 5} 台</td>
                     <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
                     <td title="${card.user_note || ''}">${card.user_note || '-'}</td>
-                    <td>${linkNameDisplay}</td>
+                    <td style="text-align: center;">${linkNameDisplay}</td>
                     <td class="text-small">${formatDate(card.bstudio_create_time)}</td>
                     <td>
                         <span class="status-badge ${saleStatusClass}">${saleStatusText}</span>
