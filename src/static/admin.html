@@ -1884,8 +1884,8 @@
                     <div class="value" id="statTotal">0</div>
                 </div>
                 <div class="stat-card">
-                    <h3>有效卡密</h3>
-                    <div class="value" id="statValid">0</div>
+                    <h3>已售出</h3>
+                    <div class="value" id="statSold">0</div>
                 </div>
                 <div class="stat-card">
                     <h3>已激活</h3>
@@ -3542,14 +3542,11 @@
                     const allCards = result.data || [];
                     const total = result.total || 0;
                     
-                    // 有效卡密：status=1 且 销售状态正常（包括未激活和已激活）
-                    const validCards = allCards.filter(c => {
-                        if (c.status !== 1 || ['refunded', 'disputed'].includes(c.sale_status)) return false;
-                        return true;
-                    });
+                    // 已售出：销售状态为 sold
+                    const soldCards = allCards.filter(c => c.sale_status === 'sold');
                     
-                    // 已激活：有效卡密中已有设备绑定或使用过的
-                    const activatedCards = validCards.filter(c => {
+                    // 已激活：有设备绑定的卡密
+                    const activatedCards = allCards.filter(c => {
                         try {
                             const devices = JSON.parse(c.devices || '[]');
                             return devices.length > 0 || (c.used_count && c.used_count > 0);
@@ -3564,7 +3561,7 @@
                     );
                     
                     document.getElementById('statTotal').textContent = total;
-                    document.getElementById('statValid').textContent = validCards.length;
+                    document.getElementById('statSold').textContent = soldCards.length;
                     document.getElementById('statActivated').textContent = activatedCards.length;
                     document.getElementById('statDisabled').textContent = disabledCards.length;
                 }

@@ -2845,8 +2845,8 @@ async def get_statistics_overview():
         total_cards = cards_response.count or 0
         cards = cards_response.data or []
         
-        # 有效卡密
-        valid_cards = len([c for c in cards if c.get('status') == 1])
+        # 已售出：销售状态为 sold
+        sold_cards = len([c for c in cards if c.get('sale_status') == 'sold'])
         
         # 今日访问量
         today = datetime.now().strftime('%Y-%m-%d')
@@ -2870,7 +2870,7 @@ async def get_statistics_overview():
             "success": True,
             "data": {
                 "total_cards": total_cards,
-                "valid_cards": valid_cards,
+                "sold_cards": sold_cards,
                 "today_visits": today_visits,
                 "today_success": today_success_count,
                 "week_new_cards": week_new_cards,
