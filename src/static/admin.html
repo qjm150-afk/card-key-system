@@ -3862,7 +3862,27 @@
                 // 显示链接名称（没有则显示"-"）
                 const linkName = card.link_name || '';
                 const feishuUrl = card.feishu_url || '';
-                const linkNameDisplay = linkName || '-';
+                const hasFeishuUrl = feishuUrl && feishuUrl.trim() !== '';
+                
+                // 链接名称显示：有链接显示绿色圆点+蓝色可点击，无链接显示灰色圆点+灰色文本
+                let linkNameDisplay;
+                if (linkName) {
+                    if (hasFeishuUrl) {
+                        // 有链接：绿色圆点 + 蓝色可点击
+                        linkNameDisplay = `<span style="cursor:pointer;color:#2563eb;text-decoration:underline;" onclick="window.open('${feishuUrl}', '_blank')" title="点击打开飞书链接：${feishuUrl}">🟢 ${linkName}</span>`;
+                    } else {
+                        // 无链接：灰色圆点 + 灰色文本
+                        linkNameDisplay = `<span style="color:#9ca3af;" title="未配置飞书链接">⚪ ${linkName}</span>`;
+                    }
+                } else {
+                    if (hasFeishuUrl) {
+                        // 有链接但无名称：绿色圆点 + 蓝色"已配置"
+                        linkNameDisplay = `<span style="cursor:pointer;color:#2563eb;text-decoration:underline;" onclick="window.open('${feishuUrl}', '_blank')" title="点击打开飞书链接：${feishuUrl}">🟢 已配置</span>`;
+                    } else {
+                        // 无链接无名称：灰色"-"
+                        linkNameDisplay = `<span style="color:#d1d5db;">-</span>`;
+                    }
+                }
                 
                 // 截断显示订单号
                 const orderId = card.order_id || '';
@@ -3886,7 +3906,7 @@
                     <td>${deviceCount} / ${card.max_devices || 5} 台</td>
                     <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
                     <td title="${card.user_note || ''}">${card.user_note || '-'}</td>
-                    <td title="${feishuUrl}">${linkNameDisplay}</td>
+                    <td>${linkNameDisplay}</td>
                     <td class="text-small">${formatDate(card.bstudio_create_time)}</td>
                     <td>
                         <span class="status-badge ${saleStatusClass}">${saleStatusText}</span>
