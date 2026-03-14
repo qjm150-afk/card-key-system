@@ -4217,10 +4217,12 @@
                     loadCards();
                     loadStats();
                     
-                    // 如果勾选了导出，自动下载 CSV
+                    // 如果勾选了导出，自动下载 CSV（导出所有字段）
                     if (shouldExport && result.data && result.data.length > 0) {
                         const ids = result.data.map(card => card.id).join(',');
-                        downloadExportFile(ids);
+                        // 导出所有字段，适配阿奇索发货
+                        const allFields = 'key_value,feishu_password,link_name,expire_at,user_note,sale_status,sales_channel,order_id,status,bstudio_create_time';
+                        downloadExportFile(ids, allFields);
                     }
                 } else {
                     showToast(result.msg, 'error');
@@ -4231,9 +4233,12 @@
         }
         
         // 下载导出文件（使用 fetch + blob 方式，避免页面跳转）
-        async function downloadExportFile(ids) {
+        async function downloadExportFile(ids, fields) {
             try {
-                const exportUrl = `/api/admin/cards/export?format=csv&ids=${ids}`;
+                let exportUrl = `/api/admin/cards/export?format=csv&ids=${ids}`;
+                if (fields) {
+                    exportUrl += `&fields=${fields}`;
+                }
                 const response = await fetch(exportUrl);
                 
                 if (!response.ok) {

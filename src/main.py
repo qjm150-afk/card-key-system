@@ -14,6 +14,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from typing import Optional, List
+from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
@@ -1250,9 +1251,9 @@ async def export_cards(
                 return str(value)
             return str(value)
         
-        # 生成文件名
+        # 生成文件名（使用英文避免编码问题）
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"卡密导出_{timestamp}"
+        filename = f"cards_export_{timestamp}"
         
         if format == 'xlsx':
             # Excel格式 - 使用HTML表格格式（Excel兼容）
@@ -1336,7 +1337,10 @@ async def export_cards(
         )
         
     except Exception as e:
+        import traceback
         logger.error(f"导出卡密失败: {str(e)}")
+        logger.error(f"堆栈跟踪: {traceback.format_exc()}")
+        return {"success": False, "msg": f"导出失败: {str(e)}"}
 
 
 @app.get("/api/admin/logs/export")
