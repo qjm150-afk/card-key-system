@@ -3856,7 +3856,10 @@
                 return;
             }
 
-            tbody.innerHTML = data.map(card => {
+            tbody.innerHTML = data.map((card, index) => {
+                // 计算序号：基于当前页和每页数量
+                const rowNumber = (currentPage - 1) * pageSize + index + 1;
+                
                 const statusClass = getStatusClass(card);
                 const statusText = getStatusText(card);
                 const saleStatusClass = getSaleStatusClass(card.sale_status);
@@ -3908,7 +3911,7 @@
                                ${selectedIds.has(checkboxId) ? 'checked' : ''}
                                onchange="toggleSelect(${checkboxId})">
                     </td>
-                    <td>${card.id}</td>
+                    <td>${rowNumber}</td>
                     <td><strong>${card.key_value}</strong></td>
                     <td>
                         <span class="status-badge ${statusClass}">${statusText}</span>
