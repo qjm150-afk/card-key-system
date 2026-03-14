@@ -4220,14 +4220,38 @@
                     // 如果勾选了导出，自动下载 CSV
                     if (shouldExport && result.data && result.data.length > 0) {
                         const ids = result.data.map(card => card.id).join(',');
-                        const exportUrl = `/api/admin/cards/export?format=csv&ids=${ids}`;
-                        window.open(exportUrl, '_blank');
+                        downloadExportFile(ids);
                     }
                 } else {
                     showToast(result.msg, 'error');
                 }
             } catch (error) {
                 showToast('生成失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 下载导出文件（使用 fetch + blob 方式，避免页面跳转）
+        async function downloadExportFile(ids) {
+            try {
+                const exportUrl = `/api/admin/cards/export?format=csv&ids=${ids}`;
+                const response = await fetch(exportUrl);
+                
+                if (!response.ok) {
+                    showToast('导出失败', 'error');
+                    return;
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `卡密导出_${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                showToast('导出失败: ' + error.message, 'error');
             }
         }
 
@@ -4333,7 +4357,7 @@
         }
         
         // 执行导出
-        function executeExportCards() {
+        async function executeExportCards() {
             // 获取选中的字段
             const selectedFields = [];
             document.querySelectorAll('.export-field-checkbox:checked').forEach(cb => {
@@ -4360,7 +4384,27 @@
             });
             
             closeExportCardsModal();
-            window.open(url, '_blank');
+            
+            // 使用 fetch + blob 方式下载，避免页面跳转
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    showToast('导出失败', 'error');
+                    return;
+                }
+                const blob = await response.blob();
+                const blobUrl = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                const ext = format === 'xlsx' ? 'xlsx' : (format === 'txt' ? 'txt' : 'csv');
+                a.download = `卡密导出_${new Date().toISOString().slice(0,10)}.${ext}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(blobUrl);
+            } catch (error) {
+                showToast('导出失败: ' + error.message, 'error');
+            }
         }
         
         // 记录操作日志
@@ -4487,8 +4531,25 @@
         }
 
         // 下载销售状态模板
-        function downloadSaleStatusTemplate() {
-            window.open('/api/admin/cards/sale-status-template', '_blank');
+        async function downloadSaleStatusTemplate() {
+            try {
+                const response = await fetch('/api/admin/cards/sale-status-template');
+                if (!response.ok) {
+                    showToast('下载模板失败', 'error');
+                    return;
+                }
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '销售状态导入模板.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                showToast('下载模板失败: ' + error.message, 'error');
+            }
         }
 
         // 导入销售状态
@@ -4535,8 +4596,25 @@
         }
 
         // 下载卡密导入模板
-        function downloadCardsImportTemplate() {
-            window.open('/api/admin/cards/import-template', '_blank');
+        async function downloadCardsImportTemplate() {
+            try {
+                const response = await fetch('/api/admin/cards/import-template');
+                if (!response.ok) {
+                    showToast('下载模板失败', 'error');
+                    return;
+                }
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '卡密导入模板.csv';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                showToast('下载模板失败: ' + error.message, 'error');
+            }
         }
 
         // 导入卡密信息
