@@ -3439,6 +3439,7 @@ async def get_online_users():
 # 微信验证文件配置（可配置多个）
 WECHAT_VERIFY_FILES = {
     "f6f3f1102e163b12197a863f1873b9b2.txt": "215382aa832da898a1c0ad9e2e48a96a909277a9",
+    "fed9e7ab77a3dde24e1102145c87bd3f.txt": "c1c1e2703438fbd0fc7816d7249a9a5385161b66",
 }
 
 @app.get("/")
