@@ -4987,13 +4987,27 @@
             });
         }
 
-        // 点击模态框外部关闭
-        document.getElementById('modalOverlay').addEventListener('click', (e) => {
-            if (e.target.id === 'modalOverlay') closeModal();
+        // 点击模态框外部关闭（改进：记录mousedown位置，避免三击选中时误触发）
+        let modalOverlayMouseDownTarget = null;
+        document.getElementById('modalOverlay').addEventListener('mousedown', (e) => {
+            modalOverlayMouseDownTarget = e.target;
+        });
+        document.getElementById('modalOverlay').addEventListener('mouseup', (e) => {
+            if (e.target.id === 'modalOverlay' && modalOverlayMouseDownTarget?.id === 'modalOverlay') {
+                closeModal();
+            }
+            modalOverlayMouseDownTarget = null;
         });
         
-        document.getElementById('batchModalOverlay').addEventListener('click', (e) => {
-            if (e.target.id === 'batchModalOverlay') closeBatchGenerateModal();
+        let batchModalMouseDownTarget = null;
+        document.getElementById('batchModalOverlay').addEventListener('mousedown', (e) => {
+            batchModalMouseDownTarget = e.target;
+        });
+        document.getElementById('batchModalOverlay').addEventListener('mouseup', (e) => {
+            if (e.target.id === 'batchModalOverlay' && batchModalMouseDownTarget?.id === 'batchModalOverlay') {
+                closeBatchGenerateModal();
+            }
+            batchModalMouseDownTarget = null;
         });
 
         // ==================== 登录验证 ====================
