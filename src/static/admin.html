@@ -3864,7 +3864,7 @@
                 const feishuUrl = card.feishu_url || '';
                 const hasFeishuUrl = feishuUrl && feishuUrl.trim() !== '';
                 
-                // 链接名称显示：有名称才显示状态，无名称显示"-"
+                // 链接名称显示逻辑
                 let linkNameDisplay;
                 if (linkName) {
                     if (hasFeishuUrl) {
@@ -3875,8 +3875,13 @@
                         linkNameDisplay = `<span style="color:#9ca3af;" title="未配置飞书链接">⚪ ${linkName}</span>`;
                     }
                 } else {
-                    // 无名称：显示"-"（不管有没有链接）
-                    linkNameDisplay = `<span style="color:#d1d5db;">-</span>`;
+                    if (hasFeishuUrl) {
+                        // 无名称 + 有链接：绿色圆点 + [查看链接]
+                        linkNameDisplay = `<span style="cursor:pointer;color:#2563eb;text-decoration:underline;" onclick="window.open('${feishuUrl}', '_blank')" title="点击打开飞书链接：${feishuUrl}">🟢 [查看链接]</span>`;
+                    } else {
+                        // 无名称 + 无链接：灰色"-"
+                        linkNameDisplay = `<span style="color:#d1d5db;">-</span>`;
+                    }
                 }
                 
                 // 截断显示订单号
