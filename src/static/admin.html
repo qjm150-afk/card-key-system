@@ -1633,41 +1633,73 @@
             font-weight: 600;
         }
 
-        /* 过期状态卡片 */
+        /* 过期状态卡片 - 柱状图样式 */
         .expire-stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
+            padding: 20px;
+            background: white;
+            border-radius: 12px;
             margin-top: 16px;
         }
 
-        .expire-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            text-align: center;
+        .expire-bar-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
         }
 
-        .expire-value {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 8px;
+        .expire-bar-item:last-child {
+            margin-bottom: 0;
         }
 
-        .expire-label {
+        .expire-bar-label {
+            min-width: 100px;
             font-size: 12px;
+            color: #5D4E37;
+        }
+
+        .expire-bar-label .sub-text {
+            display: block;
+            font-size: 11px;
             color: #A89070;
         }
 
-        .expire-expired .expire-value { color: #EF4444; }
-        .expire-warning .expire-value { color: #F59E0B; }
-        .expire-notice .expire-value { color: #3B82F6; }
-        .expire-longterm .expire-value { color: #8B5CF6; }
-        .expire-permanent .expire-value { color: #10B981; }
+        .expire-bar {
+            flex: 1;
+            height: 24px;
+            background: #F5EDE3;
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .expire-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .expire-bar-fill.expired { background: linear-gradient(90deg, #EF4444, #F87171); }
+        .expire-bar-fill.warning { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+        .expire-bar-fill.notice { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+        .expire-bar-fill.longterm { background: linear-gradient(90deg, #8B5CF6, #A78BFA); }
+        .expire-bar-fill.permanent { background: linear-gradient(90deg, #10B981, #34D399); }
+
+        .expire-bar-count {
+            min-width: 40px;
+            font-size: 14px;
+            color: #5D4E37;
+            text-align: right;
+            font-weight: 600;
+        }
 
         @media (max-width: 768px) {
-            .expire-stats {
-                grid-template-columns: repeat(2, 1fr);
+            .expire-bar-label {
+                min-width: 70px;
+                font-size: 11px;
+            }
+            .expire-bar-label .sub-text {
+                font-size: 10px;
             }
         }
 
@@ -3341,42 +3373,68 @@
                 document.getElementById(`deviceCount${i}`).textContent = count;
             }
             
-            // 过期状态统计 - 动态渲染
+            // 过期状态统计 - 柱状图样式渲染
             const expire = data.expire_status;
             const expireContainer = document.getElementById('expireStats');
             
-            let expireHtml = `
-                <div class="expire-card expire-expired">
-                    <div class="expire-value">${expire.expired || 0}</div>
-                    <div class="expire-label">已过期</div>
-                </div>
-            `;
+            // 计算最大值用于柱状图比例
+            const groups = expire.groups || [];
+            const allValues = [expire.expired || 0, ...groups.map(g => g.count), expire.permanent || 0].filter(v => v > 0);
+            const maxValue = Math.max(...allValues, 1);
+            
+            let expireHtml = '';
+            
+            // 已过期
+            if (expire.expired > 0) {
+                const width = (expire.expired / maxValue * 100);
+                expireHtml += `
+                    <div class="expire-bar-item">
+                        <span class="expire-bar-label">已过期</span>
+                        <div class="expire-bar">
+                            <div class="expire-bar-fill expired" style="width: ${width}%;"></div>
+                        </div>
+                        <span class="expire-bar-count">${expire.expired}</span>
+                    </div>
+                `;
+            }
             
             // 按日期分组显示（未过期的）
-            const groups = expire.groups || [];
             groups.forEach(group => {
                 const daysText = group.days_remaining === 0 ? '今天过期' : 
                                  group.days_remaining === 1 ? '明天过期' :
                                  `剩余${group.days_remaining}天`;
-                const cssClass = group.days_remaining <= 7 ? 'expire-warning' : 
-                                 group.days_remaining <= 30 ? 'expire-notice' : 'expire-longterm';
+                const cssClass = group.days_remaining <= 7 ? 'warning' : 
+                                 group.days_remaining <= 30 ? 'notice' : 'longterm';
+                const width = (group.count / maxValue * 100);
                 
                 expireHtml += `
-                    <div class="expire-card ${cssClass}">
-                        <div class="expire-value">${group.count}</div>
-                        <div class="expire-label">${group.date}<br><span style="font-size:12px;color:#8B7355">${daysText}</span></div>
+                    <div class="expire-bar-item">
+                        <span class="expire-bar-label">${group.date}<span class="sub-text">${daysText}</span></span>
+                        <div class="expire-bar">
+                            <div class="expire-bar-fill ${cssClass}" style="width: ${width}%;"></div>
+                        </div>
+                        <span class="expire-bar-count">${group.count}</span>
                     </div>
                 `;
             });
             
             // 永久有效
             if (expire.permanent > 0) {
+                const width = (expire.permanent / maxValue * 100);
                 expireHtml += `
-                    <div class="expire-card expire-permanent">
-                        <div class="expire-value">${expire.permanent}</div>
-                        <div class="expire-label">永久有效</div>
+                    <div class="expire-bar-item">
+                        <span class="expire-bar-label">永久有效</span>
+                        <div class="expire-bar">
+                            <div class="expire-bar-fill permanent" style="width: ${width}%;"></div>
+                        </div>
+                        <span class="expire-bar-count">${expire.permanent}</span>
                     </div>
                 `;
+            }
+            
+            // 如果没有任何数据
+            if (!expireHtml) {
+                expireHtml = '<div style="text-align:center;color:#A89070;padding:20px;">暂无数据</div>';
             }
             
             expireContainer.innerHTML = expireHtml;
