@@ -3821,7 +3821,9 @@
                     updateFilterResultInfo(result.total);
                     updateFilterTags();
                 } else {
-                    showToast(result.msg, 'error');
+                    // 支持 FastAPI 的 detail 格式和自定义的 msg 格式
+                    const errorMsg = result.msg || result.detail || '加载失败';
+                    showToast(errorMsg, 'error');
                 }
             } catch (error) {
                 showToast('加载失败: ' + error.message, 'error');
@@ -5368,7 +5370,8 @@
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
             toast.className = `toast toast-${type}`;
-            toast.textContent = message;
+            // 确保 message 不为空，避免显示空白的 toast 框
+            toast.textContent = message || (type === 'error' ? '操作失败' : '操作成功');
             container.appendChild(toast);
             
             setTimeout(() => toast.remove(), 3000);
