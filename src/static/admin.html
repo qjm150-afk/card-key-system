@@ -2404,26 +2404,7 @@
             <div class="analytics-section">
                 <h3 class="section-title">⏳ 过期状态统计</h3>
                 <div class="expire-stats" id="expireStats">
-                    <div class="expire-card expire-expired">
-                        <div class="expire-value" id="expireExpired">0</div>
-                        <div class="expire-label">已过期</div>
-                    </div>
-                    <div class="expire-card expire-warning">
-                        <div class="expire-value" id="expire7days">0</div>
-                        <div class="expire-label">7天内过期</div>
-                    </div>
-                    <div class="expire-card expire-notice">
-                        <div class="expire-value" id="expire30days">0</div>
-                        <div class="expire-label">30天内过期</div>
-                    </div>
-                    <div class="expire-card expire-longterm">
-                        <div class="expire-value" id="expireLongTerm">0</div>
-                        <div class="expire-label">长期有效</div>
-                    </div>
-                    <div class="expire-card expire-permanent">
-                        <div class="expire-value" id="expirePermanent">0</div>
-                        <div class="expire-label">永久有效</div>
-                    </div>
+                    <!-- 动态生成过期状态统计卡片 -->
                 </div>
             </div>
 
@@ -3359,13 +3340,45 @@
                 document.getElementById(`deviceCount${i}`).textContent = count;
             }
             
-            // 过期状态统计
+            // 过期状态统计 - 动态渲染
             const expire = data.expire_status;
-            document.getElementById('expireExpired').textContent = expire.expired || 0;
-            document.getElementById('expire7days').textContent = expire.expiring_7days || 0;
-            document.getElementById('expire30days').textContent = expire.expiring_30days || 0;
-            document.getElementById('expireLongTerm').textContent = expire.long_term || 0;
-            document.getElementById('expirePermanent').textContent = expire.permanent || 0;
+            const expireContainer = document.getElementById('expireStats');
+            
+            let expireHtml = `
+                <div class="expire-card expire-expired">
+                    <div class="expire-value">${expire.expired || 0}</div>
+                    <div class="expire-label">已过期</div>
+                </div>
+            `;
+            
+            // 按日期分组显示（未过期的）
+            const groups = expire.groups || [];
+            groups.forEach(group => {
+                const daysText = group.days_remaining === 0 ? '今天过期' : 
+                                 group.days_remaining === 1 ? '明天过期' :
+                                 `剩余${group.days_remaining}天`;
+                const cssClass = group.days_remaining <= 7 ? 'expire-warning' : 
+                                 group.days_remaining <= 30 ? 'expire-notice' : 'expire-longterm';
+                
+                expireHtml += `
+                    <div class="expire-card ${cssClass}">
+                        <div class="expire-value">${group.count}</div>
+                        <div class="expire-label">${group.date}<br><span style="font-size:12px;color:#8B7355">${daysText}</span></div>
+                    </div>
+                `;
+            });
+            
+            // 永久有效
+            if (expire.permanent > 0) {
+                expireHtml += `
+                    <div class="expire-card expire-permanent">
+                        <div class="expire-value">${expire.permanent}</div>
+                        <div class="expire-label">永久有效</div>
+                    </div>
+                `;
+            }
+            
+            expireContainer.innerHTML = expireHtml;
         }
         
         // 导出报表
