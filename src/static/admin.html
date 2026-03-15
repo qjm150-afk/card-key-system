@@ -1690,18 +1690,18 @@
             margin-top: 2px;
         }
 
-        /* 柱状图颜色 */
-        .expire-bar.expired { background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%); }
-        .expire-bar.expired + .expire-bar-label { color: #EF4444; }
-        .expire-bar.expired ~ .expire-bar-value { color: #EF4444; }
+        /* 柱状图颜色 - 通过wrapper类控制 */
+        .expire-bar-wrapper.expired .expire-bar-value { color: #EF4444; }
+        .expire-bar-wrapper.expired .expire-bar { background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%); }
+        .expire-bar-wrapper.expired .expire-bar-label { color: #EF4444; }
 
-        .expire-bar.expiring { background: linear-gradient(180deg, #F59E0B 0%, #D97706 100%); }
-        .expire-bar.expiring + .expire-bar-label { color: #F59E0B; }
-        .expire-bar.expiring ~ .expire-bar-value { color: #F59E0B; }
+        .expire-bar-wrapper.expiring .expire-bar-value { color: #F59E0B; }
+        .expire-bar-wrapper.expiring .expire-bar { background: linear-gradient(180deg, #F59E0B 0%, #D97706 100%); }
+        .expire-bar-wrapper.expiring .expire-bar-label { color: #F59E0B; }
 
-        .expire-bar.permanent { background: linear-gradient(180deg, #10B981 0%, #059669 100%); }
-        .expire-bar.permanent + .expire-bar-label { color: #10B981; }
-        .expire-bar.permanent ~ .expire-bar-value { color: #10B981; }
+        .expire-bar-wrapper.permanent .expire-bar-value { color: #10B981; font-weight: bold; }
+        .expire-bar-wrapper.permanent .expire-bar { background: linear-gradient(180deg, #10B981 0%, #059669 100%); }
+        .expire-bar-wrapper.permanent .expire-bar-label { color: #10B981; }
 
         .expire-chart-empty {
             text-align: center;
@@ -3453,19 +3453,23 @@
             chartContainer.innerHTML = data.map(item => {
                 const height = Math.max((item.count / maxCount) * maxHeight, 10);
                 let barClass = '';
+                let wrapperClass = '';
                 let shortLabel = '';
                 let fullLabel = '';
                 
                 if (item.type === 'expired') {
                     barClass = 'expired';
+                    wrapperClass = 'expired';
                     shortLabel = '已过期';
                     fullLabel = '已过期';
                 } else if (item.type === 'permanent') {
                     barClass = 'permanent';
+                    wrapperClass = 'permanent';
                     shortLabel = '永久有效';
                     fullLabel = '永久有效';
                 } else if (item.type === 'date') {
                     barClass = 'expiring';
+                    wrapperClass = 'expiring';
                     // 显示带年份的日期格式：2026/12/26
                     const dateParts = item.date.split('-');
                     shortLabel = `${dateParts[0]}/${dateParts[1]}/${dateParts[2]}`;
@@ -3473,7 +3477,7 @@
                 }
                 
                 return `
-                    <div class="expire-bar-wrapper">
+                    <div class="expire-bar-wrapper ${wrapperClass}">
                         <div class="expire-bar-value">${item.count}</div>
                         <div class="expire-bar ${barClass}" style="height: ${height}px;" title="${fullLabel}"></div>
                         <div class="expire-bar-label" title="${fullLabel}">${shortLabel}</div>
