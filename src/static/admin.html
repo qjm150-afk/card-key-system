@@ -5399,22 +5399,26 @@
         async function loadFilterOptions(excludeField) {
             try {
                 // 收集当前筛选条件
-                const status = headerFilters.status || document.getElementById('statusFilter').value || '';
+                const status = headerFilters.status || '';
                 const saleStatus = headerFilters.sale_status || '';
-                const feishuUrl = headerFilters.feishu_url || document.getElementById('feishuUrlFilter').value || '';
-                const expireStatus = document.getElementById('expireStatusFilter')?.value || '';
+                const feishuUrl = headerFilters.feishu_url || '';
                 const search = document.getElementById('searchInput').value || '';
                 const createdStart = document.getElementById('createdStart').value || '';
                 const createdEnd = document.getElementById('createdEnd').value || '';
+                const deviceFilter = document.getElementById('deviceFilter').value || '';
+                const expireDays = document.getElementById('expireDaysFilter').value || '';
+                const salesChannel = document.getElementById('salesChannelFilter').value || '';
                 
                 const params = new URLSearchParams();
                 if (status) params.append('status', status);
                 if (saleStatus) params.append('sale_status', saleStatus);
                 if (feishuUrl) params.append('feishu_url', feishuUrl);
-                if (expireStatus) params.append('expire_status', expireStatus);
                 if (search) params.append('search', search);
                 if (createdStart) params.append('created_start', createdStart);
                 if (createdEnd) params.append('created_end', createdEnd);
+                if (deviceFilter) params.append('device_filter', deviceFilter);
+                if (expireDays) params.append('expire_days', expireDays);
+                if (salesChannel) params.append('sales_channel', salesChannel);
                 if (excludeField) params.append('exclude_field', excludeField);
                 
                 const response = await fetch(`/api/admin/cards/filter-options?${params}`);

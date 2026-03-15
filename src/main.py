@@ -1117,10 +1117,12 @@ async def get_filter_options(
     status: Optional[str] = None,
     sale_status: Optional[str] = None,
     feishu_url: Optional[str] = None,
-    expire_status: Optional[str] = None,
     search: Optional[str] = None,
     created_start: Optional[str] = None,
     created_end: Optional[str] = None,
+    device_filter: Optional[str] = None,
+    expire_days: Optional[str] = None,
+    sales_channel: Optional[str] = None,
     exclude_field: Optional[str] = None
 ):
     """
@@ -1131,8 +1133,8 @@ async def get_filter_options(
     try:
         client = get_supabase_client()
         
-        # 构建基础查询（排除当前要获取的字段）
-        query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name')
+        # 构建基础查询（选择需要的字段）
+        query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, sales_channel')
         
         # 应用筛选条件（排除当前字段）
         if status is not None and status != '' and exclude_field != 'status':
@@ -1163,15 +1165,6 @@ async def get_filter_options(
             else:
                 query = query.eq('feishu_url', feishu_url)
         
-        if expire_status and expire_status != '' and exclude_field != 'expire_status':
-            now = datetime.now().isoformat()
-            if expire_status == 'expired':
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now)
-            elif expire_status == 'not_expired':
-                query = query.or_(f"expire_at.is.null,expire_at.gte.{now}")
-            elif expire_status == 'permanent':
-                query = query.is_('expire_at', 'null')
-        
         if search and search != '' and exclude_field != 'search':
             query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
         
@@ -1179,6 +1172,40 @@ async def get_filter_options(
             query = query.gte('bstudio_create_time', created_start)
         if created_end and created_end != '' and exclude_field != 'created_end':
             query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
+        
+        # 绑定设备筛选
+        if device_filter and device_filter != '' and exclude_field != 'device_filter':
+            try:
+                device_count = int(device_filter)
+                if device_count == 0:
+                    query = query.eq('devices', '[]')
+                # 其他数量需要在应用层过滤，这里先不处理
+            except ValueError:
+                pass
+        
+        # 过期时间筛选
+        if expire_days and expire_days != '' and exclude_field != 'expire_days':
+            now = datetime.now()
+            if expire_days == 'expired':
+                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+            elif expire_days == 'permanent':
+                query = query.is_('expire_at', 'null')
+            elif expire_days.startswith('date:'):
+                target_date = expire_days[5:]
+                start_time = f"{target_date}T00:00:00"
+                end_time = f"{target_date}T23:59:59"
+                query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+            else:
+                try:
+                    days = int(expire_days)
+                    future_date = (now + timedelta(days=days)).isoformat()
+                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                except ValueError:
+                    pass
+        
+        # 销售渠道筛选
+        if sales_channel and sales_channel != '' and exclude_field != 'sales_channel':
+            query = query.eq('sales_channel', sales_channel)
         
         response = query.execute()
         
