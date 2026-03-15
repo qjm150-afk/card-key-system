@@ -467,9 +467,11 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         
         # 检查是否首次访问（该卡密是否有成功访问记录）
         is_first_access = False
+        logger.info(f"[Validate] 查询访问日志: {card_key}")
         existing_logs = client.table('access_logs').select('id').eq('key_value', card_key).eq('success', True).limit(1).execute()
         if not existing_logs.data:
             is_first_access = True
+        logger.info(f"[Validate] 首次访问: {is_first_access}")
 
         # 检查状态 (1=有效, 0=无效)
         if card_data.get('status') != 1:
@@ -487,6 +489,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         # 检查设备限制（最多5台设备）
         max_devices = card_data.get('max_devices', 5)
         devices_json = card_data.get('devices', '[]')
+        logger.info(f"[Validate] 设备限制: {max_devices}, 当前设备: {devices_json}")
         
         try:
             bound_devices = json.loads(devices_json) if devices_json else []
@@ -495,6 +498,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         
         # 检查设备是否已绑定
         device_already_bound = device_id in bound_devices
+        logger.info(f"[Validate] 设备已绑定: {device_already_bound}, 设备ID: {device_id}")
         
         if not device_already_bound:
             # 新设备，检查是否达到设备限制
@@ -503,16 +507,20 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
                 return ValidateResponse(can_access=False, msg=f"该卡密已在{max_devices}台设备上使用，无法在新设备登录")
             
             # 添加新设备
+            logger.info(f"[Validate] 添加新设备: {device_id}")
             bound_devices.append(device_id)
             client.table('card_keys_table').update({
                 "devices": json.dumps(bound_devices),
                 "last_used_at": datetime.now().isoformat()
             }).eq('id', card_id).execute()
+            logger.info(f"[Validate] 设备绑定成功")
         else:
             # 已绑定设备，只更新最后使用时间
+            logger.info(f"[Validate] 更新最后使用时间")
             client.table('card_keys_table').update({
                 "last_used_at": datetime.now().isoformat()
             }).eq('id', card_id).execute()
+            logger.info(f"[Validate] 更新成功")
 
         # 记录成功日志（含行为数据）
         log_access(client, card_id, card_key, True, "验证成功", device_id, sales_channel, is_first_access)
