@@ -481,10 +481,29 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         # 检查过期时间
         expire_at = card_data.get('expire_at')
         if expire_at:
-            expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
-            if datetime.now(expire_time.tzinfo) > expire_time:
-                log_access(client, card_id, card_key, False, "卡密已过期", device_id, sales_channel, is_first_access)
-                return ValidateResponse(can_access=False, msg="卡密已过期")
+            # 处理不同的时间格式
+            # 格式1: 2027-07-16 18:01:00+08:00 (已包含时区)
+            # 格式2: 2027-07-16T18:01:00Z (ISO格式，UTC时间)
+            # 格式3: 2027-07-16T18:01:00+00:00 (ISO格式，带时区)
+            try:
+                if 'T' in expire_at:
+                    # ISO 格式
+                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                elif '+' in expire_at or expire_at.count('-') > 2:
+                    # 已包含时区信息 (如 2027-07-16 18:01:00+08:00)
+                    expire_time = datetime.fromisoformat(expire_at)
+                else:
+                    # 无时区信息，假设为本地时间
+                    expire_time = datetime.fromisoformat(expire_at)
+                    expire_time = expire_time.replace(tzinfo=None)
+                
+                # 比较时间
+                now = datetime.now(expire_time.tzinfo) if expire_time.tzinfo else datetime.now()
+                if now > expire_time:
+                    log_access(client, card_id, card_key, False, "卡密已过期", device_id, sales_channel, is_first_access)
+                    return ValidateResponse(can_access=False, msg="卡密已过期")
+            except Exception as e:
+                logger.warning(f"[Validate] 解析过期时间失败: {expire_at}, 错误: {str(e)}")
 
         # 检查设备限制（最多5台设备）
         max_devices = card_data.get('max_devices', 5)
