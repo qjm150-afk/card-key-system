@@ -2969,11 +2969,11 @@ async def get_statistics_distribution():
             '5': 0
         }
         
-        # 过期状态 - 按具体日期分组
+        # 过期状态
         now = datetime.now()
         expired_count = 0
-        permanent_count = 0
-        expire_groups = {}  # 未过期的具体日期
+        expiring_7days = 0
+        expiring_30days = 0
         
         for card in cards:
             # 销售状态
@@ -3004,31 +3004,17 @@ async def get_statistics_distribution():
             
             # 过期状态
             expire_at = card.get('expire_at')
-            if expire_at is None:
-                # 永久有效
-                permanent_count += 1
-            else:
+            if expire_at:
                 try:
-                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00')).replace(tzinfo=None)
-                    date_key = expire_time.strftime('%Y-%m-%d')
-                    
+                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
                     if expire_time < now:
-                        # 已过期
                         expired_count += 1
-                    else:
-                        # 未过期，按日期分组
-                        if date_key not in expire_groups:
-                            expire_groups[date_key] = {
-                                'date': date_key,
-                                'count': 0,
-                                'days_remaining': (expire_time.date() - now.date()).days
-                            }
-                        expire_groups[date_key]['count'] += 1
+                    elif expire_time < now + timedelta(days=7):
+                        expiring_7days += 1
+                    elif expire_time < now + timedelta(days=30):
+                        expiring_30days += 1
                 except:
                     pass
-        
-        # 将过期分组转换为列表并按日期排序
-        expire_groups_list = sorted(expire_groups.values(), key=lambda x: x['date'])
         
         return {
             "success": True,
@@ -3039,8 +3025,9 @@ async def get_statistics_distribution():
                 "device_distribution": device_distribution,
                 "expire_status": {
                     "expired": expired_count,
-                    "groups": expire_groups_list,
-                    "permanent": permanent_count
+                    "expiring_7days": expiring_7days,
+                    "expiring_30days": expiring_30days,
+                    "permanent": len(cards) - expired_count - expiring_7days - expiring_30days
                 }
             }
         }

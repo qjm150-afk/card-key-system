@@ -1633,73 +1633,40 @@
             font-weight: 600;
         }
 
-        /* 过期状态卡片 - 柱状图样式 */
+        /* 过期状态卡片 */
         .expire-stats {
-            padding: 20px;
-            background: white;
-            border-radius: 12px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
             margin-top: 16px;
         }
 
-        .expire-bar-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 12px;
+        .expire-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
         }
 
-        .expire-bar-item:last-child {
-            margin-bottom: 0;
+        .expire-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 8px;
         }
 
-        .expire-bar-label {
-            min-width: 100px;
+        .expire-label {
             font-size: 12px;
-            color: #5D4E37;
-        }
-
-        .expire-bar-label .sub-text {
-            display: block;
-            font-size: 11px;
             color: #A89070;
         }
 
-        .expire-bar {
-            flex: 1;
-            height: 24px;
-            background: #F5EDE3;
-            border-radius: 4px;
-            overflow: hidden;
-            position: relative;
-        }
-
-        .expire-bar-fill {
-            height: 100%;
-            border-radius: 4px;
-            transition: width 0.3s ease;
-        }
-
-        .expire-bar-fill.expired { background: linear-gradient(90deg, #EF4444, #F87171); }
-        .expire-bar-fill.warning { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
-        .expire-bar-fill.notice { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
-        .expire-bar-fill.longterm { background: linear-gradient(90deg, #8B5CF6, #A78BFA); }
-        .expire-bar-fill.permanent { background: linear-gradient(90deg, #10B981, #34D399); }
-
-        .expire-bar-count {
-            min-width: 40px;
-            font-size: 14px;
-            color: #5D4E37;
-            text-align: right;
-            font-weight: 600;
-        }
+        .expire-expired .expire-value { color: #EF4444; }
+        .expire-warning .expire-value { color: #F59E0B; }
+        .expire-notice .expire-value { color: #3B82F6; }
+        .expire-permanent .expire-value { color: #10B981; }
 
         @media (max-width: 768px) {
-            .expire-bar-label {
-                min-width: 70px;
-                font-size: 11px;
-            }
-            .expire-bar-label .sub-text {
-                font-size: 10px;
+            .expire-stats {
+                grid-template-columns: repeat(2, 1fr);
             }
         }
 
@@ -2436,7 +2403,22 @@
             <div class="analytics-section">
                 <h3 class="section-title">⏳ 过期状态统计</h3>
                 <div class="expire-stats" id="expireStats">
-                    <!-- 动态生成过期状态统计卡片 -->
+                    <div class="expire-card expire-expired">
+                        <div class="expire-value" id="expireExpired">0</div>
+                        <div class="expire-label">已过期</div>
+                    </div>
+                    <div class="expire-card expire-warning">
+                        <div class="expire-value" id="expire7days">0</div>
+                        <div class="expire-label">7天内过期</div>
+                    </div>
+                    <div class="expire-card expire-notice">
+                        <div class="expire-value" id="expire30days">0</div>
+                        <div class="expire-label">30天内过期</div>
+                    </div>
+                    <div class="expire-card expire-permanent">
+                        <div class="expire-value" id="expirePermanent">0</div>
+                        <div class="expire-label">永久有效</div>
+                    </div>
                 </div>
             </div>
 
@@ -2496,7 +2478,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>卡密状态</label>
+                            <label>激活状态</label>
                             <select class="form-select" id="cardStatus">
                                 <option value="1">有效</option>
                                 <option value="0">已停用</option>
@@ -2675,11 +2657,11 @@
                 <div id="batchUpdateFields">
                     <div class="update-field-row">
                         <input type="checkbox" class="update-field-checkbox" id="updateFieldStatus" onchange="toggleUpdateField('status')">
-                        <span class="update-field-label">卡密状态</span>
+                        <span class="update-field-label">激活状态</span>
                         <div class="update-field-input">
                             <select id="updateValueStatus" disabled>
                                 <option value="1">有效</option>
-                                <option value="0">已停用</option>
+                                <option value="0">无效</option>
                             </select>
                         </div>
                     </div>
@@ -2849,7 +2831,7 @@
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="status">
-                            <span>卡密状态</span>
+                            <span>激活状态</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="devices">
@@ -2975,9 +2957,9 @@
                     <input type="file" id="cardsImportFile" accept=".csv" style="margin-top: 8px;">
                     <p style="color: #999; font-size: 12px; margin-top: 8px;">
                         <strong>支持字段：</strong><br>
-                        卡密值（必填）、卡密状态、过期时间、备注、链接名称、销售状态、销售渠道、订单号、访问密码、飞书链接、最大设备数<br><br>
+                        卡密值（必填）、激活状态、过期时间、备注、链接名称、销售状态、销售渠道、订单号、访问密码、飞书链接、最大设备数<br><br>
                         <strong>字段说明：</strong><br>
-                        • 卡密状态：有效 / 已停用<br>
+                        • 激活状态：有效 / 无效<br>
                         • 销售状态：未售出 / 已售出 / 已核销 / 已退款 / 有纠纷<br>
                         • 过期时间格式：2026-12-31 23:59:59<br><br>
                         <span style="color: #22C55E;">✓ 卡密已存在：更新该卡密信息</span><br>
@@ -3074,7 +3056,6 @@
             } else if (tab === 'analytics') {
                 initAnalyticsDate();
                 loadAnalytics();
-                loadStatisticsReport();
             }
         }
 
@@ -3373,70 +3354,12 @@
                 document.getElementById(`deviceCount${i}`).textContent = count;
             }
             
-            // 过期状态统计 - 柱状图样式渲染
+            // 过期状态统计
             const expire = data.expire_status;
-            const expireContainer = document.getElementById('expireStats');
-            
-            // 计算最大值用于柱状图比例
-            const groups = expire.groups || [];
-            const allValues = [expire.expired || 0, ...groups.map(g => g.count), expire.permanent || 0].filter(v => v > 0);
-            const maxValue = Math.max(...allValues, 1);
-            
-            let expireHtml = '';
-            
-            // 已过期 - 始终显示
-            const expiredCount = expire.expired || 0;
-            const expiredWidth = expiredCount > 0 ? (expiredCount / maxValue * 100) : 0;
-            expireHtml += `
-                <div class="expire-bar-item">
-                    <span class="expire-bar-label">已过期</span>
-                    <div class="expire-bar">
-                        <div class="expire-bar-fill expired" style="width: ${expiredWidth}%;"></div>
-                    </div>
-                    <span class="expire-bar-count">${expiredCount}</span>
-                </div>
-            `;
-            
-            // 按日期分组显示（未过期的）
-            groups.forEach(group => {
-                const daysText = group.days_remaining === 0 ? '今天过期' : 
-                                 group.days_remaining === 1 ? '明天过期' :
-                                 `剩余${group.days_remaining}天`;
-                const cssClass = group.days_remaining <= 7 ? 'warning' : 
-                                 group.days_remaining <= 30 ? 'notice' : 'longterm';
-                const width = (group.count / maxValue * 100);
-                
-                expireHtml += `
-                    <div class="expire-bar-item">
-                        <span class="expire-bar-label">${group.date}<span class="sub-text">${daysText}</span></span>
-                        <div class="expire-bar">
-                            <div class="expire-bar-fill ${cssClass}" style="width: ${width}%;"></div>
-                        </div>
-                        <span class="expire-bar-count">${group.count}</span>
-                    </div>
-                `;
-            });
-            
-            // 永久有效
-            if (expire.permanent > 0) {
-                const width = (expire.permanent / maxValue * 100);
-                expireHtml += `
-                    <div class="expire-bar-item">
-                        <span class="expire-bar-label">永久有效</span>
-                        <div class="expire-bar">
-                            <div class="expire-bar-fill permanent" style="width: ${width}%;"></div>
-                        </div>
-                        <span class="expire-bar-count">${expire.permanent}</span>
-                    </div>
-                `;
-            }
-            
-            // 如果没有任何数据
-            if (!expireHtml) {
-                expireHtml = '<div style="text-align:center;color:#A89070;padding:20px;">暂无数据</div>';
-            }
-            
-            expireContainer.innerHTML = expireHtml;
+            document.getElementById('expireExpired').textContent = expire.expired || 0;
+            document.getElementById('expire7days').textContent = expire.expiring_7days || 0;
+            document.getElementById('expire30days').textContent = expire.expiring_30days || 0;
+            document.getElementById('expirePermanent').textContent = expire.permanent || 0;
         }
         
         // 导出报表
@@ -4310,9 +4233,7 @@
                     
                     document.getElementById('cardId').value = card.id;
                     document.getElementById('keyValue').value = card.key_value || '';
-                    // 修复：status 为 0 时不应被 || 运算符覆盖
-                    document.getElementById('cardStatus').value = card.status !== undefined && card.status !== null ? card.status : 1;
-                    // 修复：sale_status 为 null 时才使用默认值
+                    document.getElementById('cardStatus').value = card.status || 1;
                     document.getElementById('saleStatus').value = card.sale_status || 'unsold';
                     document.getElementById('salesChannel').value = card.sales_channel || '';
                     document.getElementById('orderId').value = card.order_id || '';
@@ -5572,7 +5493,7 @@
             };
             
             const labelMap = {
-                'status': '卡密状态',
+                'status': '激活状态',
                 'sale_status': '销售状态',
                 'feishu_url': '飞书链接',
                 'link_name': '链接名称',
