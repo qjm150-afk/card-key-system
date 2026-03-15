@@ -3652,9 +3652,9 @@
         // 加载卡密列表
         async function loadCards() {
             const search = document.getElementById('searchInput').value;
-            const activateStatus = document.getElementById('statusFilter').value;
-            const saleStatus = document.getElementById('saleStatusFilter').value;
-            const feishuUrl = document.getElementById('feishuUrlFilter').value;
+            const activateStatus = headerFilters.status || document.getElementById('statusFilter').value || '';
+            const saleStatus = headerFilters.sale_status || document.getElementById('saleStatusFilter').value || '';
+            const feishuUrl = headerFilters.feishu_url || document.getElementById('feishuUrlFilter').value || '';
             const deviceFilter = document.getElementById('deviceFilter').value;
             const expireDays = document.getElementById('expireDaysFilter').value;
             const createdStart = document.getElementById('createdStart').value;
