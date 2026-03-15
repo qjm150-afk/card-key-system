@@ -517,8 +517,9 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         # 记录成功日志（含行为数据）
         log_access(client, card_id, card_key, True, "验证成功", device_id, sales_channel, is_first_access)
 
-        feishu_url = card_data.get('feishu_url', '')
-        feishu_password = card_data.get('feishu_password', '')
+        # 获取飞书链接和密码，确保不为 None（Pydantic 验证要求 str 类型）
+        feishu_url = card_data.get('feishu_url') or ''
+        feishu_password = card_data.get('feishu_password') or ''
         
         # 添加飞书官方嵌入参数，优化嵌入体验
         if feishu_url:
