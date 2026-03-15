@@ -209,7 +209,45 @@ async def debug_database():
 
 ---
 
-## 扩展问题：504 网关超时
+## 扩展问题：504 网关超时（构建阶段）
+
+### 问题现象
+
+部署日志显示 504 错误，服务无法启动，日志中没有任何 `[STARTUP]` 或 `[DB]` 记录。
+
+### 根本原因
+
+`.coze` 配置文件中，部署时的 `build` 命令包含备份脚本：
+
+```toml
+[deploy]
+build = ["sh", "-c", "python scripts/backup_data.py && pip install -r requirements.txt"]
+```
+
+备份脚本 `scripts/backup_data.py` 会调用 `get_supabase_client()` 连接数据库，但：
+1. 生产环境可能没有 `COZE_SUPABASE_ANON_KEY`
+2. 数据库连接可能超时
+
+导致构建阶段就卡住，服务无法启动。
+
+### 解决方案
+
+修改 `.coze` 配置，移除备份脚本：
+
+```toml
+[deploy]
+build = ["pip", "install", "-r", "requirements.txt"]
+run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
+```
+
+### 教训
+
+1. **构建命令不应包含网络操作** - 构建阶段只安装依赖，不连接数据库
+2. **备份脚本应在服务启动后执行** - 通过定时任务或手动触发
+
+---
+
+## 扩展问题：504 网关超时（请求阶段）
 
 ### 问题现象
 
@@ -231,14 +269,13 @@ def _load_env() -> None:
 
 ### 解决方案
 
-在 `_load_env()` 开头添加检查，如果已有数据库配置则直接返回：
+移除所有 `_load_env()` 调用，环境变量应在 `main.py` 启动时一次性加载：
 
 ```python
-def _load_env() -> None:
-    # 如果已经有数据库配置，跳过 coze_workload_identity 调用（避免超时）
-    if os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL") or os.getenv("COZE_SUPABASE_URL"):
-        return
-    # ... 原有逻辑
+# db_client.py, postgres_client.py, supabase_client.py
+def get_database_url() -> Optional[str]:
+    # 不再调用 _load_env()
+    return os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
 ```
 
 ### 数据库选择优先级调整
