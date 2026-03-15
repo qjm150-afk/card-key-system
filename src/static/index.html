@@ -333,6 +333,7 @@
             position: relative;
             overflow: hidden;
             letter-spacing: 0.3px;
+            white-space: nowrap;
         }
 
         .button::before {
@@ -753,7 +754,7 @@
                     </div>
 
                     <button type="submit" id="submitBtn" class="button">
-                        ⚡ 立即解锁 · 抢占春招先机
+                        ⚡ 立即解锁 · 抢占先机
                     </button>
                 </form>
 
@@ -1385,7 +1386,7 @@
             if (loading) {
                 submitBtn.innerHTML = '<div class="spinner"></div>验证中...';
             } else {
-                submitBtn.innerHTML = '⚡ 立即解锁 · 抢占春招先机';
+                submitBtn.innerHTML = '⚡ 立即解锁 · 抢占先机';
             }
         }
 
