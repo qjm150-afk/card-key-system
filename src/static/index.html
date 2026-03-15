@@ -828,6 +828,9 @@
         const SESSION_EXPIRE_DAYS = 30;
         const STORAGE_KEY = 'card_key_session';
         const DEVICE_ID_KEY = 'card_key_device_id';
+        
+        // 事件监听器初始化标志（避免重复绑定）
+        let successPageListenersInitialized = false;
 
         // 获取或生成设备ID（每个设备唯一）
         function getDeviceId() {
@@ -900,44 +903,54 @@
             // 初始化博主在线状态
             initCreatorOnline();
             
-            // 点击协作者悬浮层显示/隐藏退出按钮
-            const collaboratorsOverlay = document.getElementById('collaboratorsOverlay');
-            const exitBtn = document.getElementById('exitBtn');
-            
-            collaboratorsOverlay.addEventListener('click', function(e) {
-                // 如果点击的是退出按钮，不处理
-                if (e.target.closest('.exit-btn')) return;
+            // 只绑定一次事件监听器（避免重复绑定导致多次触发）
+            if (!successPageListenersInitialized) {
+                successPageListenersInitialized = true;
                 
-                // 切换显示退出按钮
-                if (exitBtn.style.display === 'none' || !exitBtn.style.display) {
-                    exitBtn.style.display = 'flex';
-                    collaboratorsOverlay.classList.add('expanded');
-                } else {
+                const collaboratorsOverlay = document.getElementById('collaboratorsOverlay');
+                const exitBtn = document.getElementById('exitBtn');
+                
+                // 点击协作者悬浮层显示/隐藏退出按钮
+                collaboratorsOverlay.addEventListener('click', function(e) {
+                    // 如果点击的是退出按钮，不处理
+                    if (e.target.closest('.exit-btn')) return;
+                    
+                    // 切换显示退出按钮
+                    if (exitBtn.style.display === 'none' || !exitBtn.style.display) {
+                        exitBtn.style.display = 'flex';
+                        collaboratorsOverlay.classList.add('expanded');
+                    } else {
+                        exitBtn.style.display = 'none';
+                        collaboratorsOverlay.classList.remove('expanded');
+                    }
+                });
+                
+                // 绑定退出按钮事件
+                exitBtn.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    // 清除协作者更新定时器
+                    if (collaboratorsInterval) {
+                        clearInterval(collaboratorsInterval);
+                        collaboratorsInterval = null;
+                    }
+                    // 清除会话
+                    clearSession();
+                    // 重置iframe
+                    feishuFrame.src = '';
+                    // 切换回验证页面
+                    document.body.classList.remove('success-mode');
+                    document.body.classList.add('validate-mode');
+                    successPage.style.display = 'none';
+                    validatePage.style.display = 'block';
+                    // 清空输入
+                    cardKeyInput.value = '';
+                    // 隐藏错误信息
+                    errorBox.style.display = 'none';
+                    // 隐藏退出按钮
                     exitBtn.style.display = 'none';
                     collaboratorsOverlay.classList.remove('expanded');
-                }
-            });
-            
-            // 绑定退出按钮事件
-            exitBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                // 清除会话
-                clearSession();
-                // 重置iframe
-                feishuFrame.src = '';
-                // 切换回验证页面
-                document.body.classList.remove('success-mode');
-                document.body.classList.add('validate-mode');
-                successPage.style.display = 'none';
-                validatePage.style.display = 'block';
-                // 清空输入
-                cardKeyInput.value = '';
-                // 隐藏错误信息
-                errorBox.style.display = 'none';
-                // 隐藏退出按钮
-                exitBtn.style.display = 'none';
-                collaboratorsOverlay.classList.remove('expanded');
-            });
+                });
+            }
             
             // 开始追踪会话行为数据
             startSessionTracking();
