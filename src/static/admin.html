@@ -3384,19 +3384,18 @@
             
             let expireHtml = '';
             
-            // 已过期
-            if (expire.expired > 0) {
-                const width = (expire.expired / maxValue * 100);
-                expireHtml += `
-                    <div class="expire-bar-item">
-                        <span class="expire-bar-label">已过期</span>
-                        <div class="expire-bar">
-                            <div class="expire-bar-fill expired" style="width: ${width}%;"></div>
-                        </div>
-                        <span class="expire-bar-count">${expire.expired}</span>
+            // 已过期 - 始终显示
+            const expiredCount = expire.expired || 0;
+            const expiredWidth = expiredCount > 0 ? (expiredCount / maxValue * 100) : 0;
+            expireHtml += `
+                <div class="expire-bar-item">
+                    <span class="expire-bar-label">已过期</span>
+                    <div class="expire-bar">
+                        <div class="expire-bar-fill expired" style="width: ${expiredWidth}%;"></div>
                     </div>
-                `;
-            }
+                    <span class="expire-bar-count">${expiredCount}</span>
+                </div>
+            `;
             
             // 按日期分组显示（未过期的）
             groups.forEach(group => {
