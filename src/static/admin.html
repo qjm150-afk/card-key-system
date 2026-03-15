@@ -3772,8 +3772,8 @@
             try {
                 const response = await fetch('/api/admin/cards/stats');
                 
-                // 检查是否是 401 未授权错误
-                if (response.status === 401) {
+                // 检查是否是 401 未授权错误（但不在登录流程中）
+                if (response.status === 401 && !isLoggingIn) {
                     stopAutoRefresh();
                     showLogin();
                     return;
@@ -3822,8 +3822,8 @@
             try {
                 const response = await fetch(`/api/admin/cards?${params}`);
                 
-                // 检查是否是 401 未授权错误
-                if (response.status === 401) {
+                // 检查是否是 401 未授权错误（但不在登录流程中）
+                if (response.status === 401 && !isLoggingIn) {
                     stopAutoRefresh();
                     showLogin();
                     return;
@@ -3851,8 +3851,8 @@
             try {
                 const response = await fetch('/api/admin/cards/feishu-urls');
                 
-                // 检查是否是 401 未授权错误
-                if (response.status === 401) {
+                // 检查是否是 401 未授权错误（但不在登录流程中）
+                if (response.status === 401 && !isLoggingIn) {
                     stopAutoRefresh();
                     showLogin();
                     return;
@@ -3890,8 +3890,8 @@
             try {
                 const response = await fetch('/api/admin/cards/sales-channels');
                 
-                // 检查是否是 401 未授权错误
-                if (response.status === 401) {
+                // 检查是否是 401 未授权错误（但不在登录流程中）
+                if (response.status === 401 && !isLoggingIn) {
                     stopAutoRefresh();
                     showLogin();
                     return;
@@ -3926,8 +3926,8 @@
             try {
                 const response = await fetch('/api/admin/cards/sales-channels');
                 
-                // 检查是否是 401 未授权错误
-                if (response.status === 401) {
+                // 检查是否是 401 未授权错误（但不在登录流程中）
+                if (response.status === 401 && !isLoggingIn) {
                     stopAutoRefresh();
                     showLogin();
                     return;
@@ -5460,6 +5460,9 @@
         const loginForm = document.getElementById('loginForm');
         const loginError = document.getElementById('loginError');
         const loginPassword = document.getElementById('loginPassword');
+        
+        // 登录流程标志（防止 401 检测在登录过程中触发）
+        let isLoggingIn = false;
 
         // 检查登录状态
         async function checkAuth() {
@@ -5509,6 +5512,9 @@
                 return;
             }
 
+            // 设置登录流程标志
+            isLoggingIn = true;
+            
             try {
                 const response = await fetch('/api/admin/login', {
                     method: 'POST',
@@ -5523,12 +5529,26 @@
                 if (data.success) {
                     loginError.style.display = 'none';
                     loginPassword.value = '';
-                    showMainContent();
+                    // 登录成功后，重新检查认证状态，确保 cookie 已正确设置
+                    const authCheck = await fetch('/api/admin/check-auth');
+                    const authData = await authCheck.json();
+                    if (authData.authenticated) {
+                        // 登录流程完成
+                        isLoggingIn = false;
+                        showMainContent();
+                    } else {
+                        // 如果认证检查失败，可能是服务器重启或 cookie 设置失败
+                        isLoggingIn = false;
+                        loginError.textContent = '登录状态异常，请重试';
+                        loginError.style.display = 'block';
+                    }
                 } else {
+                    isLoggingIn = false;
                     loginError.textContent = data.msg || '密码错误';
                     loginError.style.display = 'block';
                 }
             } catch (error) {
+                isLoggingIn = false;
                 loginError.textContent = '登录失败，请重试';
                 loginError.style.display = 'block';
             }
@@ -5605,8 +5625,8 @@
                 
                 const response = await fetch(`/api/admin/cards/filter-options?${params}`);
                 
-                // 检查是否是 401 未授权错误
-                if (response.status === 401) {
+                // 检查是否是 401 未授权错误（但不在登录流程中）
+                if (response.status === 401 && !isLoggingIn) {
                     stopAutoRefresh();
                     showLogin();
                     return;
