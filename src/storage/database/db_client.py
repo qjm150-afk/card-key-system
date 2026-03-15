@@ -723,26 +723,67 @@ def get_db_client():
     if _db_client is not None:
         return _db_client, _is_sqlite
     
-    if is_local_dev_mode():
+    # 先加载环境变量
+    _load_env()
+    
+    # 添加调试日志
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    supabase_url = os.getenv("COZE_SUPABASE_URL")
+    database_url = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
+    local_dev = is_local_dev_mode()
+    
+    logger.info(f"[DB] LOCAL_DEV_MODE: {os.getenv('LOCAL_DEV_MODE')}")
+    logger.info(f"[DB] COZE_SUPABASE_URL: {supabase_url[:50] if supabase_url else 'None'}...")
+    logger.info(f"[DB] DATABASE_URL: {database_url[:50] if database_url else 'None'}...")
+    logger.info(f"[DB] is_local_dev_mode: {local_dev}")
+    
+    if local_dev:
         # 本地开发：使用 SQLite
+        logger.info("[DB] Using SQLite (local dev mode)")
         _db_client = SQLiteClient()
         _is_sqlite = True
-    elif os.getenv("COZE_SUPABASE_URL"):
+    elif supabase_url:
         # 生产环境：优先使用 Supabase
+        logger.info("[DB] Using Supabase SDK")
         from .supabase_client import get_supabase_client
         _db_client = get_supabase_client()
         _is_sqlite = False
-    elif os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL"):
+    elif database_url:
         # 生产环境：使用 PostgreSQL 直连
+        logger.info("[DB] Using PostgreSQL direct connection")
         from .postgres_client import get_postgres_client
         _db_client = get_postgres_client()
         _is_sqlite = False
     else:
         # 默认：使用 SQLite
+        logger.info("[DB] Using SQLite (default, no URL found)")
         _db_client = SQLiteClient()
         _is_sqlite = True
     
     return _db_client, _is_sqlite
+
+
+def _load_env() -> None:
+    """加载环境变量"""
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        pass
+    
+    try:
+        from coze_workload_identity import Client as WorkloadClient
+        client = WorkloadClient()
+        env_vars = client.get_project_env_vars()
+        client.close()
+        
+        for env_var in env_vars:
+            if not os.getenv(env_var.key):
+                os.environ[env_var.key] = env_var.value
+    except Exception:
+        pass
 
 
 def reset_db_client():
