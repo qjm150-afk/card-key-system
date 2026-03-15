@@ -3103,11 +3103,27 @@
         
         // 渲染链接健康状态
         function renderLinkHealth(links, summary) {
-            // 更新汇总数据
-            document.getElementById('linkHealthTotal').textContent = summary.total || 0;
-            document.getElementById('linkHealthHealthy').textContent = summary.healthy || 0;
-            document.getElementById('linkHealthUnhealthy').textContent = summary.unhealthy || 0;
-            document.getElementById('linkHealthUnknown').textContent = summary.unknown || 0;
+            // 更新数据分析tab中的统计卡片
+            const linkTotal = document.getElementById('linkTotal');
+            const linkHealthy = document.getElementById('linkHealthy');
+            const linkUnhealthy = document.getElementById('linkUnhealthy');
+            const linkUnknown = document.getElementById('linkUnknown');
+            
+            if (linkTotal) linkTotal.textContent = summary.total || 0;
+            if (linkHealthy) linkHealthy.textContent = summary.healthy || 0;
+            if (linkUnhealthy) linkUnhealthy.textContent = summary.unhealthy || 0;
+            if (linkUnknown) linkUnknown.textContent = summary.unknown || 0;
+            
+            // 更新链接健康检测tab中的统计卡片
+            const linkHealthTotal = document.getElementById('linkHealthTotal');
+            const linkHealthHealthy = document.getElementById('linkHealthHealthy');
+            const linkHealthUnhealthy = document.getElementById('linkHealthUnhealthy');
+            const linkHealthUnknown = document.getElementById('linkHealthUnknown');
+            
+            if (linkHealthTotal) linkHealthTotal.textContent = summary.total || 0;
+            if (linkHealthHealthy) linkHealthHealthy.textContent = summary.healthy || 0;
+            if (linkHealthUnhealthy) linkHealthUnhealthy.textContent = summary.unhealthy || 0;
+            if (linkHealthUnknown) linkHealthUnknown.textContent = summary.unknown || 0;
             
             // 更新链接健康检测tab的表格
             const tableContainer = document.getElementById('linkHealthTableBody');
