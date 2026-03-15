@@ -766,13 +766,12 @@ def get_db_client():
 
 
 def _load_env() -> None:
-    """加载环境变量"""
-    try:
-        from dotenv import load_dotenv
-        load_dotenv()
-    except ImportError:
-        pass
+    """加载环境变量
     
+    注意：环境变量已在 main.py 中加载，此函数主要用于：
+    1. 尝试从 coze_workload_identity 获取项目环境变量（云端部署）
+    2. 不再调用 load_dotenv()，避免覆盖已设置的环境变量
+    """
     try:
         from coze_workload_identity import Client as WorkloadClient
         client = WorkloadClient()
@@ -780,6 +779,7 @@ def _load_env() -> None:
         client.close()
         
         for env_var in env_vars:
+            # 只设置未存在的环境变量，不覆盖已有的
             if not os.getenv(env_var.key):
                 os.environ[env_var.key] = env_var.value
     except Exception:

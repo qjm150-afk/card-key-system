@@ -23,12 +23,13 @@ LOCAL_DEV_MODE=true
 
 ### 2. 代码逻辑问题
 
-`src/main.py` 中的环境变量加载逻辑：
+`src/main.py` 中的环境变量加载逻辑（修复前）：
 
 ```python
+# ❌ 问题代码
 _env_local = os.path.join(_parent_dir, '.env.local')
 if os.path.exists(_env_local):
-    load_dotenv(_env_local, override=True)  # ⚠️ override=True 会覆盖系统环境变量
+    load_dotenv(_env_local, override=True)  # override=True 会覆盖系统环境变量
 ```
 
 ### 3. 问题链路
@@ -49,16 +50,53 @@ load_dotenv(override=True) 用 LOCAL_DEV_MODE=true 覆盖系统环境变量
 
 ## 解决方案
 
-1. **从代码仓库删除 `.env.local` 文件**
-   ```bash
-   git rm .env.local
-   git commit -m "fix: 移除 .env.local 文件"
-   ```
+### 1. 紧急修复（已完成）
 
-2. **确保 `.gitignore` 包含该文件**
-   ```
-   .env.local
-   ```
+从代码仓库删除 `.env.local` 文件：
+
+```bash
+git rm .env.local
+git commit -m "fix: 移除 .env.local 文件"
+```
+
+### 2. 代码层面预防（已完成）
+
+修改 `src/main.py` 中的环境变量加载逻辑，**防止本地配置覆盖生产环境变量**：
+
+```python
+# ✅ 安全的加载逻辑
+from dotenv import load_dotenv
+_env_local = os.path.join(_parent_dir, '.env.local')
+
+# 检查是否已有生产环境数据库配置
+_has_production_db = bool(
+    os.getenv('DATABASE_URL') or 
+    os.getenv('PGDATABASE_URL') or 
+    os.getenv('COZE_SUPABASE_URL')
+)
+
+if _has_production_db:
+    # 生产环境：不加载 .env.local，避免覆盖系统环境变量
+    print(f"[ENV] Production database config detected, skipping .env.local")
+    print(f"[ENV] DATABASE_URL = {'已设置' if os.getenv('DATABASE_URL') or os.getenv('PGDATABASE_URL') else '未设置'}")
+    print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
+elif os.path.exists(_env_local):
+    # 本地开发：加载 .env.local（设置 LOCAL_DEV_MODE=true 使用 SQLite）
+    load_dotenv(_env_local, override=True)
+    print(f"[ENV] Loaded .env.local from {_env_local} (local dev mode)")
+    print(f"[ENV] LOCAL_DEV_MODE = {os.getenv('LOCAL_DEV_MODE')}")
+else:
+    # 无任何配置
+    print(f"[ENV] No .env.local and no production config, using defaults")
+```
+
+### 3. 关键改动说明
+
+| 改动点 | 修复前 | 修复后 |
+|--------|--------|--------|
+| 加载条件 | 文件存在就加载 | **先检查生产环境变量，有则跳过** |
+| override | 总是 `True` | 仅本地开发时使用 `True` |
+| 日志输出 | 无环境区分 | 明确标注 `local dev mode` 或跳过原因 |
 
 ---
 
@@ -72,72 +110,99 @@ load_dotenv(override=True) 用 LOCAL_DEV_MODE=true 覆盖系统环境变量
 | `.env.example` | 环境变量模板 | ✅ 提交 |
 | `.env.production` | 生产环境变量 | ❌ 不提交，通过平台配置 |
 
-### 2. 代码层面预防措施
+### 2. 代码设计原则
 
-#### 方案 A：禁止 override（推荐）
-
-```python
-# ❌ 错误：会覆盖系统环境变量
-load_dotenv(_env_local, override=True)
-
-# ✅ 正确：只补充缺失的环境变量
-load_dotenv(_env_local, override=False)
 ```
-
-#### 方案 B：生产环境跳过本地配置文件
-
-```python
-# 只在本地开发时加载 .env.local
-if os.getenv('LOCAL_DEV_MODE') is None and os.path.exists(_env_local):
-    load_dotenv(_env_local, override=True)
-```
-
-#### 方案 C：使用环境判断
-
-```python
-# 生产环境不加载本地配置
-if not os.getenv('DATABASE_URL') and not os.getenv('COZE_SUPABASE_URL'):
-    # 只有在没有生产数据库配置时才加载本地配置
-    if os.path.exists(_env_local):
-        load_dotenv(_env_local)
+┌─────────────────────────────────────────────────────────────┐
+│                    环境变量加载优先级                         │
+├─────────────────────────────────────────────────────────────┤
+│  1. 系统环境变量（最高优先级，不可被覆盖）                      │
+│  2. .env.local（仅本地开发，无生产配置时才加载）                │
+│  3. 默认值（最低优先级）                                      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### 3. 部署前检查清单
 
-- [ ] 检查 `.gitignore` 是否包含所有敏感文件
-- [ ] 检查是否有 `.env.*` 文件被意外提交
-- [ ] 使用 `git ls-files | grep -E "\.env"` 验证
-- [ ] 部署后检查日志确认环境变量正确
+```bash
+# 1. 检查是否有 .env 文件被提交
+git ls-files | grep -E "\.env"
+
+# 预期输出：只有 .env.example（如果有）
+# 如果输出包含 .env.local 或其他敏感文件，需要删除
+
+# 2. 检查 .gitignore 是否包含敏感文件
+cat .gitignore | grep -E "\.env"
+
+# 预期输出：
+# .env.local
+# .env.*.local
+```
 
 ### 4. 调试手段
 
-添加调试 API 帮助排查：
+添加调试 API 帮助排查（已在代码中实现）：
 
 ```python
 @app.get("/api/debug/db")
 async def debug_database():
+    """调试 API - 返回数据库连接状态"""
     return {
         "env_vars": {
             "LOCAL_DEV_MODE": os.getenv("LOCAL_DEV_MODE"),
             "DATABASE_URL": "已设置" if os.getenv("DATABASE_URL") else "未设置",
         },
         "db_mode": get_db_mode(),
-        "checks": {...}
+        "checks": {
+            "client_type": type(client).__name__,
+            "query_success": True/False,
+            "total_records": N
+        }
     }
 ```
+
+访问 `/api/debug/db` 可快速确认环境变量和数据库连接状态。
+
+---
+
+## 防止问题再次发生的保障措施
+
+### 1. 代码层面（已实施）
+
+- ✅ 生产环境检测：有 `DATABASE_URL` 时跳过 `.env.local`
+- ✅ 日志增强：明确输出加载了哪个配置
+- ✅ 调试 API：`/api/debug/db` 帮助快速定位问题
+
+### 2. Git 层面（已实施）
+
+- ✅ `.gitignore` 包含 `.env.local`
+- ✅ 已从仓库删除 `.env.local`
+
+### 3. 流程层面（建议）
+
+- 部署前运行检查脚本：`git ls-files | grep -E "\.env"`
+- 部署后查看日志确认环境变量正确
+- 新成员加入时提醒环境变量管理规范
 
 ---
 
 ## 相关文件
 
-- `.gitignore` - Git 忽略规则
-- `src/main.py` - 环境变量加载逻辑
-- `src/storage/database/db_client.py` - 数据库连接判断逻辑
+| 文件 | 说明 |
+|------|------|
+| `src/main.py` | 环境变量加载逻辑（已修改） |
+| `src/storage/database/db_client.py` | 数据库连接判断逻辑 |
+| `.gitignore` | Git 忽略规则 |
+| `.env.local` | 本地开发配置（已删除，不提交） |
 
 ---
 
 ## 修改记录
 
-| 日期 | 版本 | 修改内容 |
+| 日期 | 文件 | 修改内容 |
 |------|------|----------|
-| 2026-03-15 | fed9d78 | 删除 `.env.local` 文件，修复生产环境数据库连接问题 |
+| 2026-03-15 | `.env.local` | 从 Git 仓库删除 |
+| 2026-03-15 | `src/main.py` | 环境变量加载逻辑：检测生产环境配置，跳过 `.env.local` |
+| 2026-03-15 | `src/storage/database/db_client.py` | 移除 `load_dotenv()` 调用，防止覆盖环境变量 |
+| 2026-03-15 | `src/storage/database/postgres_client.py` | 移除 `load_dotenv()` 调用，防止覆盖环境变量 |
+| 2026-03-15 | `src/storage/database/supabase_client.py` | 移除 `load_dotenv()` 调用，防止覆盖环境变量 |

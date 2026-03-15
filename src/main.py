@@ -15,21 +15,37 @@ for _p in [_parent_dir, _current_dir]:
         sys.path.insert(0, _p)
 
 # 加载环境变量
-# 优先加载 .env.local（本地开发配置），然后让 db_client.py 根据环境变量判断使用哪个数据库
-# 逻辑：LOCAL_DEV_MODE=true → SQLite，否则有 COZE_SUPABASE_URL → Supabase
+# ========================================
+# 重要：防止本地配置覆盖生产环境变量
+# ========================================
+# 加载策略：
+# 1. 如果已有生产环境变量（DATABASE_URL 或 COZE_SUPABASE_URL），跳过 .env.local
+# 2. 只有在没有任何数据库配置时，才加载 .env.local（本地开发场景）
+# 3. 这样即使 .env.local 被意外提交，也不会影响生产环境
 from dotenv import load_dotenv
 _env_local = os.path.join(_parent_dir, '.env.local')
 
-if os.path.exists(_env_local):
-    # 本地开发：加载 .env.local（可能设置 LOCAL_DEV_MODE=true）
-    load_dotenv(_env_local, override=True)  # override=True 确保 .env.local 优先级最高
-    print(f"[ENV] Loaded .env.local from {_env_local}")
+# 检查是否已有生产环境数据库配置
+_has_production_db = bool(
+    os.getenv('DATABASE_URL') or 
+    os.getenv('PGDATABASE_URL') or 
+    os.getenv('COZE_SUPABASE_URL')
+)
+
+if _has_production_db:
+    # 生产环境：不加载 .env.local，避免覆盖系统环境变量
+    print(f"[ENV] Production database config detected, skipping .env.local")
+    print(f"[ENV] DATABASE_URL = {'已设置' if os.getenv('DATABASE_URL') or os.getenv('PGDATABASE_URL') else '未设置'}")
+    print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
+elif os.path.exists(_env_local):
+    # 本地开发：加载 .env.local（设置 LOCAL_DEV_MODE=true 使用 SQLite）
+    load_dotenv(_env_local, override=True)
+    print(f"[ENV] Loaded .env.local from {_env_local} (local dev mode)")
     print(f"[ENV] LOCAL_DEV_MODE = {os.getenv('LOCAL_DEV_MODE')}")
     print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
 else:
-    # 云端部署：使用系统环境变量
-    print(f"[ENV] No .env.local, using system environment")
-    print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
+    # 无任何配置
+    print(f"[ENV] No .env.local and no production config, using defaults")
 
 # 导入其他模块
 import logging
