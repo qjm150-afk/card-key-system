@@ -2774,6 +2774,21 @@ async def get_access_logs(
     try:
         client = get_supabase_client()
         
+        # 如果有销售状态筛选，先获取符合销售状态的卡密列表
+        sale_status_key_values = None
+        if sale_status:
+            cards_filter = client.table('card_keys_table').select('key_value').eq('sale_status', sale_status).execute()
+            sale_status_key_values = [card['key_value'] for card in (cards_filter.data or [])]
+            # 如果没有符合条件的卡密，直接返回空结果
+            if not sale_status_key_values:
+                return {
+                    "success": True,
+                    "data": [],
+                    "total": 0,
+                    "page": page,
+                    "page_size": page_size
+                }
+        
         query = client.table('access_logs').select('*', count='exact')
         
         if card_key_id:
@@ -2786,6 +2801,9 @@ async def get_access_logs(
             # 筛选最近N天的日志
             cutoff_time = (datetime.now() - timedelta(days=days)).isoformat()
             query = query.gte('access_time', cutoff_time)
+        # 销售状态筛选：使用预先获取的卡密列表
+        if sale_status_key_values is not None:
+            query = query.in_('key_value', sale_status_key_values)
         
         start = (page - 1) * page_size
         end = start + page_size - 1
@@ -2820,19 +2838,11 @@ async def get_access_logs(
                     log['max_devices'] = card_info.get('max_devices', 5)
                     log['expire_at'] = card_info.get('expire_at', '')
                     log['link_name'] = card_info.get('link_name', '')
-                
-                # 如果有销售状态筛选，在应用层过滤
-                if sale_status:
-                    logs = [log for log in logs if log.get('sale_status') == sale_status]
-                    # 更新总数为过滤后的数量
-                    filtered_total = len(logs)
-                else:
-                    filtered_total = response.count
         
         return {
             "success": True,
-            "data": logs,
-            "total": filtered_total if sale_status else response.count,
+            "data": logs or [],
+            "total": response.count or 0,
             "page": page,
             "page_size": page_size
         }
