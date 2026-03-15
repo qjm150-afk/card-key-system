@@ -4131,6 +4131,8 @@
             // 只有添加模式才重置表单，编辑模式由 editCard 填充数据
             if (!id) {
                 document.getElementById('cardForm').reset();
+                // 添加模式下加载销售渠道列表
+                loadSalesChannelDatalist();
             }
             document.getElementById('modalOverlay').classList.add('active');
         }
