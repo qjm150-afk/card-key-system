@@ -11,6 +11,8 @@ __pycache__/
 /vendor
 *.egg-info/
 /.env
+.env.local
+backups/*.json
 .env
 
 # JS/TS bundlers & build outputs
