@@ -1454,45 +1454,84 @@
         }
 
         .trend-chart {
-            height: 200px;
-            display: flex;
-            align-items: flex-end;
-            gap: 4px;
-            padding-bottom: 30px;
+            height: 240px;
             position: relative;
         }
 
-        .trend-bar-group {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
+        .trend-chart svg {
+            width: 100%;
+            height: 100%;
+            overflow: visible;
         }
 
-        .trend-bars {
-            display: flex;
-            align-items: flex-end;
-            gap: 2px;
-            height: 150px;
+        .trend-line {
+            fill: none;
+            stroke-width: 2.5;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
-        .trend-bar {
-            width: 8px;
-            min-height: 2px;
-            border-radius: 2px 2px 0 0;
-            transition: height 0.3s ease;
+        .trend-line.visits { stroke: #D4A574; }
+        .trend-line.success { stroke: #10B981; }
+        .trend-line.users { stroke: #3B82F6; }
+
+        .trend-area {
+            opacity: 0.1;
         }
 
-        .trend-bar.visits { background: #D4A574; }
-        .trend-bar.success { background: #10B981; }
-        .trend-bar.users { background: #3B82F6; }
+        .trend-area.visits { fill: #D4A574; }
+        .trend-area.success { fill: #10B981; }
+        .trend-area.users { fill: #3B82F6; }
 
-        .trend-label {
+        .trend-dot {
+            r: 4;
+            stroke-width: 2;
+            stroke: white;
+            cursor: pointer;
+            transition: r 0.2s ease;
+        }
+
+        .trend-dot:hover {
+            r: 6;
+        }
+
+        .trend-dot.visits { fill: #D4A574; }
+        .trend-dot.success { fill: #10B981; }
+        .trend-dot.users { fill: #3B82F6; }
+
+        .trend-grid-line {
+            stroke: #F0E6D8;
+            stroke-width: 1;
+        }
+
+        .trend-axis-label {
             font-size: 10px;
-            color: #A89070;
-            text-align: center;
+            fill: #A89070;
+            text-anchor: middle;
+        }
+
+        .trend-y-label {
+            font-size: 10px;
+            fill: #A89070;
+            text-anchor: end;
+        }
+
+        .trend-tooltip {
+            position: absolute;
+            background: rgba(93, 78, 55, 0.95);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            z-index: 100;
             white-space: nowrap;
+        }
+
+        .trend-tooltip.visible {
+            opacity: 1;
         }
 
         .trend-legend {
@@ -3271,7 +3310,7 @@
             }
         }
         
-        // 渲染趋势图
+        // 渲染趋势图（折线图）
         function renderTrendChart(data) {
             const container = document.getElementById('trendChart');
             
@@ -3280,26 +3319,132 @@
                 return;
             }
             
-            // 找出最大值
-            const maxVisits = Math.max(...data.map(d => d.visits), 1);
+            // 图表尺寸
+            const width = container.offsetWidth || 800;
+            const height = 200;
+            const padding = { top: 20, right: 20, bottom: 40, left: 45 };
+            const chartWidth = width - padding.left - padding.right;
+            const chartHeight = height - padding.top - padding.bottom;
             
-            // 生成柱状图
-            let html = '';
-            data.forEach(item => {
-                const height = (item.visits / maxVisits * 140);
-                html += `
-                    <div class="trend-bar-group" title="${item.date}\n访问: ${item.visits}\n成功: ${item.success}\n用户: ${item.unique_users}">
-                        <div class="trend-bars">
-                            <div class="trend-bar visits" style="height: ${Math.max((item.visits / maxVisits * 140), 2)}px;"></div>
-                            <div class="trend-bar success" style="height: ${Math.max((item.success / maxVisits * 140), 2)}px;"></div>
-                            <div class="trend-bar users" style="height: ${Math.max((item.unique_users / maxVisits * 140), 2)}px;"></div>
-                        </div>
-                        <div class="trend-label">${formatTrendLabel(item.date)}</div>
-                    </div>
-                `;
+            // 找出最大值（用于 Y 轴）
+            const maxValue = Math.max(
+                ...data.map(d => Math.max(d.visits, d.success, d.unique_users)),
+                1
+            );
+            
+            // 计算点的位置
+            const xStep = data.length > 1 ? chartWidth / (data.length - 1) : chartWidth;
+            
+            const getY = (value) => padding.top + chartHeight - (value / maxValue * chartHeight);
+            const getX = (index) => padding.left + (data.length > 1 ? index * xStep : chartWidth / 2);
+            
+            // 生成折线路径
+            const generatePath = (key) => {
+                return data.map((item, i) => {
+                    const x = getX(i);
+                    const y = getY(item[key]);
+                    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                }).join(' ');
+            };
+            
+            // 生成面积路径
+            const generateArea = (key) => {
+                const pathPoints = data.map((item, i) => {
+                    const x = getX(i);
+                    const y = getY(item[key]);
+                    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                }).join(' ');
+                const baseY = padding.top + chartHeight;
+                const firstX = getX(0);
+                const lastX = getX(data.length - 1);
+                return `${pathPoints} L ${lastX} ${baseY} L ${firstX} ${baseY} Z`;
+            };
+            
+            // 生成 Y 轴刻度（4-5 个刻度）
+            const yTicks = [];
+            const tickCount = 4;
+            for (let i = 0; i <= tickCount; i++) {
+                const value = Math.round(maxValue * i / tickCount);
+                const y = getY(value);
+                yTicks.push({ value, y });
+            }
+            
+            // 构建 SVG
+            let svg = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet">`;
+            
+            // 添加网格线
+            yTicks.forEach(tick => {
+                svg += `<line class="trend-grid-line" x1="${padding.left}" y1="${tick.y}" x2="${width - padding.right}" y2="${tick.y}"/>`;
             });
             
-            container.innerHTML = html;
+            // Y 轴刻度标签
+            yTicks.forEach(tick => {
+                svg += `<text class="trend-y-label" x="${padding.left - 8}" y="${tick.y + 4}">${tick.value}</text>`;
+            });
+            
+            // 绘制面积（先绘制面积，再绘制线条）
+            svg += `<path class="trend-area visits" d="${generateArea('visits')}"/>`;
+            svg += `<path class="trend-area success" d="${generateArea('success')}"/>`;
+            svg += `<path class="trend-area users" d="${generateArea('unique_users')}"/>`;
+            
+            // 绘制折线
+            svg += `<path class="trend-line visits" d="${generatePath('visits')}"/>`;
+            svg += `<path class="trend-line success" d="${generatePath('success')}"/>`;
+            svg += `<path class="trend-line users" d="${generatePath('unique_users')}"/>`;
+            
+            // 绘制数据点和 X 轴标签
+            data.forEach((item, i) => {
+                const x = getX(i);
+                
+                // X 轴标签
+                svg += `<text class="trend-axis-label" x="${x}" y="${height - 8}">${formatTrendLabel(item.date)}</text>`;
+                
+                // 数据点
+                const visitsY = getY(item.visits);
+                const successY = getY(item.success);
+                const usersY = getY(item.unique_users);
+                
+                svg += `<circle class="trend-dot visits" cx="${x}" cy="${visitsY}" 
+                    data-date="${item.date}" data-visits="${item.visits}" data-success="${item.success}" data-users="${item.unique_users}"/>`;
+                svg += `<circle class="trend-dot success" cx="${x}" cy="${successY}" 
+                    data-date="${item.date}" data-visits="${item.visits}" data-success="${item.success}" data-users="${item.unique_users}"/>`;
+                svg += `<circle class="trend-dot users" cx="${x}" cy="${usersY}" 
+                    data-date="${item.date}" data-visits="${item.visits}" data-success="${item.success}" data-users="${item.unique_users}"/>`;
+            });
+            
+            svg += '</svg>';
+            
+            // 添加 tooltip 容器
+            container.innerHTML = svg + '<div class="trend-tooltip" id="trendTooltip"></div>';
+            
+            // 绑定鼠标事件
+            const tooltip = document.getElementById('trendTooltip');
+            const dots = container.querySelectorAll('.trend-dot');
+            
+            dots.forEach(dot => {
+                dot.addEventListener('mouseenter', (e) => {
+                    const date = dot.getAttribute('data-date');
+                    const visits = dot.getAttribute('data-visits');
+                    const success = dot.getAttribute('data-success');
+                    const users = dot.getAttribute('data-users');
+                    
+                    tooltip.innerHTML = `<div style="font-weight: 600; margin-bottom: 4px;">${date}</div>
+                        <div style="color: #D4A574;">● 访问量: ${visits}</div>
+                        <div style="color: #10B981;">● 成功验证: ${success}</div>
+                        <div style="color: #3B82F6;">● 独立用户: ${users}</div>`;
+                    tooltip.classList.add('visible');
+                });
+                
+                dot.addEventListener('mousemove', (e) => {
+                    const rect = container.getBoundingClientRect();
+                    tooltip.style.left = (e.clientX - rect.left + 10) + 'px';
+                    tooltip.style.top = (e.clientY - rect.top - 10) + 'px';
+                });
+                
+                dot.addEventListener('mouseleave', () => {
+                    tooltip.classList.remove('visible');
+                });
+            });
         }
         
         // 格式化趋势标签
