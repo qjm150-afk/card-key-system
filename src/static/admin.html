@@ -3458,19 +3458,35 @@
             const endDate = document.getElementById('analyticsEndDate').value;
             
             // 并行加载数据
-            const [overviewRes, channelsRes] = await Promise.all([
+            const [overviewRes, channelsRes, distributionRes] = await Promise.all([
                 fetch(`/api/admin/analytics/overview?start_date=${startDate}&end_date=${endDate}`),
-                fetch(`/api/admin/analytics/channels?start_date=${startDate}&end_date=${endDate}`)
+                fetch(`/api/admin/analytics/channels?start_date=${startDate}&end_date=${endDate}`),
+                fetch('/api/admin/statistics/distribution')
             ]);
             
             const overview = await overviewRes.json();
             const channels = await channelsRes.json();
+            const distribution = await distributionRes.json();
             
             // 渲染概览
             renderAnalyticsOverview(overview.data);
             
             // 渲染渠道分析
             renderChannelAnalysis(channels.data);
+            
+            // 渲染分布数据（包含过期状态统计）
+            if (distribution.success) {
+                renderDistributionData(distribution.data);
+            }
+        }
+        
+        // 渲染过期状态统计
+        function renderExpireStats(expireStatus) {
+            if (!expireStatus) return;
+            document.getElementById('expireExpired').textContent = expireStatus.expired || 0;
+            document.getElementById('expire7days').textContent = expireStatus.expiring_7days || 0;
+            document.getElementById('expire30days').textContent = expireStatus.expiring_30days || 0;
+            document.getElementById('expirePermanent').textContent = expireStatus.permanent || 0;
         }
         
         // 渲染概览统计
