@@ -1634,36 +1634,83 @@
             font-weight: 600;
         }
 
-        /* 过期状态卡片 */
-        .expire-stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-top: 16px;
-        }
-
-        .expire-card {
+        /* 过期状态柱状图 */
+        .expire-chart-container {
             background: white;
             border-radius: 12px;
-            padding: 20px;
+            padding: 24px;
+            margin-top: 16px;
+            min-height: 200px;
+        }
+
+        .expire-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: flex-start;
+            gap: 12px;
+            height: 200px;
+            padding: 10px 0;
+            overflow-x: auto;
+        }
+
+        .expire-bar-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+            flex-shrink: 0;
+        }
+
+        .expire-bar-value {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            white-space: nowrap;
+        }
+
+        .expire-bar {
+            width: 50px;
+            min-height: 10px;
+            border-radius: 6px 6px 0 0;
+            transition: height 0.3s ease;
+            position: relative;
+        }
+
+        .expire-bar-label {
+            font-size: 11px;
+            color: #666;
+            margin-top: 8px;
             text-align: center;
+            max-width: 70px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .expire-value {
-            font-size: 32px;
-            font-weight: bold;
-            margin-bottom: 8px;
+        .expire-bar-label-full {
+            font-size: 10px;
+            color: #999;
+            margin-top: 2px;
         }
 
-        .expire-label {
-            font-size: 12px;
-            color: #A89070;
-        }
+        /* 柱状图颜色 */
+        .expire-bar.expired { background: linear-gradient(180deg, #EF4444 0%, #DC2626 100%); }
+        .expire-bar.expired + .expire-bar-label { color: #EF4444; }
+        .expire-bar.expired ~ .expire-bar-value { color: #EF4444; }
 
-        .expire-expired .expire-value { color: #EF4444; }
-        .expire-warning .expire-value { color: #F59E0B; }
-        .expire-notice .expire-value { color: #3B82F6; }
-        .expire-permanent .expire-value { color: #10B981; }
+        .expire-bar.expiring { background: linear-gradient(180deg, #F59E0B 0%, #D97706 100%); }
+        .expire-bar.expiring + .expire-bar-label { color: #F59E0B; }
+        .expire-bar.expiring ~ .expire-bar-value { color: #F59E0B; }
+
+        .expire-bar.permanent { background: linear-gradient(180deg, #10B981 0%, #059669 100%); }
+        .expire-bar.permanent + .expire-bar-label { color: #10B981; }
+        .expire-bar.permanent ~ .expire-bar-value { color: #10B981; }
+
+        .expire-chart-empty {
+            text-align: center;
+            color: #999;
+            padding: 60px 0;
+        }
 
         @media (max-width: 768px) {
             .expire-stats {
@@ -2403,22 +2450,12 @@
             <!-- 过期状态统计 -->
             <div class="analytics-section">
                 <h3 class="section-title">⏳ 过期状态统计</h3>
-                <div class="expire-stats" id="expireStats">
-                    <div class="expire-card expire-expired">
-                        <div class="expire-value" id="expireExpired">0</div>
-                        <div class="expire-label">已过期</div>
+                <div class="expire-chart-container" id="expireChartContainer">
+                    <div class="expire-chart" id="expireChart">
+                        <!-- 柱状图将通过JS动态生成 -->
                     </div>
-                    <div class="expire-card expire-warning">
-                        <div class="expire-value" id="expire7days">0</div>
-                        <div class="expire-label">7天内过期</div>
-                    </div>
-                    <div class="expire-card expire-notice">
-                        <div class="expire-value" id="expire30days">0</div>
-                        <div class="expire-label">30天内过期</div>
-                    </div>
-                    <div class="expire-card expire-permanent">
-                        <div class="expire-value" id="expirePermanent">0</div>
-                        <div class="expire-label">永久有效</div>
+                    <div class="expire-chart-empty" id="expireChartEmpty" style="display: none;">
+                        暂无过期状态数据
                     </div>
                 </div>
             </div>
@@ -3330,13 +3367,6 @@
                 document.getElementById(`device${i}`).style.width = `${width}%`;
                 document.getElementById(`deviceCount${i}`).textContent = count;
             }
-            
-            // 过期状态统计
-            const expire = data.expire_status;
-            document.getElementById('expireExpired').textContent = expire.expired || 0;
-            document.getElementById('expire7days').textContent = expire.expiring_7days || 0;
-            document.getElementById('expire30days').textContent = expire.expiring_30days || 0;
-            document.getElementById('expirePermanent').textContent = expire.permanent || 0;
         }
         
         // 导出报表
@@ -3375,15 +3405,17 @@
             const endDate = document.getElementById('analyticsEndDate').value;
             
             // 并行加载数据
-            const [overviewRes, channelsRes, distributionRes] = await Promise.all([
+            const [overviewRes, channelsRes, distributionRes, expireGroupsRes] = await Promise.all([
                 fetch(`/api/admin/analytics/overview?start_date=${startDate}&end_date=${endDate}`),
                 fetch(`/api/admin/analytics/channels?start_date=${startDate}&end_date=${endDate}`),
-                fetch('/api/admin/statistics/distribution')
+                fetch('/api/admin/statistics/distribution'),
+                fetch('/api/admin/expire-groups')
             ]);
             
             const overview = await overviewRes.json();
             const channels = await channelsRes.json();
             const distribution = await distributionRes.json();
+            const expireGroups = await expireGroupsRes.json();
             
             // 渲染概览
             renderAnalyticsOverview(overview.data);
@@ -3391,19 +3423,67 @@
             // 渲染渠道分析
             renderChannelAnalysis(channels.data);
             
-            // 渲染分布数据（包含过期状态统计）
+            // 渲染分布数据
             if (distribution.success) {
                 renderDistributionData(distribution.data);
             }
+            
+            // 渲染过期状态柱状图
+            if (expireGroups.success) {
+                renderExpireChart(expireGroups.data);
+            }
         }
         
-        // 渲染过期状态统计
-        function renderExpireStats(expireStatus) {
-            if (!expireStatus) return;
-            document.getElementById('expireExpired').textContent = expireStatus.expired || 0;
-            document.getElementById('expire7days').textContent = expireStatus.expiring_7days || 0;
-            document.getElementById('expire30days').textContent = expireStatus.expiring_30days || 0;
-            document.getElementById('expirePermanent').textContent = expireStatus.permanent || 0;
+        // 渲染过期状态柱状图
+        function renderExpireChart(data) {
+            const chartContainer = document.getElementById('expireChart');
+            const emptyContainer = document.getElementById('expireChartEmpty');
+            
+            if (!data || data.length === 0) {
+                chartContainer.style.display = 'none';
+                emptyContainer.style.display = 'block';
+                return;
+            }
+            
+            chartContainer.style.display = 'flex';
+            emptyContainer.style.display = 'none';
+            
+            // 找出最大值用于计算高度比例
+            const maxCount = Math.max(...data.map(item => item.count), 1);
+            const maxHeight = 160; // 最大柱子高度
+            
+            // 渲染柱状图
+            chartContainer.innerHTML = data.map(item => {
+                const height = Math.max((item.count / maxCount) * maxHeight, 10);
+                let barClass = '';
+                let shortLabel = '';
+                let fullLabel = '';
+                
+                if (item.type === 'expired') {
+                    barClass = 'expired';
+                    shortLabel = '已过期';
+                    fullLabel = '已过期';
+                } else if (item.type === 'permanent') {
+                    barClass = 'permanent';
+                    shortLabel = '永久有效';
+                    fullLabel = '永久有效';
+                } else if (item.type === 'date') {
+                    barClass = 'expiring';
+                    // 显示日期的简短版本
+                    const dateParts = item.date.split('-');
+                    shortLabel = `${dateParts[1]}/${dateParts[2]}`;
+                    fullLabel = item.label;
+                }
+                
+                return `
+                    <div class="expire-bar-wrapper">
+                        <div class="expire-bar-value">${item.count}</div>
+                        <div class="expire-bar ${barClass}" style="height: ${height}px;" title="${fullLabel}"></div>
+                        <div class="expire-bar-label" title="${fullLabel}">${shortLabel}</div>
+                        ${item.type === 'date' ? `<div class="expire-bar-label-full">${item.days_remaining}天后</div>` : ''}
+                    </div>
+                `;
+            }).join('');
         }
         
         // 渲染概览统计
