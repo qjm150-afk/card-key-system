@@ -1937,13 +1937,6 @@
                     </select>
                     <select class="filter-select" id="expireDaysFilter" onchange="searchCards()">
                         <option value="">过期时间</option>
-                        <option value="expired">已过期</option>
-                        <option value="1">未来1天</option>
-                        <option value="3">未来3天</option>
-                        <option value="7">未来7天</option>
-                        <option value="15">未来15天</option>
-                        <option value="30">未来30天</option>
-                        <option value="permanent">永久有效</option>
                     </select>
                     <select class="filter-select" id="feishuUrlFilter" onchange="searchCards()">
                         <option value="">链接名称</option>
@@ -3001,6 +2994,7 @@
             loadStats();
             loadFeishuUrls();
             loadSalesChannels();
+            loadExpireGroups();
             
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchCards();
@@ -3718,6 +3712,49 @@
             }
         }
 
+        // 加载过期时间分组列表
+        async function loadExpireGroups() {
+            try {
+                const response = await fetch('/api/admin/expire-groups');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('expireDaysFilter');
+                    const currentValue = select.value;
+                    
+                    // 构建选项
+                    let optionsHtml = '<option value="">过期时间</option>';
+                    
+                    result.data.forEach(group => {
+                        let value = '';
+                        let label = '';
+                        
+                        if (group.type === 'expired') {
+                            value = 'expired';
+                            label = `已过期 (${group.count}条)`;
+                        } else if (group.type === 'permanent') {
+                            value = 'permanent';
+                            label = `永久有效 (${group.count}条)`;
+                        } else if (group.type === 'date') {
+                            value = `date:${group.date}`;
+                            label = `${group.label} (${group.count}条)`;
+                        }
+                        
+                        if (value) {
+                            optionsHtml += `<option value="${value}">${label}</option>`;
+                        }
+                    });
+                    
+                    select.innerHTML = optionsHtml;
+                    
+                    // 恢复之前的选择
+                    if (currentValue) select.value = currentValue;
+                }
+            } catch (error) {
+                console.error('加载过期时间分组失败:', error);
+            }
+        }
+
         // 更新筛选结果信息
         function updateFilterResultInfo(total) {
             const infoEl = document.getElementById('filterResultInfo');
@@ -3766,8 +3803,18 @@
             
             const expireDays = document.getElementById('expireDaysFilter').value;
             if (expireDays) {
-                const textMap = { 'expired': '已过期', 'permanent': '永久有效' };
-                const label = textMap[expireDays] || `未来${expireDays}天`;
+                let label = '';
+                if (expireDays === 'expired') {
+                    label = '已过期';
+                } else if (expireDays === 'permanent') {
+                    label = '永久有效';
+                } else if (expireDays.startsWith('date:')) {
+                    // 格式: date:2026-12-31
+                    const date = expireDays.substring(5);
+                    label = `${date} 到期`;
+                } else {
+                    label = `未来${expireDays}天`;
+                }
                 tags.push({ field: 'expireDays', label: `过期时间: ${label}`, value: expireDays });
             }
             

@@ -584,7 +584,7 @@ async def get_card_keys(
             except ValueError:
                 pass
         
-        # 过期时间筛选（未来天数）
+        # 过期时间筛选
         if expire_days:
             now = datetime.now()
             if expire_days == 'expired':
@@ -593,6 +593,13 @@ async def get_card_keys(
             elif expire_days == 'permanent':
                 # 永久有效：过期时间为空
                 query = query.is_('expire_at', 'null')
+            elif expire_days.startswith('date:'):
+                # 按具体日期筛选：date:2026-12-31
+                target_date = expire_days[5:]  # 去掉 'date:' 前缀
+                # 匹配该日期的过期时间（00:00:00 ~ 23:59:59）
+                start_time = f"{target_date}T00:00:00"
+                end_time = f"{target_date}T23:59:59"
+                query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
             else:
                 # 未来N天内过期：过期时间在当前时间和N天后之间
                 try:
@@ -770,7 +777,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
                 except ValueError:
                     pass
             
-            # 过期时间筛选（未来天数）
+            # 过期时间筛选
             expire_days = filters.get('expire_days')
             if expire_days and expire_days != '':
                 now = datetime.now()
@@ -778,6 +785,12 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
                 elif expire_days == 'permanent':
                     query = query.is_('expire_at', 'null')
+                elif expire_days.startswith('date:'):
+                    # 按具体日期筛选
+                    target_date = expire_days[5:]
+                    start_time = f"{target_date}T00:00:00"
+                    end_time = f"{target_date}T23:59:59"
+                    query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
                 else:
                     try:
                         days = int(expire_days)
@@ -956,13 +969,19 @@ async def count_by_filters(
             except ValueError:
                 pass
         
-        # 过期时间筛选（未来天数）
+        # 过期时间筛选
         if expire_days and expire_days != '':
             now = datetime.now()
             if expire_days == 'expired':
                 query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
             elif expire_days == 'permanent':
                 query = query.is_('expire_at', 'null')
+            elif expire_days.startswith('date:'):
+                # 按具体日期筛选
+                target_date = expire_days[5:]
+                start_time = f"{target_date}T00:00:00"
+                end_time = f"{target_date}T23:59:59"
+                query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
             else:
                 try:
                     days = int(expire_days)
@@ -1233,6 +1252,109 @@ async def get_sales_channels():
         
     except Exception as e:
         logger.error(f"获取销售渠道列表失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/expire-groups")
+async def get_expire_groups():
+    """
+    获取过期时间分组统计（用于筛选下拉）
+    - 按过期日期分组统计
+    - 永久有效单独分组
+    - 返回：日期、数量、是否已过期
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有记录的过期时间
+        response = client.table('card_keys_table').select('expire_at').execute()
+        
+        now = datetime.now()
+        
+        # 统计每个过期日期的数量
+        permanent_count = 0  # 永久有效
+        expired_count = 0    # 已过期
+        expire_groups = {}   # 未过期的具体日期
+        
+        for item in response.data:
+            expire_at = item.get('expire_at')
+            
+            if expire_at is None:
+                # 永久有效
+                permanent_count += 1
+            else:
+                # 解析过期时间
+                try:
+                    if isinstance(expire_at, str):
+                        expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00')).replace(tzinfo=None)
+                    else:
+                        expire_date = expire_at
+                    
+                    # 只保留日期部分（去掉时分秒）
+                    date_key = expire_date.strftime('%Y-%m-%d')
+                    
+                    if expire_date < now:
+                        # 已过期
+                        expired_count += 1
+                    else:
+                        # 未过期，按日期分组
+                        if date_key not in expire_groups:
+                            expire_groups[date_key] = {
+                                'date': date_key,
+                                'count': 0,
+                                'is_expired': False
+                            }
+                        expire_groups[date_key]['count'] += 1
+                        
+                except Exception as e:
+                    logger.warning(f"解析过期时间失败: {expire_at}, {str(e)}")
+                    continue
+        
+        # 转换为列表并按日期排序
+        groups = list(expire_groups.values())
+        groups.sort(key=lambda x: x['date'])
+        
+        # 构建返回结果
+        result = []
+        
+        # 1. 已过期
+        if expired_count > 0:
+            result.append({
+                'type': 'expired',
+                'label': '已过期',
+                'count': expired_count,
+                'is_expired': True
+            })
+        
+        # 2. 未过期的具体日期（按日期排序）
+        for group in groups:
+            expire_date = datetime.strptime(group['date'], '%Y-%m-%d')
+            # 计算距离过期的天数
+            days_remaining = (expire_date - now).days
+            label = f"{group['date']} ({days_remaining}天后到期)"
+            
+            result.append({
+                'type': 'date',
+                'date': group['date'],
+                'label': label,
+                'count': group['count'],
+                'days_remaining': days_remaining,
+                'is_expired': False
+            })
+        
+        # 3. 永久有效
+        if permanent_count > 0:
+            result.append({
+                'type': 'permanent',
+                'label': '永久有效',
+                'count': permanent_count,
+                'is_expired': False
+            })
+        
+        return {"success": True, "data": result}
+        
+    except Exception as e:
+        logger.error(f"获取过期时间分组失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
