@@ -1118,6 +1118,7 @@ async def get_filter_options(
     """
     获取基于当前筛选条件的各字段可选值
     - exclude_field: 排除的字段（用于获取其他字段选项时，不应用该字段的筛选）
+    - status: 支持 'valid'、'activated'、'disabled' 或数字 '1'、'0'
     """
     try:
         client = get_supabase_client()
@@ -1127,7 +1128,22 @@ async def get_filter_options(
         
         # 应用筛选条件（排除当前字段）
         if status is not None and status != '' and exclude_field != 'status':
-            query = query.eq('status', int(status))
+            # 支持字符串状态值（valid/activated/disabled）和数字状态值（1/0）
+            if status == 'valid':
+                # 有效：status=1 且未使用过且销售状态正常
+                query = query.eq('status', 1).eq('used_count', 0)
+            elif status == 'activated':
+                # 已激活：status=1 且已使用过且销售状态正常
+                query = query.eq('status', 1).gt('used_count', 0)
+            elif status == 'disabled':
+                # 已停用：status=0 或 销售状态为 refunded/disputed
+                query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
+            else:
+                # 尝试作为数字处理（兼容旧版）
+                try:
+                    query = query.eq('status', int(status))
+                except ValueError:
+                    pass
         
         if sale_status and sale_status != '' and exclude_field != 'sale_status':
             query = query.eq('sale_status', sale_status)

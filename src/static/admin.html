@@ -3893,6 +3893,11 @@
                 tags.push({ field: 'expireDays', label: `过期时间: ${label}`, value: expireDays });
             }
             
+            const salesChannel = document.getElementById('salesChannelFilter').value;
+            if (salesChannel) {
+                tags.push({ field: 'salesChannel', label: `销售渠道: ${salesChannel}`, value: salesChannel });
+            }
+            
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
             if (createdStart || createdEnd) {
@@ -3929,6 +3934,8 @@
                 document.getElementById('deviceFilter').value = '';
             } else if (field === 'expireDays') {
                 document.getElementById('expireDaysFilter').value = '';
+            } else if (field === 'salesChannel') {
+                document.getElementById('salesChannelFilter').value = '';
             } else if (field === 'date') {
                 document.getElementById('createdStart').value = '';
                 document.getElementById('createdEnd').value = '';
