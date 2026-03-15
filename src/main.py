@@ -535,7 +535,9 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         )
 
     except Exception as e:
+        import traceback
         logger.error(f"验证失败: {str(e)}")
+        logger.error(f"验证失败堆栈: {traceback.format_exc()}")
         if client:
             log_access(client, None, card_key, False, f"系统错误: {str(e)}", device_id)
         return ValidateResponse(can_access=False, msg="系统错误，请稍后重试")
