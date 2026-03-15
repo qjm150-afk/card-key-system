@@ -2660,7 +2660,8 @@ async def batch_operation(operation: BatchOperation):
             client.table('access_logs').delete().in_('card_key_id', operation.ids).execute()
             # 再删除卡密
             response = client.table('card_keys_table').delete().in_('id', operation.ids).execute()
-            affected_count = len(response.data)
+            # Supabase 可能不返回被删除的数据，使用请求数量作为实际影响数
+            affected_count = len(response.data) if response.data else len(operation.ids)
             
             # 记录操作日志
             safe_log_operation(client, {
@@ -2677,7 +2678,8 @@ async def batch_operation(operation: BatchOperation):
             
         elif operation.action == "activate":
             response = client.table('card_keys_table').update({"status": 1}).in_('id', operation.ids).execute()
-            affected_count = len(response.data)
+            # Supabase 可能不返回更新的数据，使用请求数量作为实际影响数
+            affected_count = len(response.data) if response.data else len(operation.ids)
             
             # 记录操作日志
             safe_log_operation(client, {
@@ -2694,7 +2696,8 @@ async def batch_operation(operation: BatchOperation):
             
         elif operation.action == "deactivate":
             response = client.table('card_keys_table').update({"status": 0}).in_('id', operation.ids).execute()
-            affected_count = len(response.data)
+            # Supabase 可能不返回更新的数据，使用请求数量作为实际影响数
+            affected_count = len(response.data) if response.data else len(operation.ids)
             
             # 记录操作日志
             safe_log_operation(client, {
