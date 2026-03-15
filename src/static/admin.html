@@ -3074,8 +3074,6 @@
         function resetAnalyticsDate() {
             initAnalyticsDate();
             loadAnalytics();
-            loadStatisticsReport();
-            loadLinkHealth();
         }
         
         // ==================== 链接健康检测功能 ====================
@@ -3427,6 +3425,9 @@
             if (expireGroups.success) {
                 renderExpireChart(expireGroups.data);
             }
+            
+            // 加载趋势数据
+            loadTrendData();
         }
         
         // 渲染过期状态柱状图
