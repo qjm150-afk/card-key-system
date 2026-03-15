@@ -416,12 +416,20 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         if not card_key:
             return ValidateResponse(can_access=False, msg="请输入卡密")
 
-        logger.info(f"验证卡密: {card_key}, 设备: {device_id}")
+        logger.info(f"[Validate] 验证卡密: {card_key}, 设备: {device_id}")
 
-        client = get_supabase_client()
+        # 获取数据库客户端
+        try:
+            client = get_supabase_client()
+            logger.info(f"[Validate] 数据库客户端类型: {type(client).__name__}")
+        except Exception as db_err:
+            logger.error(f"[Validate] 获取数据库客户端失败: {str(db_err)}")
+            return ValidateResponse(can_access=False, msg="数据库连接失败")
 
         # 查询卡密
+        logger.info(f"[Validate] 查询卡密: {card_key}")
         response = client.table('card_keys_table').select('*').eq('key_value', card_key).execute()
+        logger.info(f"[Validate] 查询结果: 找到 {len(response.data) if response.data else 0} 条记录")
 
         if not response.data:
             log_access(client, None, card_key, False, "卡密不存在", device_id)
@@ -430,6 +438,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         card_data = response.data[0]
         card_id = card_data.get('id')
         sales_channel = card_data.get('sales_channel', '')
+        logger.info(f"[Validate] 卡密数据: id={card_id}, status={card_data.get('status')}, expire_at={card_data.get('expire_at')}")
         
         # 检查是否首次访问（该卡密是否有成功访问记录）
         is_first_access = False
