@@ -154,6 +154,7 @@
 
         .filter-select {
             height: 40px;
+            min-width: 100px;
             padding: 0 32px 0 12px;
             border: 1px solid #E8D5C4;
             border-radius: 10px;
@@ -5279,7 +5280,7 @@
                 const status = headerFilters.status || document.getElementById('statusFilter').value || '';
                 const saleStatus = headerFilters.sale_status || '';
                 const feishuUrl = headerFilters.feishu_url || document.getElementById('feishuUrlFilter').value || '';
-                const expireStatus = document.getElementById('expireStatusFilter').value || '';
+                const expireStatus = document.getElementById('expireStatusFilter')?.value || '';
                 const search = document.getElementById('searchInput').value || '';
                 const createdStart = document.getElementById('createdStart').value || '';
                 const createdEnd = document.getElementById('createdEnd').value || '';
