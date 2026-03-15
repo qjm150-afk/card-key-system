@@ -203,6 +203,54 @@ async def debug_database():
 |------|------|----------|
 | 2026-03-15 | `.env.local` | 从 Git 仓库删除 |
 | 2026-03-15 | `src/main.py` | 环境变量加载逻辑：检测生产环境配置，跳过 `.env.local` |
-| 2026-03-15 | `src/storage/database/db_client.py` | 移除 `load_dotenv()` 调用，防止覆盖环境变量 |
-| 2026-03-15 | `src/storage/database/postgres_client.py` | 移除 `load_dotenv()` 调用，防止覆盖环境变量 |
-| 2026-03-15 | `src/storage/database/supabase_client.py` | 移除 `load_dotenv()` 调用，防止覆盖环境变量 |
+| 2026-03-15 | `src/storage/database/db_client.py` | 移除 `load_dotenv()` 调用；优先使用 DATABASE_URL；添加 COZE_SUPABASE_ANON_KEY 检查 |
+| 2026-03-15 | `src/storage/database/postgres_client.py` | 移除 `load_dotenv()` 调用；添加连接超时参数 |
+| 2026-03-15 | `src/storage/database/supabase_client.py` | 移除 `load_dotenv()` 调用 |
+
+---
+
+## 扩展问题：504 网关超时
+
+### 问题现象
+
+前端验证卡密时返回 **504 Gateway Timeout** 错误。
+
+### 根本原因
+
+`_load_env()` 函数中的 `coze_workload_identity` 调用在生产环境耗时过长，导致请求超时。
+
+```python
+# 问题代码
+def _load_env() -> None:
+    try:
+        from coze_workload_identity import Client as WorkloadClient
+        client = WorkloadClient()  # 可能耗时很长
+        env_vars = client.get_project_env_vars()
+        ...
+```
+
+### 解决方案
+
+在 `_load_env()` 开头添加检查，如果已有数据库配置则直接返回：
+
+```python
+def _load_env() -> None:
+    # 如果已经有数据库配置，跳过 coze_workload_identity 调用（避免超时）
+    if os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL") or os.getenv("COZE_SUPABASE_URL"):
+        return
+    # ... 原有逻辑
+```
+
+### 数据库选择优先级调整
+
+修改前：
+1. `COZE_SUPABASE_URL` 存在 → Supabase
+2. `DATABASE_URL` 存在 → PostgreSQL
+
+修改后：
+1. `DATABASE_URL` 存在 → PostgreSQL 直连（优先，更可靠）
+2. `COZE_SUPABASE_URL` + `COZE_SUPABASE_ANON_KEY` 存在 → Supabase
+
+原因：
+- Supabase SDK 需要完整的 URL 和 ANON_KEY
+- PostgreSQL 直连更简单可靠，不依赖额外的 SDK
