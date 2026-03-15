@@ -5509,6 +5509,9 @@
             
             if (!items || !Array.isArray(items)) return;
             
+            // 保存当前选中值
+            const currentValue = select.value;
+            
             // 清空并重建选项
             select.innerHTML = `<option value="">${placeholder}</option>`;
             
@@ -5521,6 +5524,17 @@
                     select.appendChild(option);
                 }
             });
+            
+            // 恢复选中值（遍历选项查找匹配，避免 CSS 选择器特殊字符问题）
+            if (currentValue) {
+                const options = select.options;
+                for (let i = 0; i < options.length; i++) {
+                    if (options[i].value === currentValue) {
+                        select.value = currentValue;
+                        break;
+                    }
+                }
+            }
         }
 
         // 应用表头筛选
