@@ -14,15 +14,22 @@ for _p in [_parent_dir, _current_dir]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-# 加载环境变量（优先加载 .env.local）
+# 加载环境变量
+# 优先加载 .env.local（本地开发配置），然后让 db_client.py 根据环境变量判断使用哪个数据库
+# 逻辑：LOCAL_DEV_MODE=true → SQLite，否则有 COZE_SUPABASE_URL → Supabase
 from dotenv import load_dotenv
 _env_local = os.path.join(_parent_dir, '.env.local')
+
 if os.path.exists(_env_local):
-    load_dotenv(_env_local)
+    # 本地开发：加载 .env.local（可能设置 LOCAL_DEV_MODE=true）
+    load_dotenv(_env_local, override=True)  # override=True 确保 .env.local 优先级最高
     print(f"[ENV] Loaded .env.local from {_env_local}")
     print(f"[ENV] LOCAL_DEV_MODE = {os.getenv('LOCAL_DEV_MODE')}")
+    print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
 else:
-    load_dotenv()  # 尝试加载默认 .env
+    # 云端部署：使用系统环境变量
+    print(f"[ENV] No .env.local, using system environment")
+    print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
 
 # 导入其他模块
 import logging
