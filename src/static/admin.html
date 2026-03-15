@@ -3682,6 +3682,42 @@
             }
         }
 
+        // 加载销售渠道到 datalist（用于批量生成和编辑卡密）
+        async function loadSalesChannelDatalist() {
+            try {
+                const response = await fetch('/api/admin/cards/sales-channels');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const datalist = document.getElementById('salesChannelList');
+                    
+                    // 预设渠道
+                    const presetChannels = [
+                        '阿奇索发货平台',
+                        '小红书',
+                        '淘宝',
+                        '抖音',
+                        '拼多多',
+                        '闲鱼',
+                        '微信私域'
+                    ];
+                    
+                    // 已有渠道（从API获取）
+                    const existingChannels = result.data.map(item => item.channel);
+                    
+                    // 合并并去重
+                    const allChannels = [...new Set([...presetChannels, ...existingChannels])];
+                    
+                    // 更新 datalist
+                    datalist.innerHTML = allChannels.map(channel => 
+                        `<option value="${channel}">`
+                    ).join('');
+                }
+            } catch (error) {
+                console.error('加载销售渠道datalist失败:', error);
+            }
+        }
+
         // 更新筛选结果信息
         function updateFilterResultInfo(total) {
             const infoEl = document.getElementById('filterResultInfo');
@@ -4110,6 +4146,8 @@
             document.getElementById('batchModalOverlay').classList.add('active');
             // 重置提示文字显示
             updateGenerateCountHint();
+            // 加载销售渠道列表
+            loadSalesChannelDatalist();
         }
 
         // 更新生成数量提示文字
@@ -4134,6 +4172,9 @@
 
         // 编辑卡密
         async function editCard(id) {
+            // 加载销售渠道列表
+            loadSalesChannelDatalist();
+            
             try {
                 const response = await fetch(`/api/admin/cards/${id}`);
                 const result = await response.json();
@@ -4217,6 +4258,8 @@
                     // 刷新下拉列表
                     loadSalesChannels();
                     loadFeishuUrls();
+                    // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
+                    loadSalesChannelDatalist();
                 } else {
                     showToast(result.msg, 'error');
                 }
@@ -4266,6 +4309,8 @@
                     closeBatchGenerateModal();
                     loadCards();
                     loadStats();
+                    // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
+                    loadSalesChannelDatalist();
                     
                     // 如果勾选了导出，自动下载 CSV（导出所有字段）
                     if (shouldExport && result.data && result.data.length > 0) {
@@ -5698,6 +5743,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             // 初始化所有筛选下拉框选项
             loadFilterOptions(null);
+            // 初始化销售渠道datalist
+            loadSalesChannelDatalist();
         });
 
         // 页面加载时检查登录状态
