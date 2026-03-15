@@ -1,16 +1,19 @@
 """
-数据库客户端 - 支持双模式切换
-- 云端部署：使用 Coze Supabase
+数据库客户端 - 支持三模式切换
+- 生产环境（Supabase）：使用 COZE_SUPABASE_URL
+- 生产环境（PostgreSQL）：使用 DATABASE_URL
 - 本地开发：使用 SQLite
 
 环境变量说明：
 - LOCAL_DEV_MODE=true: 强制使用本地 SQLite 数据库（本地开发/测试）
 - COZE_SUPABASE_URL: 云端 Supabase 地址（生产环境）
+- DATABASE_URL: PostgreSQL 连接字符串（生产环境备选）
 
 判断逻辑：
 1. 如果 LOCAL_DEV_MODE=true，强制使用 SQLite（优先级最高）
-2. 如果 COZE_SUPABASE_URL 存在且 LOCAL_DEV_MODE 未设置，使用 Supabase
-3. 否则默认使用 SQLite
+2. 如果 COZE_SUPABASE_URL 存在，使用 Supabase
+3. 如果 DATABASE_URL 存在，使用 PostgreSQL 直连
+4. 否则默认使用 SQLite
 """
 
 import os
@@ -35,20 +38,28 @@ def is_production() -> bool:
     
     优先级：
     1. LOCAL_DEV_MODE=true → 返回 False（强制本地模式）
-    2. COZE_SUPABASE_URL 存在 → 返回 True（生产环境）
-    3. 默认 → 返回 False（本地模式）
+    2. COZE_SUPABASE_URL 存在 → 返回 True（Supabase）
+    3. DATABASE_URL 存在 → 返回 True（PostgreSQL）
+    4. 默认 → 返回 False（本地模式）
     """
     # 本地开发模式优先级最高
     if is_local_dev_mode():
         return False
     
-    # 有 Supabase URL 且未设置本地模式，则为生产环境
-    return bool(os.getenv("COZE_SUPABASE_URL"))
+    # 有 Supabase URL 或 Database URL，则为生产环境
+    return bool(os.getenv("COZE_SUPABASE_URL") or os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL"))
 
 
 def get_db_mode() -> str:
     """获取当前数据库模式名称"""
-    return "sqlite (local)" if not is_production() else "supabase (production)"
+    if is_local_dev_mode():
+        return "sqlite (local)"
+    elif os.getenv("COZE_SUPABASE_URL"):
+        return "supabase (production)"
+    elif os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL"):
+        return "postgresql (production)"
+    else:
+        return "sqlite (local)"
 
 
 # ============================================
@@ -712,13 +723,22 @@ def get_db_client():
     if _db_client is not None:
         return _db_client, _is_sqlite
     
-    if is_production():
-        # 生产环境：使用 Supabase
+    if is_local_dev_mode():
+        # 本地开发：使用 SQLite
+        _db_client = SQLiteClient()
+        _is_sqlite = True
+    elif os.getenv("COZE_SUPABASE_URL"):
+        # 生产环境：优先使用 Supabase
         from .supabase_client import get_supabase_client
         _db_client = get_supabase_client()
         _is_sqlite = False
+    elif os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL"):
+        # 生产环境：使用 PostgreSQL 直连
+        from .postgres_client import get_postgres_client
+        _db_client = get_postgres_client()
+        _is_sqlite = False
     else:
-        # 本地开发：使用 SQLite
+        # 默认：使用 SQLite
         _db_client = SQLiteClient()
         _is_sqlite = True
     
