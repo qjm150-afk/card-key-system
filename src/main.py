@@ -2974,6 +2974,8 @@ async def get_statistics_distribution():
         expired_count = 0
         expiring_7days = 0
         expiring_30days = 0
+        permanent_count = 0
+        long_term_count = 0  # 超过30天过期
         
         for card in cards:
             # 销售状态
@@ -3004,6 +3006,24 @@ async def get_statistics_distribution():
             
             # 过期状态
             expire_at = card.get('expire_at')
+            if expire_at is None:
+                # 永久有效
+                permanent_count += 1
+            else:
+                try:
+                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    if expire_time < now:
+                        expired_count += 1
+                    elif expire_time < now + timedelta(days=7):
+                        expiring_7days += 1
+                    elif expire_time < now + timedelta(days=30):
+                        expiring_30days += 1
+                    else:
+                        # 超过30天过期，算作长期有效
+                        long_term_count += 1
+                except:
+                    pass
+            expire_at = card.get('expire_at')
             if expire_at:
                 try:
                     expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
@@ -3027,7 +3047,8 @@ async def get_statistics_distribution():
                     "expired": expired_count,
                     "expiring_7days": expiring_7days,
                     "expiring_30days": expiring_30days,
-                    "permanent": len(cards) - expired_count - expiring_7days - expiring_30days
+                    "permanent": permanent_count,
+                    "long_term": long_term_count
                 }
             }
         }

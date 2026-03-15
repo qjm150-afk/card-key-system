@@ -1662,6 +1662,7 @@
         .expire-expired .expire-value { color: #EF4444; }
         .expire-warning .expire-value { color: #F59E0B; }
         .expire-notice .expire-value { color: #3B82F6; }
+        .expire-longterm .expire-value { color: #8B5CF6; }
         .expire-permanent .expire-value { color: #10B981; }
 
         @media (max-width: 768px) {
@@ -2414,6 +2415,10 @@
                     <div class="expire-card expire-notice">
                         <div class="expire-value" id="expire30days">0</div>
                         <div class="expire-label">30天内过期</div>
+                    </div>
+                    <div class="expire-card expire-longterm">
+                        <div class="expire-value" id="expireLongTerm">0</div>
+                        <div class="expire-label">长期有效</div>
                     </div>
                     <div class="expire-card expire-permanent">
                         <div class="expire-value" id="expirePermanent">0</div>
@@ -3359,6 +3364,7 @@
             document.getElementById('expireExpired').textContent = expire.expired || 0;
             document.getElementById('expire7days').textContent = expire.expiring_7days || 0;
             document.getElementById('expire30days').textContent = expire.expiring_30days || 0;
+            document.getElementById('expireLongTerm').textContent = expire.long_term || 0;
             document.getElementById('expirePermanent').textContent = expire.permanent || 0;
         }
         
