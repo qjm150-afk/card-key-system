@@ -5404,13 +5404,13 @@
             if (excludeField !== 'status') {
                 const statusDropdown = document.getElementById('filter-dropdown-status');
                 const currentStatus = headerFilters.status;
-                let statusHtml = `<div class="filter-option"><input type="radio" name="filter-status" value="" ${!currentStatus ? 'checked' : ''} onchange="applyHeaderFilter('status', '')"> <label>全部</label></div>`;
+                let statusHtml = `<div class="filter-option" onclick="applyHeaderFilter('status', '')"><input type="radio" name="filter-status" value="" ${!currentStatus ? 'checked' : ''}> <label>全部</label></div>`;
                 
                 for (const [value, count] of Object.entries(data.status)) {
                     if (count > 0) {
                         const label = statusLabels[value] || value;
                         const checked = currentStatus === value ? 'checked' : '';
-                        statusHtml += `<div class="filter-option"><input type="radio" name="filter-status" value="${value}" ${checked} onchange="applyHeaderFilter('status', '${value}')"> <label>${label} (${count})</label></div>`;
+                        statusHtml += `<div class="filter-option" onclick="applyHeaderFilter('status', '${value}')"><input type="radio" name="filter-status" value="${value}" ${checked}> <label>${label} (${count})</label></div>`;
                     }
                 }
                 statusDropdown.innerHTML = statusHtml;
@@ -5420,13 +5420,13 @@
             if (excludeField !== 'sale_status') {
                 const saleStatusDropdown = document.getElementById('filter-dropdown-sale_status');
                 const currentSaleStatus = headerFilters.sale_status;
-                let saleStatusHtml = `<div class="filter-option"><input type="radio" name="filter-sale_status" value="" ${!currentSaleStatus ? 'checked' : ''} onchange="applyHeaderFilter('sale_status', '')"> <label>全部</label></div>`;
+                let saleStatusHtml = `<div class="filter-option" onclick="applyHeaderFilter('sale_status', '')"><input type="radio" name="filter-sale_status" value="" ${!currentSaleStatus ? 'checked' : ''}> <label>全部</label></div>`;
                 
                 for (const [value, count] of Object.entries(data.sale_status)) {
                     if (count > 0) {
                         const label = saleStatusLabels[value] || value || '未设置';
                         const checked = currentSaleStatus === value ? 'checked' : '';
-                        saleStatusHtml += `<div class="filter-option"><input type="radio" name="filter-sale_status" value="${value}" ${checked} onchange="applyHeaderFilter('sale_status', '${value}')"> <label>${label} (${count})</label></div>`;
+                        saleStatusHtml += `<div class="filter-option" onclick="applyHeaderFilter('sale_status', '${value}')"><input type="radio" name="filter-sale_status" value="${value}" ${checked}> <label>${label} (${count})</label></div>`;
                     }
                 }
                 saleStatusDropdown.innerHTML = saleStatusHtml;
@@ -5436,7 +5436,7 @@
             if (excludeField !== 'feishu_url') {
                 const feishuDropdown = document.getElementById('filter-dropdown-feishu_url');
                 const currentFeishuUrl = headerFilters.feishu_url;
-                let feishuHtml = `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="" ${!currentFeishuUrl ? 'checked' : ''} onchange="applyHeaderFilter('feishu_url', '')"> <label>全部</label></div>`;
+                let feishuHtml = `<div class="filter-option" onclick="applyHeaderFilter('feishu_url', '')"><input type="radio" name="filter-feishu_url" value="" ${!currentFeishuUrl ? 'checked' : ''}> <label>全部</label></div>`;
                 
                 // URL到名称的映射
                 const urlNames = data.feishu_url_names || {};
@@ -5452,8 +5452,8 @@
                             displayText = url ? (url.length > 25 ? url.substring(0, 25) + '...' : url) : '(空)';
                         }
                         const checked = currentFeishuUrl === url ? 'checked' : '';
-                        const escapedUrl = url.replace(/'/g, "\\'");
-                        feishuHtml += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${url}" ${checked} onchange="applyHeaderFilter('feishu_url', '${escapedUrl}')"> <label title="${url}">${displayText} (${count})</label></div>`;
+                        const escapedUrl = url.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                        feishuHtml += `<div class="filter-option" onclick="applyHeaderFilter('feishu_url', '${escapedUrl}')"><input type="radio" name="filter-feishu_url" value="${url}" ${checked}> <label title="${url}">${displayText} (${count})</label></div>`;
                     }
                 }
                 feishuDropdown.innerHTML = feishuHtml;
@@ -5503,7 +5503,7 @@
                 
                 if (result.success) {
                     const dropdown = document.getElementById('filter-dropdown-feishu_url');
-                    let html = '<div class="filter-option"><input type="radio" name="filter-feishu_url" value="" checked onchange="applyHeaderFilter(\'feishu_url\', \'\')"> <label>全部</label></div>';
+                    let html = '<div class="filter-option" onclick="applyHeaderFilter(\'feishu_url\', \'\')"><input type="radio" name="filter-feishu_url" value="" checked> <label>全部</label></div>';
                     
                     result.data.forEach(item => {
                         // 显示链接名称，优先使用名称，其次显示截断的URL
@@ -5513,7 +5513,9 @@
                         } else {
                             displayText = item.url.length > 20 ? item.url.substring(0, 20) + '...' : item.url;
                         }
-                        html += `<div class="filter-option"><input type="radio" name="filter-feishu_url" value="${item.url}" onchange="applyHeaderFilter('feishu_url', '${item.url}')"> <label title="${item.url}">${displayText} (${item.count}条)</label></div>`;
+                        // 对URL进行转义处理，防止特殊字符导致JS错误
+                        const escapedUrl = item.url.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                        html += `<div class="filter-option" onclick="applyHeaderFilter('feishu_url', '${escapedUrl}')"><input type="radio" name="filter-feishu_url" value="${item.url}"> <label title="${item.url}">${displayText} (${item.count}条)</label></div>`;
                     });
                     
                     dropdown.innerHTML = html;
