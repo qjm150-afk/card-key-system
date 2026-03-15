@@ -3771,6 +3771,14 @@
         async function loadStats() {
             try {
                 const response = await fetch('/api/admin/cards/stats');
+                
+                // 检查是否是 401 未授权错误
+                if (response.status === 401) {
+                    stopAutoRefresh();
+                    showLogin();
+                    return;
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
@@ -3813,6 +3821,14 @@
 
             try {
                 const response = await fetch(`/api/admin/cards?${params}`);
+                
+                // 检查是否是 401 未授权错误
+                if (response.status === 401) {
+                    stopAutoRefresh();
+                    showLogin();
+                    return;
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
@@ -3834,6 +3850,14 @@
         async function loadFeishuUrls() {
             try {
                 const response = await fetch('/api/admin/cards/feishu-urls');
+                
+                // 检查是否是 401 未授权错误
+                if (response.status === 401) {
+                    stopAutoRefresh();
+                    showLogin();
+                    return;
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
@@ -3865,6 +3889,14 @@
         async function loadSalesChannels() {
             try {
                 const response = await fetch('/api/admin/cards/sales-channels');
+                
+                // 检查是否是 401 未授权错误
+                if (response.status === 401) {
+                    stopAutoRefresh();
+                    showLogin();
+                    return;
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
@@ -3893,6 +3925,14 @@
         async function loadSalesChannelDatalist() {
             try {
                 const response = await fetch('/api/admin/cards/sales-channels');
+                
+                // 检查是否是 401 未授权错误
+                if (response.status === 401) {
+                    stopAutoRefresh();
+                    showLogin();
+                    return;
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
@@ -5564,6 +5604,14 @@
                 if (excludeField) params.append('exclude_field', excludeField);
                 
                 const response = await fetch(`/api/admin/cards/filter-options?${params}`);
+                
+                // 检查是否是 401 未授权错误
+                if (response.status === 401) {
+                    stopAutoRefresh();
+                    showLogin();
+                    return;
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
