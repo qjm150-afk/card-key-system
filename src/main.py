@@ -65,11 +65,36 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # 配置日志
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # 创建 FastAPI 应用
 app = FastAPI(title="卡密验证系统")
+
+# 启动事件 - 打印启动日志和测试数据库连接
+@app.on_event("startup")
+async def startup_event():
+    logger.info("=" * 50)
+    logger.info("[STARTUP] 卡密验证系统启动中...")
+    logger.info(f"[STARTUP] ENV - DATABASE_URL: {'已设置' if os.getenv('DATABASE_URL') or os.getenv('PGDATABASE_URL') else '未设置'}")
+    logger.info(f"[STARTUP] ENV - COZE_SUPABASE_URL: {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
+    logger.info(f"[STARTUP] ENV - LOCAL_DEV_MODE: {os.getenv('LOCAL_DEV_MODE')}")
+    
+    try:
+        # 测试数据库连接
+        from storage.database.db_client import get_db_client, get_db_mode
+        client, _ = get_db_client()
+        db_mode = get_db_mode()
+        logger.info(f"[STARTUP] 数据库模式: {db_mode}")
+        logger.info(f"[STARTUP] 数据库客户端类型: {type(client).__name__}")
+        
+        # 测试查询
+        result = client.table('card_keys_table').select('id', count='exact').limit(1).execute()
+        logger.info(f"[STARTUP] 数据库连接成功，总记录数: {result.count}")
+    except Exception as e:
+        logger.error(f"[STARTUP] 数据库连接失败: {str(e)}")
+    
+    logger.info("=" * 50)
 
 # CORS 配置
 app.add_middleware(

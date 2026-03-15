@@ -41,8 +41,11 @@ def _load_env() -> None:
 
 
 def get_supabase_credentials() -> tuple[str, str]:
-    _load_env()
-
+    """获取 Supabase 凭证
+    
+    注意：不再调用 _load_env()，避免潜在的延迟
+    环境变量应在 main.py 启动时加载
+    """
     url = os.getenv("COZE_SUPABASE_URL")
     anon_key = os.getenv("COZE_SUPABASE_ANON_KEY")
 

@@ -361,8 +361,11 @@ class PostgresClient:
 
 
 def get_database_url() -> Optional[str]:
-    """获取数据库连接 URL"""
-    _load_env()
+    """获取数据库连接 URL
+    
+    注意：不再调用 _load_env()，避免潜在的延迟
+    环境变量应在 main.py 启动时加载
+    """
     return os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
 
 

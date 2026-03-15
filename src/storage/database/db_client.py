@@ -719,19 +719,21 @@ _is_sqlite = False
 def get_db_client():
     """获取数据库客户端（自动选择模式）
     
-    优先级（修改后）：
+    优先级：
     1. LOCAL_DEV_MODE=true → SQLite
     2. DATABASE_URL 或 PGDATABASE_URL 存在 → PostgreSQL 直连（优先）
-    3. COZE_SUPABASE_URL 存在 → Supabase
+    3. COZE_SUPABASE_URL + COZE_SUPABASE_ANON_KEY 存在 → Supabase
     4. 默认 → SQLite
+    
+    注意：不再调用 _load_env()，避免潜在的延迟
+    环境变量应在 main.py 启动时加载
     """
     global _db_client, _is_sqlite
     
     if _db_client is not None:
         return _db_client, _is_sqlite
     
-    # 先加载环境变量
-    _load_env()
+    # 不再调用 _load_env()，环境变量已在 main.py 中加载
     
     # 添加调试日志
     import logging
