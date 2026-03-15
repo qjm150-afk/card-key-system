@@ -239,6 +239,7 @@ class SQLiteTable:
             self._filters.append((column, "IN", values))
         return self
     
+    @property
     def not_(self) -> "SQLiteNotWrapper":
         """NOT 条件（返回包装器，支持链式调用）"""
         return SQLiteNotWrapper(self)
