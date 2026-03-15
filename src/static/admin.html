@@ -2478,7 +2478,7 @@
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>激活状态</label>
+                            <label>卡密状态</label>
                             <select class="form-select" id="cardStatus">
                                 <option value="1">有效</option>
                                 <option value="0">已停用</option>
@@ -2657,11 +2657,11 @@
                 <div id="batchUpdateFields">
                     <div class="update-field-row">
                         <input type="checkbox" class="update-field-checkbox" id="updateFieldStatus" onchange="toggleUpdateField('status')">
-                        <span class="update-field-label">激活状态</span>
+                        <span class="update-field-label">卡密状态</span>
                         <div class="update-field-input">
                             <select id="updateValueStatus" disabled>
                                 <option value="1">有效</option>
-                                <option value="0">无效</option>
+                                <option value="0">已停用</option>
                             </select>
                         </div>
                     </div>
@@ -2831,7 +2831,7 @@
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="status">
-                            <span>激活状态</span>
+                            <span>卡密状态</span>
                         </label>
                         <label class="checkbox-label" style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #f9f6f0; border-radius: 6px; cursor: pointer;">
                             <input type="checkbox" class="export-field-checkbox" value="devices">
@@ -2957,9 +2957,9 @@
                     <input type="file" id="cardsImportFile" accept=".csv" style="margin-top: 8px;">
                     <p style="color: #999; font-size: 12px; margin-top: 8px;">
                         <strong>支持字段：</strong><br>
-                        卡密值（必填）、激活状态、过期时间、备注、链接名称、销售状态、销售渠道、订单号、访问密码、飞书链接、最大设备数<br><br>
+                        卡密值（必填）、卡密状态、过期时间、备注、链接名称、销售状态、销售渠道、订单号、访问密码、飞书链接、最大设备数<br><br>
                         <strong>字段说明：</strong><br>
-                        • 激活状态：有效 / 无效<br>
+                        • 卡密状态：有效 / 已停用<br>
                         • 销售状态：未售出 / 已售出 / 已核销 / 已退款 / 有纠纷<br>
                         • 过期时间格式：2026-12-31 23:59:59<br><br>
                         <span style="color: #22C55E;">✓ 卡密已存在：更新该卡密信息</span><br>
@@ -4233,7 +4233,9 @@
                     
                     document.getElementById('cardId').value = card.id;
                     document.getElementById('keyValue').value = card.key_value || '';
-                    document.getElementById('cardStatus').value = card.status || 1;
+                    // 修复：status 为 0 时不应被 || 运算符覆盖
+                    document.getElementById('cardStatus').value = card.status !== undefined && card.status !== null ? card.status : 1;
+                    // 修复：sale_status 为 null 时才使用默认值
                     document.getElementById('saleStatus').value = card.sale_status || 'unsold';
                     document.getElementById('salesChannel').value = card.sales_channel || '';
                     document.getElementById('orderId').value = card.order_id || '';
@@ -5493,7 +5495,7 @@
             };
             
             const labelMap = {
-                'status': '激活状态',
+                'status': '卡密状态',
                 'sale_status': '销售状态',
                 'feishu_url': '飞书链接',
                 'link_name': '链接名称',
