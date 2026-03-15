@@ -2994,9 +2994,8 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadCards();
             loadStats();
-            loadFeishuUrls();
-            loadSalesChannels();
-            loadExpireGroups();
+            // 使用统一的 loadFilterOptions 加载所有下拉框选项
+            loadFilterOptions(null);
             
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchCards();
@@ -4448,8 +4447,7 @@
                     loadCards();
                     loadStats();
                     // 刷新下拉列表
-                    loadSalesChannels();
-                    loadFeishuUrls();
+                    loadFilterOptions(null);
                     // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
                     loadSalesChannelDatalist();
                 } else {
@@ -4601,8 +4599,7 @@
                     loadCards();
                     loadStats();
                     // 刷新下拉列表
-                    loadSalesChannels();
-                    loadFeishuUrls();
+                    loadFilterOptions(null);
                 } else {
                     showToast(result.msg, 'error');
                 }
@@ -4802,7 +4799,7 @@
                     selectedIds.clear();
                     updateSelectedInfo();
                     loadCards();
-                    loadFeishuUrls(); // 刷新链接列表
+                    loadFilterOptions(null); // 刷新下拉列表
                 } else {
                     showToast(result.msg, 'error');
                 }
@@ -4939,8 +4936,7 @@
                     closeImportCardsModal();
                     loadCards();
                     loadStats();
-                    loadFeishuUrls();
-                    loadSalesChannels();
+                    loadFilterOptions(null);
                 } else {
                     showToast(result.msg, 'error');
                 }
@@ -5469,31 +5465,55 @@
                 saleStatusDropdown.innerHTML = saleStatusHtml;
             }
             
-            // 更新飞书链接下拉框
-            if (excludeField !== 'feishu_url') {
+            // 更新飞书链接下拉框（使用新的列表格式）
+            if (excludeField !== 'feishu_url' && data.feishu_url_list) {
                 const feishuDropdown = document.getElementById('filter-dropdown-feishu_url');
                 const currentFeishuUrl = headerFilters.feishu_url;
                 let feishuHtml = `<div class="filter-option" onclick="applyHeaderFilter('feishu_url', '')"><input type="radio" name="filter-feishu_url" value="" ${!currentFeishuUrl ? 'checked' : ''}> <label>全部</label></div>`;
                 
-                // URL到名称的映射
-                const urlNames = data.feishu_url_names || {};
-                
-                for (const [url, count] of Object.entries(data.feishu_url)) {
-                    if (count > 0) {
-                        // 显示链接名称，优先使用名称映射，其次显示截断的URL
-                        const linkName = urlNames[url];
-                        let displayText;
-                        if (linkName && linkName.trim()) {
-                            displayText = linkName;
-                        } else {
-                            displayText = url ? (url.length > 25 ? url.substring(0, 25) + '...' : url) : '(空)';
-                        }
-                        const checked = currentFeishuUrl === url ? 'checked' : '';
-                        const escapedUrl = url.replace(/'/g, "\\'").replace(/"/g, '\\"');
-                        feishuHtml += `<div class="filter-option" onclick="applyHeaderFilter('feishu_url', '${escapedUrl}')"><input type="radio" name="filter-feishu_url" value="${url}" ${checked}> <label title="${url}">${displayText} (${count})</label></div>`;
-                    }
+                for (const item of data.feishu_url_list) {
+                    const checked = currentFeishuUrl === item.url ? 'checked' : '';
+                    const escapedUrl = item.url.replace(/'/g, "\\'").replace(/"/g, '\\"');
+                    feishuHtml += `<div class="filter-option" onclick="applyHeaderFilter('feishu_url', '${escapedUrl}')"><input type="radio" name="filter-feishu_url" value="${item.url}" ${checked}> <label title="${item.url || '未设置'}">${item.name} (${item.count})</label></div>`;
                 }
                 feishuDropdown.innerHTML = feishuHtml;
+                
+                // 同步更新 select 下拉框
+                updateSelectDropdown('feishuUrlFilter', data.feishu_url_list, 'url', 'name', '飞书链接');
+            }
+            
+            // 更新销售渠道 select 下拉框
+            if (excludeField !== 'sales_channel' && data.sales_channel_list) {
+                updateSelectDropdown('salesChannelFilter', data.sales_channel_list, 'channel', 'channel', '销售渠道');
+            }
+            
+            // 更新过期时间 select 下拉框
+            if (excludeField !== 'expire_days' && data.expire_groups_list) {
+                updateSelectDropdown('expireDaysFilter', data.expire_groups_list, 'value', 'label', '过期时间');
+            }
+        }
+        
+        // 通用函数：更新 select 下拉框选项
+        function updateSelectDropdown(selectId, items, valueKey, labelKey, placeholder) {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            
+            const currentValue = select.value;
+            
+            // 保留第一个 option 作为 placeholder
+            select.innerHTML = `<option value="">${placeholder}</option>`;
+            
+            // 添加选项
+            for (const item of items) {
+                const option = document.createElement('option');
+                option.value = item[valueKey];
+                option.textContent = `${item[labelKey]} (${item.count}条)`;
+                select.appendChild(option);
+            }
+            
+            // 恢复之前的选择（如果选项仍然存在）
+            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
             }
         }
 
@@ -5760,11 +5780,8 @@
                     loadCards();
                     loadStats();
                     // 如果修改了相关字段，刷新下拉列表
-                    if ('sales_channel' in batchUpdateData.updates) {
-                        loadSalesChannels();
-                    }
-                    if ('feishu_url' in batchUpdateData.updates || 'link_name' in batchUpdateData.updates) {
-                        loadFeishuUrls();
+                    if ('sales_channel' in batchUpdateData.updates || 'feishu_url' in batchUpdateData.updates || 'link_name' in batchUpdateData.updates) {
+                        loadFilterOptions(null);
                     }
                 } else {
                     showToast(result.msg, 'error');

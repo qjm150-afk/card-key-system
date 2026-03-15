@@ -1214,6 +1214,12 @@ async def get_filter_options(
         sale_status_count = {}
         feishu_url_count = {}
         feishu_url_names = {}  # URL到名称的映射
+        sales_channel_count = {}
+        expire_groups = {}  # 过期时间分组
+        
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        permanent_count = 0
+        expired_count = 0
         
         for item in response.data:
             # 激活状态
@@ -1233,14 +1239,65 @@ async def get_filter_options(
             link_name = item.get('link_name') or ''
             if link_name:
                 feishu_url_names[fu] = link_name
+            
+            # 销售渠道
+            sc = item.get('sales_channel') or ''
+            if sc:
+                sales_channel_count[sc] = sales_channel_count.get(sc, 0) + 1
+            
+            # 过期时间分组
+            expire_at = item.get('expire_at')
+            if expire_at is None:
+                permanent_count += 1
+            else:
+                try:
+                    if isinstance(expire_at, str):
+                        expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00')).replace(tzinfo=None)
+                    else:
+                        expire_date = expire_at
+                    expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    date_key = expire_date_only.strftime('%Y-%m-%d')
+                    
+                    if expire_date_only < today:
+                        expired_count += 1
+                    else:
+                        if date_key not in expire_groups:
+                            expire_groups[date_key] = {'date': date_key, 'count': 0}
+                        expire_groups[date_key]['count'] += 1
+                except Exception:
+                    pass
+        
+        # 构建飞书链接列表（合并空链接）
+        feishu_url_list = []
+        for url, count in feishu_url_count.items():
+            if url:  # 有链接
+                display_name = feishu_url_names.get(url, url[:25] + '...' if len(url) > 25 else url)
+                feishu_url_list.append({"url": url, "name": display_name, "count": count})
+            else:  # 空链接，合并到"未设置"
+                feishu_url_list.append({"url": "__none__", "name": "未设置", "count": count})
+        feishu_url_list.sort(key=lambda x: x['count'], reverse=True)
+        
+        # 构建销售渠道列表
+        sales_channel_list = [{"channel": k, "count": v} for k, v in sales_channel_count.items()]
+        sales_channel_list.sort(key=lambda x: x['count'], reverse=True)
+        
+        # 构建过期时间分组列表
+        expire_groups_list = []
+        if expired_count > 0:
+            expire_groups_list.append({"value": "expired", "label": "已过期", "count": expired_count})
+        for group in sorted(expire_groups.values(), key=lambda x: x['date']):
+            expire_groups_list.append({"value": f"date:{group['date']}", "label": f"{group['date']} 到期", "count": group['count']})
+        if permanent_count > 0:
+            expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
         
         return {
             "success": True,
             "data": {
-                "status": status_count,  # {"1": 10, "0": 5}
-                "sale_status": sale_status_count,  # {"unsold": 3, "sold": 8, ...}
-                "feishu_url": feishu_url_count,
-                "feishu_url_names": feishu_url_names,  # {"url1": "名称1", ...}
+                "status": status_count,
+                "sale_status": sale_status_count,
+                "feishu_url_list": feishu_url_list,
+                "sales_channel_list": sales_channel_list,
+                "expire_groups_list": expire_groups_list,
                 "total": len(response.data)
             }
         }
