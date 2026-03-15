@@ -2421,44 +2421,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- 链接健康检测 -->
-            <div class="analytics-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h3 class="section-title" style="margin: 0;">🔗 链接健康检测</h3>
-                    <div style="display: flex; gap: 8px;">
-                        <button class="btn btn-primary" id="checkAllLinksBtn" onclick="checkAllLinks()">
-                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46C19.54 15.03 20 13.57 20 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74C4.46 8.97 4 10.43 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg>
-                            <span id="checkAllLinksText">检测全部</span>
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- 健康状态汇总 -->
-                <div class="link-health-summary" id="linkHealthSummary">
-                    <div class="health-card health-healthy">
-                        <div class="health-value" id="linkHealthy">0</div>
-                        <div class="health-label">正常</div>
-                    </div>
-                    <div class="health-card health-unhealthy">
-                        <div class="health-value" id="linkUnhealthy">0</div>
-                        <div class="health-label">异常</div>
-                    </div>
-                    <div class="health-card health-unknown">
-                        <div class="health-value" id="linkUnknown">0</div>
-                        <div class="health-label">未检测</div>
-                    </div>
-                    <div class="health-card health-total">
-                        <div class="health-value" id="linkTotal">0</div>
-                        <div class="health-label">总链接</div>
-                    </div>
-                </div>
-                
-                <!-- 链接列表 -->
-                <div class="link-health-list" id="linkHealthList">
-                    <div class="link-list-empty">暂无链接数据，点击"检测全部"开始检测</div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -3060,8 +3022,6 @@
             } else if (tab === 'analytics') {
                 initAnalyticsDate();
                 loadAnalytics();
-                // 同时加载链接健康状态（数据分析tab中有链接健康检测模块）
-                loadLinkHealth();
             }
         }
 
@@ -3103,17 +3063,6 @@
         
         // 渲染链接健康状态
         function renderLinkHealth(links, summary) {
-            // 更新数据分析tab中的统计卡片
-            const linkTotal = document.getElementById('linkTotal');
-            const linkHealthy = document.getElementById('linkHealthy');
-            const linkUnhealthy = document.getElementById('linkUnhealthy');
-            const linkUnknown = document.getElementById('linkUnknown');
-            
-            if (linkTotal) linkTotal.textContent = summary.total || 0;
-            if (linkHealthy) linkHealthy.textContent = summary.healthy || 0;
-            if (linkUnhealthy) linkUnhealthy.textContent = summary.unhealthy || 0;
-            if (linkUnknown) linkUnknown.textContent = summary.unknown || 0;
-            
             // 更新链接健康检测tab中的统计卡片
             const linkHealthTotal = document.getElementById('linkHealthTotal');
             const linkHealthHealthy = document.getElementById('linkHealthHealthy');
@@ -3128,15 +3077,9 @@
             // 更新链接健康检测tab的表格
             const tableContainer = document.getElementById('linkHealthTableBody');
             
-            // 更新数据分析tab的简化列表
-            const listContainer = document.getElementById('linkHealthList');
-            
             if (!links || links.length === 0) {
                 if (tableContainer) {
                     tableContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">暂无链接数据，点击"检测全部链接"开始检测</td></tr>';
-                }
-                if (listContainer) {
-                    listContainer.innerHTML = '<div class="link-list-empty">暂无链接数据，点击"检测全部"开始检测</div>';
                 }
                 return;
             }
@@ -3167,33 +3110,6 @@
                                 <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测">检测</button>
                             </td>
                         </tr>
-                    `;
-                }).join('');
-            }
-            
-            // 渲染简化列表（数据分析tab）
-            if (listContainer) {
-                listContainer.innerHTML = sortedLinks.map(link => {
-                    const statusClass = link.status || 'unknown';
-                    const statusText = statusClass === 'healthy' ? '正常' : statusClass === 'unhealthy' ? '异常' : '未检测';
-                    const statusColor = statusClass === 'healthy' ? '#10B981' : statusClass === 'unhealthy' ? '#EF4444' : '#9CA3AF';
-                    const statusBgColor = statusClass === 'healthy' ? '#D1FAE5' : statusClass === 'unhealthy' ? '#FEE2E2' : '#F3F4F6';
-                    const checkTime = link.last_check_time ? formatCheckTime(link.last_check_time) : '未检测';
-                    const displayName = link.name || '未命名链接';
-                    const displayUrl = link.url.length > 50 ? link.url.substring(0, 50) + '...' : link.url;
-                    
-                    return `
-                        <div class="link-item" style="display: flex; align-items: center; justify-content: space-between; padding: 12px; background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; margin-bottom: 8px;">
-                            <div style="flex: 1; min-width: 0;">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                                    <span style="font-weight: 500; color: #1F2937;">${displayName}</span>
-                                    <span style="display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 12px; font-size: 12px; background: ${statusBgColor}; color: ${statusColor};">${statusText}</span>
-                                </div>
-                                <div style="font-size: 12px; color: #6B7280; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${link.url}">${displayUrl}</div>
-                                <div style="font-size: 11px; color: #9CA3AF; margin-top: 2px;">检测时间: ${checkTime}</div>
-                            </div>
-                            <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测" style="margin-left: 12px; flex-shrink: 0;">检测</button>
-                        </div>
                     `;
                 }).join('');
             }
