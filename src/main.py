@@ -1317,14 +1317,13 @@ async def get_expire_groups():
         # 构建返回结果
         result = []
         
-        # 1. 已过期
-        if expired_count > 0:
-            result.append({
-                'type': 'expired',
-                'label': '已过期',
-                'count': expired_count,
-                'is_expired': True
-            })
+        # 1. 已过期（始终显示）
+        result.append({
+            'type': 'expired',
+            'label': '已过期',
+            'count': expired_count,
+            'is_expired': True
+        })
         
         # 2. 未过期的具体日期（按日期排序）
         for group in groups:
@@ -1342,14 +1341,13 @@ async def get_expire_groups():
                 'is_expired': False
             })
         
-        # 3. 永久有效
-        if permanent_count > 0:
-            result.append({
-                'type': 'permanent',
-                'label': '永久有效',
-                'count': permanent_count,
-                'is_expired': False
-            })
+        # 3. 永久有效（始终显示）
+        result.append({
+            'type': 'permanent',
+            'label': '永久有效',
+            'count': permanent_count,
+            'is_expired': False
+        })
         
         return {"success": True, "data": result}
         
