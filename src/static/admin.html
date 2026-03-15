@@ -3652,9 +3652,9 @@
         // 加载卡密列表
         async function loadCards() {
             const search = document.getElementById('searchInput').value;
-            const activateStatus = headerFilters.status || document.getElementById('statusFilter').value || '';
-            const saleStatus = headerFilters.sale_status || document.getElementById('saleStatusFilter').value || '';
-            const feishuUrl = headerFilters.feishu_url || document.getElementById('feishuUrlFilter').value || '';
+            const activateStatus = headerFilters.status;
+            const saleStatus = headerFilters.sale_status;
+            const feishuUrl = headerFilters.feishu_url;
             const deviceFilter = document.getElementById('deviceFilter').value;
             const expireDays = document.getElementById('expireDaysFilter').value;
             const createdStart = document.getElementById('createdStart').value;
@@ -3956,6 +3956,14 @@
             document.getElementById('createdEnd').value = '';
             document.getElementById('salesChannelFilter').value = '';
             
+            // 清空 headerFilters
+            headerFilters = { status: '', sale_status: '', feishu_url: '' };
+            
+            // 移除表头筛选样式
+            document.querySelectorAll('.th-filterable').forEach(th => {
+                th.classList.remove('filtered');
+            });
+            
             currentPage = 1;
             selectedIds.clear();
             updateSelectedInfo();
@@ -4213,6 +4221,30 @@
         // 搜索
         function searchCards() {
             currentPage = 1;
+            
+            // 同步 select 下拉框的值到 headerFilters（让两种筛选方式保持一致）
+            const statusSelect = document.getElementById('statusFilter').value;
+            const saleStatusSelect = document.getElementById('saleStatusFilter').value;
+            const feishuUrlSelect = document.getElementById('feishuUrlFilter').value;
+            
+            // 如果 select 有值，用 select 的值覆盖 headerFilters
+            // 如果 select 为空，清空 headerFilters（用户选择了"全部"）
+            headerFilters.status = statusSelect || '';
+            headerFilters.sale_status = saleStatusSelect || '';
+            headerFilters.feishu_url = feishuUrlSelect || '';
+            
+            // 更新表头样式
+            ['status', 'sale_status', 'feishu_url'].forEach(field => {
+                const th = document.querySelector(`th[data-filter="${field}"]`);
+                if (th) {
+                    if (headerFilters[field]) {
+                        th.classList.add('filtered');
+                    } else {
+                        th.classList.remove('filtered');
+                    }
+                }
+            });
+            
             // 搜索时不清空选中状态，让用户可以继续操作
             // selectedIds.clear();
             // 更新筛选选项
@@ -5476,6 +5508,17 @@
             
             // 关闭下拉框
             document.getElementById(`filter-dropdown-${filterName}`).classList.remove('show');
+            
+            // 同步更新 select 下拉框的值
+            const selectIdMap = {
+                'status': 'statusFilter',
+                'sale_status': 'saleStatusFilter',
+                'feishu_url': 'feishuUrlFilter'
+            };
+            if (selectIdMap[filterName]) {
+                const select = document.getElementById(selectIdMap[filterName]);
+                if (select) select.value = value;
+            }
             
             // 更新其他下拉框的选项
             await loadFilterOptions(filterName);
