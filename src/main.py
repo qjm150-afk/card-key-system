@@ -1326,6 +1326,96 @@ async def get_filter_options(
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/cards/stats")
+async def get_card_stats():
+    """
+    获取卡密统计数据
+    
+    返回：
+    - total: 总卡密数
+    - sold: 已售出数量
+    - activated: 已激活数量
+    - disabled: 已停用数量
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 获取总数
+        total_response = client.table('card_keys_table').select('id', count='exact').execute()
+        total = total_response.count or 0
+        
+        # 已售出：销售状态为 sold
+        sold_response = client.table('card_keys_table').select('id', count='exact').eq('sale_status', 'sold').execute()
+        sold = sold_response.count or 0
+        
+        # 已停用：status=0 或 销售状态为退款/纠纷
+        # 使用 RPC 或分开查询
+        status_zero_response = client.table('card_keys_table').select('id', count='exact').eq('status', 0).execute()
+        refunded_response = client.table('card_keys_table').select('id', count='exact').eq('sale_status', 'refunded').execute()
+        disputed_response = client.table('card_keys_table').select('id', count='exact').eq('sale_status', 'disputed').execute()
+        
+        # 注意：status=0 和 sale_status in (refunded, disputed) 可能有重叠，需要去重
+        # 这里简单相加可能会有误差，但为了性能暂时这样处理
+        # 更准确的方法是使用数据库层面的 or 查询
+        disabled_from_status = status_zero_response.count or 0
+        
+        # 对于退款和纠纷，需要排除已经是 status=0 的（避免重复计算）
+        # 但由于上述已经分开查询，这里先简单处理
+        disabled = disabled_from_status
+        
+        # 获取退款和纠纷中 status=1 的数量（这些也是"已停用"）
+        # 这需要在应用层处理或使用更复杂的查询
+        # 简化处理：退款和纠纷也算停用
+        refunded_count = refunded_response.count or 0
+        disputed_count = disputed_response.count or 0
+        
+        # 获取退款/纠纷中 status=1 的记录（这些是有效但销售状态异常的）
+        # 使用 or 查询
+        try:
+            # 获取所有 status=1 且 sale_status in (refunded, disputed) 的记录
+            abnormal_response = client.table('card_keys_table').select('id', count='exact').eq('status', 1).in_('sale_status', ['refunded', 'disputed']).execute()
+            disabled += abnormal_response.count or 0
+        except:
+            # 如果查询失败，使用简化计算
+            disabled = disabled_from_status + refunded_count + disputed_count
+        
+        # 已激活：status=1 且有设备绑定或已使用过
+        # 由于需要检查 devices 和 used_count，这需要在应用层处理
+        # 先获取所有 status=1 的记录
+        activated = 0
+        try:
+            # 获取 status=1 的记录
+            valid_response = client.table('card_keys_table').select('devices, used_count, sale_status').eq('status', 1).execute()
+            for card in (valid_response.data or []):
+                # 排除销售状态为退款/纠纷的
+                if card.get('sale_status') in ['refunded', 'disputed']:
+                    continue
+                # 检查是否已激活（有设备绑定或已使用过）
+                try:
+                    devices = json.loads(card.get('devices', '[]'))
+                    if len(devices) > 0 or (card.get('used_count') and card.get('used_count') > 0):
+                        activated += 1
+                except:
+                    if card.get('used_count') and card.get('used_count') > 0:
+                        activated += 1
+        except Exception as e:
+            logger.warning(f"计算已激活数量失败: {str(e)}")
+        
+        return {
+            "success": True,
+            "data": {
+                "total": total,
+                "sold": sold,
+                "activated": activated,
+                "disabled": disabled
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取统计数据失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/admin/cards/feishu-urls")
 async def get_feishu_urls():
     """

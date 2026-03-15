@@ -3770,35 +3770,15 @@
         // 加载统计
         async function loadStats() {
             try {
-                const response = await fetch('/api/admin/cards?page=1&page_size=100');
+                const response = await fetch('/api/admin/cards/stats');
                 const result = await response.json();
                 
                 if (result.success) {
-                    const allCards = result.data || [];
-                    const total = result.total || 0;
-                    
-                    // 已售出：销售状态为 sold
-                    const soldCards = allCards.filter(c => c.sale_status === 'sold');
-                    
-                    // 已激活：有设备绑定的卡密
-                    const activatedCards = allCards.filter(c => {
-                        try {
-                            const devices = JSON.parse(c.devices || '[]');
-                            return devices.length > 0 || (c.used_count && c.used_count > 0);
-                        } catch {
-                            return c.used_count && c.used_count > 0;
-                        }
-                    });
-                    
-                    // 已停用：status=0 或 销售状态为退款/纠纷
-                    const disabledCards = allCards.filter(c => 
-                        c.status === 0 || ['refunded', 'disputed'].includes(c.sale_status)
-                    );
-                    
-                    document.getElementById('statTotal').textContent = total;
-                    document.getElementById('statSold').textContent = soldCards.length;
-                    document.getElementById('statActivated').textContent = activatedCards.length;
-                    document.getElementById('statDisabled').textContent = disabledCards.length;
+                    const stats = result.data;
+                    document.getElementById('statTotal').textContent = stats.total || 0;
+                    document.getElementById('statSold').textContent = stats.sold || 0;
+                    document.getElementById('statActivated').textContent = stats.activated || 0;
+                    document.getElementById('statDisabled').textContent = stats.disabled || 0;
                 }
             } catch (error) {
                 console.error('加载统计失败:', error);
