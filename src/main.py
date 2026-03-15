@@ -547,7 +547,11 @@ async def get_card_keys(
                 query = query.eq('status', 1)
         
         if feishu_url:
-            query = query.eq('feishu_url', feishu_url)
+            if feishu_url == '__none__':
+                # 特殊值：筛选未设置飞书链接的记录（空链接或空字符串）
+                query = query.or_('feishu_url.is.null,feishu_url.eq.')
+            else:
+                query = query.eq('feishu_url', feishu_url)
         
         if sales_channel:
             query = query.eq('sales_channel', sales_channel)
@@ -957,7 +961,11 @@ async def count_by_filters(
             query = query.eq('sale_status', mapped_status)
         
         if feishu_url and feishu_url != '':
-            query = query.eq('feishu_url', feishu_url)
+            if feishu_url == '__none__':
+                # 特殊值：筛选未设置飞书链接的记录
+                query = query.or_('feishu_url.is.null,feishu_url.eq.')
+            else:
+                query = query.eq('feishu_url', feishu_url)
         
         # 绑定设备筛选（按设备数量）- 注意need_device_filter已在前面定义
         if device_filter and device_filter != '':
@@ -1149,7 +1157,11 @@ async def get_filter_options(
             query = query.eq('sale_status', sale_status)
         
         if feishu_url and feishu_url != '' and exclude_field != 'feishu_url':
-            query = query.eq('feishu_url', feishu_url)
+            if feishu_url == '__none__':
+                # 特殊值：筛选未设置飞书链接的记录
+                query = query.or_('feishu_url.is.null,feishu_url.eq.')
+            else:
+                query = query.eq('feishu_url', feishu_url)
         
         if expire_status and expire_status != '' and exclude_field != 'expire_status':
             now = datetime.now().isoformat()
@@ -1213,31 +1225,64 @@ async def get_filter_options(
 
 @app.get("/api/admin/cards/feishu-urls")
 async def get_feishu_urls():
-    """获取所有不同的飞书链接列表（用于筛选下拉）"""
+    """
+    获取所有不同的飞书链接列表（用于筛选下拉）
+    
+    分组逻辑：
+    - 按飞书链接（feishu_url）分组
+    - 空链接统一合并为"未设置"
+    - 显示名称优先取第一个非空名称
+    
+    返回格式：
+    - url: 飞书链接（空链接返回特殊标记"__none__"用于筛选）
+    - name: 显示名称（有链接时显示名称或截断链接，无链接显示"未设置"）
+    - count: 该链接下的卡密数量
+    """
     try:
         client = get_supabase_client()
         
         # 获取所有记录的飞书链接和链接名称
         response = client.table('card_keys_table').select('feishu_url,link_name').execute()
         
-        # 统计每个链接的数量和名称
-        url_info = {}
+        # 按飞书链接分组统计
+        url_groups = {}  # key: feishu_url, value: {count, names: []}
+        
         for item in response.data:
             url = item.get('feishu_url') or ''
             name = item.get('link_name') or ''
-            key = url if url else '(空)'
-            if key not in url_info:
-                url_info[key] = {"url": url, "name": name, "count": 0}
-            url_info[key]["count"] += 1
-            # 如果有名称，更新名称
-            if name and not url_info[key]["name"]:
-                url_info[key]["name"] = name
+            
+            # 空链接统一用空字符串作为 key
+            url_key = url.strip() if url.strip() else ''
+            
+            if url_key not in url_groups:
+                url_groups[url_key] = {"url": url_key, "count": 0, "names": []}
+            url_groups[url_key]["count"] += 1
+            # 收集所有名称（用于显示）
+            if name and name not in url_groups[url_key]["names"]:
+                url_groups[url_key]["names"].append(name)
         
-        # 转换为列表并按数量排序
-        urls = list(url_info.values())
-        urls.sort(key=lambda x: x['count'], reverse=True)
+        # 构建返回结果
+        result_list = []
+        for url_key, data in url_groups.items():
+            if url_key:  # 有链接
+                # 优先使用第一个非空名称，否则使用截断的链接
+                display_name = data["names"][0] if data["names"] else (url_key[:25] + '...' if len(url_key) > 25 else url_key)
+                result_list.append({
+                    "url": url_key,
+                    "name": display_name,
+                    "count": data["count"]
+                })
+            else:  # 无链接
+                result_list.append({
+                    "url": "__none__",  # 特殊标记，用于筛选"未设置"
+                    "name": "未设置",
+                    "count": data["count"]
+                })
         
-        return {"success": True, "data": urls}
+        # 按数量降序排序
+        result_list.sort(key=lambda x: x['count'], reverse=True)
+        
+        return {"success": True, "data": result_list}
         
     except Exception as e:
         logger.error(f"获取飞书链接列表失败: {str(e)}")

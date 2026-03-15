@@ -3702,24 +3702,24 @@
                     const select = document.getElementById('feishuUrlFilter');
                     const currentValue = select.value;
                     
-                    // 保留第一个option
-                    select.innerHTML = '<option value="">链接名称</option>';
+                    // 保留第一个option（显示"飞书链接"更清晰）
+                    select.innerHTML = '<option value="">飞书链接</option>';
                     
                     result.data.forEach(item => {
                         const option = document.createElement('option');
-                        option.value = item.url;
-                        // 显示链接名称，如果没有名称则显示"未设置"
-                        let displayName = (item.name && item.name.trim()) || '未设置';
-                        option.textContent = `${displayName} (${item.count}条)`;
-                        option.title = item.url || '无链接'; // 鼠标悬停显示完整URL
+                        option.value = item.url;  // 使用 URL 作为筛选值（空字符串表示"未设置"）
+                        option.textContent = `${item.name} (${item.count}条)`;
+                        option.title = item.url || '未设置飞书链接'; // 鼠标悬停显示完整URL或提示
                         select.appendChild(option);
                     });
                     
                     // 恢复之前的选择
-                    if (currentValue) select.value = currentValue;
+                    if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                        select.value = currentValue;
+                    }
                 }
             } catch (error) {
-                console.error('加载链接名称列表失败:', error);
+                console.error('加载飞书链接列表失败:', error);
             }
         }
 
@@ -3864,11 +3864,12 @@
             }
             
             const feishuUrl = document.getElementById('feishuUrlFilter').value;
+            // feishuUrl 有值时才显示标签（包括 __none__ 特殊值）
             if (feishuUrl) {
                 // 获取选中项的文本（显示名称而非URL）
                 const selectedOption = document.getElementById('feishuUrlFilter').selectedOptions[0];
-                const displayText = selectedOption ? selectedOption.textContent.split(' (')[0] : feishuUrl;
-                tags.push({ field: 'feishuUrl', label: `链接名称: ${displayText}`, value: feishuUrl });
+                const displayText = selectedOption ? selectedOption.textContent.split(' (')[0] : '未设置';
+                tags.push({ field: 'feishuUrl', label: `飞书链接: ${displayText}`, value: feishuUrl });
             }
             
             const deviceFilter = document.getElementById('deviceFilter').value;
