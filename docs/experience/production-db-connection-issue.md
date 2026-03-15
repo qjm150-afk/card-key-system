@@ -203,10 +203,47 @@ async def debug_database():
 |------|------|----------|
 | 2026-03-15 | `.env.local` | 从 Git 仓库删除 |
 | 2026-03-15 | `.coze` | 移除部署时的备份脚本，避免构建超时 |
-| 2026-03-15 | `src/main.py` | 环境变量加载逻辑：检测生产环境配置，跳过 `.env.local`；修复 ValidateResponse Pydantic 验证错误 |
-| 2026-03-15 | `src/storage/database/db_client.py` | 移除 `_load_env()` 调用；优先使用 DATABASE_URL；添加 COZE_SUPABASE_ANON_KEY 检查 |
+| 2026-03-15 | `src/main.py` | 环境变量加载逻辑；修复 ValidateResponse Pydantic 验证错误；修复过期时间解析错误；添加详细验证日志 |
+| 2026-03-15 | `src/storage/database/db_client.py` | 移除 `_load_env()` 调用；优先使用 DATABASE_URL |
 | 2026-03-15 | `src/storage/database/postgres_client.py` | 移除 `_load_env()` 调用；添加连接超时参数 |
 | 2026-03-15 | `src/storage/database/supabase_client.py` | 移除 `_load_env()` 调用 |
+
+---
+
+## 扩展问题：过期时间解析错误
+
+### 问题现象
+
+验证 API 返回 "系统错误"，日志显示：
+
+```
+验证失败堆栈: Traceback (most recent call last):
+  File "main.py", line 484, in validate_card_key
+    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+```
+
+### 根本原因
+
+数据库返回的时间格式可能是 `2027-07-16 18:01:00+08:00`（已包含时区），而不是 ISO 格式的 `2027-07-16T18:01:00Z`。
+
+原代码假设时间以 `Z` 结尾，但实际不是，导致 `replace()` 无效，`fromisoformat()` 解析失败。
+
+### 解决方案
+
+兼容不同的时间格式：
+
+```python
+# 处理不同的时间格式
+if 'T' in expire_at:
+    # ISO 格式: 2027-07-16T18:01:00Z
+    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+elif '+' in expire_at or expire_at.count('-') > 2:
+    # 已包含时区: 2027-07-16 18:01:00+08:00
+    expire_time = datetime.fromisoformat(expire_at)
+else:
+    # 无时区信息
+    expire_time = datetime.fromisoformat(expire_at)
+```
 
 ---
 
