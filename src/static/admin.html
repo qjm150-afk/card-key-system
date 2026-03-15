@@ -2992,10 +2992,8 @@
         let refreshInterval = null;
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadCards();
-            loadStats();
-            // 使用统一的 loadFilterOptions 加载所有下拉框选项
-            loadFilterOptions(null);
+            // 注意：不在这里调用 loadCards()、loadStats()、loadFilterOptions()
+            // 这些函数会在 checkAuth() 验证登录成功后，由 showMainContent() 调用
             
             document.getElementById('searchInput').addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') searchCards();
@@ -5308,8 +5306,12 @@
             loginOverlay.style.display = 'none';
             mainContent.classList.add('visible');
             // 加载数据
-            loadCardKeys();
+            loadCards();
             loadStats();
+            // 加载筛选下拉框选项
+            loadFilterOptions(null);
+            // 初始化销售渠道datalist
+            loadSalesChannelDatalist();
         }
 
         // 处理登录
@@ -5967,10 +5969,8 @@
 
         // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', () => {
-            // 初始化所有筛选下拉框选项
-            loadFilterOptions(null);
-            // 初始化销售渠道datalist
-            loadSalesChannelDatalist();
+            // 注意：不在这里调用 loadFilterOptions() 和 loadSalesChannelDatalist()
+            // 这些函数会在 checkAuth() 验证登录成功后，由 showMainContent() 调用
         });
 
         // 页面加载时检查登录状态
