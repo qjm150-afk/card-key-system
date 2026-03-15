@@ -1261,7 +1261,7 @@ async def get_expire_groups():
     获取过期时间分组统计（用于筛选下拉）
     - 按过期日期分组统计
     - 永久有效单独分组
-    - 返回：日期、数量、是否已过期
+    返回：日期、数量、是否已过期
     """
     try:
         client = get_supabase_client()
@@ -1269,18 +1269,19 @@ async def get_expire_groups():
         # 获取所有记录的过期时间
         response = client.table('card_keys_table').select('expire_at').execute()
         
-        now = datetime.now()
+        # 使用日期比较（不含时分秒）
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
         # 统计每个过期日期的数量
-        permanent_count = 0  # 永久有效
-        expired_count = 0    # 已过期
-        expire_groups = {}   # 未过期的具体日期
+        permanent_count = 0  # 永久有效（expire_at为None）
+        expired_count = 0    # 已过期（过期日期小于今天）
+        expire_groups = {}   # 未过期的具体日期（过期日期>=今天）
         
         for item in response.data:
             expire_at = item.get('expire_at')
             
             if expire_at is None:
-                # 永久有效
+                # 永久有效：创建卡密时没有填写过期时间
                 permanent_count += 1
             else:
                 # 解析过期时间
@@ -1290,11 +1291,12 @@ async def get_expire_groups():
                     else:
                         expire_date = expire_at
                     
-                    # 只保留日期部分（去掉时分秒）
-                    date_key = expire_date.strftime('%Y-%m-%d')
+                    # 只保留日期部分（去掉时分秒），统一用日期比较
+                    expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                    date_key = expire_date_only.strftime('%Y-%m-%d')
                     
-                    if expire_date < now:
-                        # 已过期
+                    if expire_date_only < today:
+                        # 已过期：过期日期小于今天
                         expired_count += 1
                     else:
                         # 未过期，按日期分组
@@ -1328,8 +1330,8 @@ async def get_expire_groups():
         # 2. 未过期的具体日期（按日期排序）
         for group in groups:
             expire_date = datetime.strptime(group['date'], '%Y-%m-%d')
-            # 计算距离过期的天数
-            days_remaining = (expire_date - now).days
+            # 计算距离过期的天数（用日期比较）
+            days_remaining = (expire_date - today).days
             label = f"{group['date']} ({days_remaining}天后到期)"
             
             result.append({
@@ -1340,6 +1342,16 @@ async def get_expire_groups():
                 'days_remaining': days_remaining,
                 'is_expired': False
             })
+        
+        # 3. 永久有效（始终显示）
+        result.append({
+            'type': 'permanent',
+            'label': '永久有效',
+            'count': permanent_count,
+            'is_expired': False
+        })
+        
+        return {"success": True, "data": result}
         
         # 3. 永久有效（始终显示）
         result.append({
