@@ -5302,16 +5302,24 @@
         }
 
         // 显示主内容
-        function showMainContent() {
+        async function showMainContent() {
             loginOverlay.style.display = 'none';
             mainContent.classList.add('visible');
-            // 加载数据
-            loadCards();
-            loadStats();
-            // 加载筛选下拉框选项
-            loadFilterOptions(null);
-            // 初始化销售渠道datalist
-            loadSalesChannelDatalist();
+            
+            // 按顺序加载数据，确保筛选选项先加载
+            try {
+                // 先加载筛选下拉框选项
+                await loadFilterOptions(null);
+                // 初始化销售渠道datalist
+                loadSalesChannelDatalist();
+                // 然后加载卡密列表和统计数据
+                loadCards();
+                loadStats();
+                
+                console.log('showMainContent 完成');
+            } catch (error) {
+                console.error('showMainContent 错误:', error);
+            }
         }
 
         // 处理登录
@@ -5400,12 +5408,12 @@
                 const status = headerFilters.status || '';
                 const saleStatus = headerFilters.sale_status || '';
                 const feishuUrl = headerFilters.feishu_url || '';
-                const search = document.getElementById('searchInput').value || '';
-                const createdStart = document.getElementById('createdStart').value || '';
-                const createdEnd = document.getElementById('createdEnd').value || '';
-                const deviceFilter = document.getElementById('deviceFilter').value || '';
-                const expireDays = document.getElementById('expireDaysFilter').value || '';
-                const salesChannel = document.getElementById('salesChannelFilter').value || '';
+                const search = document.getElementById('searchInput')?.value || '';
+                const createdStart = document.getElementById('createdStart')?.value || '';
+                const createdEnd = document.getElementById('createdEnd')?.value || '';
+                const deviceFilter = document.getElementById('deviceFilter')?.value || '';
+                const expireDays = document.getElementById('expireDaysFilter')?.value || '';
+                const salesChannel = document.getElementById('salesChannelFilter')?.value || '';
                 
                 const params = new URLSearchParams();
                 if (status) params.append('status', status);
@@ -5422,8 +5430,15 @@
                 const response = await fetch(`/api/admin/cards/filter-options?${params}`);
                 const result = await response.json();
                 
+                console.log('loadFilterOptions 响应:', result);
+                
                 if (result.success) {
+                    console.log('销售渠道数据:', result.data.sales_channel_list);
+                    console.log('过期时间数据:', result.data.expire_groups_list);
+                    console.log('飞书链接数据:', result.data.feishu_url_list);
                     updateFilterDropdowns(result.data, excludeField);
+                } else {
+                    console.error('loadFilterOptions 失败:', result.msg);
                 }
             } catch (error) {
                 console.error('加载筛选选项失败:', error);
@@ -5486,37 +5501,48 @@
             
             // 更新销售渠道 select 下拉框
             if (excludeField !== 'sales_channel' && data.sales_channel_list) {
+                console.log('准备更新销售渠道下拉框, excludeField:', excludeField, '数据:', data.sales_channel_list);
                 updateSelectDropdown('salesChannelFilter', data.sales_channel_list, 'channel', 'channel', '销售渠道');
+            } else {
+                console.log('跳过销售渠道更新, excludeField:', excludeField);
             }
             
             // 更新过期时间 select 下拉框
             if (excludeField !== 'expire_days' && data.expire_groups_list) {
+                console.log('准备更新过期时间下拉框, excludeField:', excludeField, '数据:', data.expire_groups_list);
                 updateSelectDropdown('expireDaysFilter', data.expire_groups_list, 'value', 'label', '过期时间');
+            } else {
+                console.log('跳过过期时间更新, excludeField:', excludeField);
             }
         }
         
         // 通用函数：更新 select 下拉框选项
         function updateSelectDropdown(selectId, items, valueKey, labelKey, placeholder) {
             const select = document.getElementById(selectId);
-            if (!select) return;
+            if (!select) {
+                console.warn(`updateSelectDropdown: 未找到元素 ${selectId}`);
+                return;
+            }
             
-            const currentValue = select.value;
+            if (!items || !Array.isArray(items)) {
+                console.warn(`updateSelectDropdown: ${selectId} 的选项数据无效`, items);
+                return;
+            }
             
-            // 保留第一个 option 作为 placeholder
+            // 清空并重建选项
             select.innerHTML = `<option value="">${placeholder}</option>`;
             
             // 添加选项
-            for (const item of items) {
-                const option = document.createElement('option');
-                option.value = item[valueKey];
-                option.textContent = `${item[labelKey]} (${item.count}条)`;
-                select.appendChild(option);
-            }
+            items.forEach(item => {
+                if (item && item[valueKey] !== undefined && item[labelKey] !== undefined && item.count !== undefined) {
+                    const option = document.createElement('option');
+                    option.value = item[valueKey];
+                    option.textContent = `${item[labelKey]} (${item.count}条)`;
+                    select.appendChild(option);
+                }
+            });
             
-            // 恢复之前的选择（如果选项仍然存在）
-            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
-                select.value = currentValue;
-            }
+            console.log(`updateSelectDropdown: ${selectId} 已更新 ${items.length} 个选项`);
         }
 
         // 应用表头筛选
