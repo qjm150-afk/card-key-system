@@ -202,10 +202,43 @@ async def debug_database():
 | 日期 | 文件 | 修改内容 |
 |------|------|----------|
 | 2026-03-15 | `.env.local` | 从 Git 仓库删除 |
-| 2026-03-15 | `src/main.py` | 环境变量加载逻辑：检测生产环境配置，跳过 `.env.local` |
-| 2026-03-15 | `src/storage/database/db_client.py` | 移除 `load_dotenv()` 调用；优先使用 DATABASE_URL；添加 COZE_SUPABASE_ANON_KEY 检查 |
-| 2026-03-15 | `src/storage/database/postgres_client.py` | 移除 `load_dotenv()` 调用；添加连接超时参数 |
-| 2026-03-15 | `src/storage/database/supabase_client.py` | 移除 `load_dotenv()` 调用 |
+| 2026-03-15 | `.coze` | 移除部署时的备份脚本，避免构建超时 |
+| 2026-03-15 | `src/main.py` | 环境变量加载逻辑：检测生产环境配置，跳过 `.env.local`；修复 ValidateResponse Pydantic 验证错误 |
+| 2026-03-15 | `src/storage/database/db_client.py` | 移除 `_load_env()` 调用；优先使用 DATABASE_URL；添加 COZE_SUPABASE_ANON_KEY 检查 |
+| 2026-03-15 | `src/storage/database/postgres_client.py` | 移除 `_load_env()` 调用；添加连接超时参数 |
+| 2026-03-15 | `src/storage/database/supabase_client.py` | 移除 `_load_env()` 调用 |
+
+---
+
+## 扩展问题：Pydantic 验证错误
+
+### 问题现象
+
+验证 API 返回 "系统错误，请稍后重试"，日志显示：
+
+```
+ERROR - 验证失败: 2 validation errors for ValidateResponse
+```
+
+### 根本原因
+
+数据库返回的字段可能是 `None`，但 Pydantic 模型期望 `str` 类型：
+
+```python
+# 问题代码
+feishu_url = card_data.get('feishu_url', '')  # 如果数据库值是 None，返回 None 而不是 ''
+```
+
+`dict.get(key, default)` 只在 key 不存在时返回默认值，如果 key 存在但值是 `None`，则返回 `None`。
+
+### 解决方案
+
+使用 `or` 运算符确保返回 `str` 类型：
+
+```python
+# 修复代码
+feishu_url = card_data.get('feishu_url') or ''  # None or '' = ''
+```
 
 ---
 
