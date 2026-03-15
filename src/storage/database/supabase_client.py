@@ -18,6 +18,10 @@ def _load_env() -> None:
 
     if _env_loaded or (os.getenv("COZE_SUPABASE_URL") and os.getenv("COZE_SUPABASE_ANON_KEY")):
         return
+    
+    # 如果已经有数据库配置，跳过 coze_workload_identity 调用（避免超时）
+    if os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL"):
+        return
 
     try:
         from coze_workload_identity import Client as WorkloadClient

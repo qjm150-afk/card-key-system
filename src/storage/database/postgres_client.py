@@ -335,11 +335,17 @@ class PostgresClient:
     def __init__(self, database_url: str):
         self.database_url = database_url
         self.supabase_url = None  # 用于兼容
+        
+        # 添加连接超时参数（防止连接卡住）
+        if '?' in database_url:
+            self.database_url = database_url + '&connect_timeout=10'
+        else:
+            self.database_url = database_url + '?connect_timeout=10'
     
     @contextmanager
     def _get_connection(self):
         """获取数据库连接"""
-        conn = psycopg2.connect(self.database_url)
+        conn = psycopg2.connect(self.database_url, connect_timeout=10)
         try:
             yield conn
         finally:
@@ -367,6 +373,10 @@ def _load_env() -> None:
     1. 尝试从 coze_workload_identity 获取项目环境变量（云端部署）
     2. 不再调用 load_dotenv()，避免覆盖已设置的环境变量
     """
+    # 如果已经有数据库配置，跳过 coze_workload_identity 调用（避免超时）
+    if os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL"):
+        return
+    
     try:
         from coze_workload_identity import Client as WorkloadClient
         client = WorkloadClient()

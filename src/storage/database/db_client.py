@@ -717,7 +717,14 @@ _is_sqlite = False
 
 
 def get_db_client():
-    """获取数据库客户端（自动选择模式）"""
+    """获取数据库客户端（自动选择模式）
+    
+    优先级（修改后）：
+    1. LOCAL_DEV_MODE=true → SQLite
+    2. DATABASE_URL 或 PGDATABASE_URL 存在 → PostgreSQL 直连（优先）
+    3. COZE_SUPABASE_URL 存在 → Supabase
+    4. 默认 → SQLite
+    """
     global _db_client, _is_sqlite
     
     if _db_client is not None:
@@ -731,11 +738,13 @@ def get_db_client():
     logger = logging.getLogger(__name__)
     
     supabase_url = os.getenv("COZE_SUPABASE_URL")
+    supabase_key = os.getenv("COZE_SUPABASE_ANON_KEY")  # Supabase 需要 ANON_KEY
     database_url = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
     local_dev = is_local_dev_mode()
     
     logger.info(f"[DB] LOCAL_DEV_MODE: {os.getenv('LOCAL_DEV_MODE')}")
     logger.info(f"[DB] COZE_SUPABASE_URL: {supabase_url[:50] if supabase_url else 'None'}...")
+    logger.info(f"[DB] COZE_SUPABASE_ANON_KEY: {'已设置' if supabase_key else '未设置'}")
     logger.info(f"[DB] DATABASE_URL: {database_url[:50] if database_url else 'None'}...")
     logger.info(f"[DB] is_local_dev_mode: {local_dev}")
     
@@ -744,17 +753,17 @@ def get_db_client():
         logger.info("[DB] Using SQLite (local dev mode)")
         _db_client = SQLiteClient()
         _is_sqlite = True
-    elif supabase_url:
-        # 生产环境：优先使用 Supabase
-        logger.info("[DB] Using Supabase SDK")
-        from .supabase_client import get_supabase_client
-        _db_client = get_supabase_client()
-        _is_sqlite = False
     elif database_url:
-        # 生产环境：使用 PostgreSQL 直连
+        # 生产环境：优先使用 PostgreSQL 直连（更可靠）
         logger.info("[DB] Using PostgreSQL direct connection")
         from .postgres_client import get_postgres_client
         _db_client = get_postgres_client()
+        _is_sqlite = False
+    elif supabase_url and supabase_key:
+        # 生产环境：使用 Supabase（需要完整的 URL 和 KEY）
+        logger.info("[DB] Using Supabase SDK")
+        from .supabase_client import get_supabase_client
+        _db_client = get_supabase_client()
         _is_sqlite = False
     else:
         # 默认：使用 SQLite
@@ -772,6 +781,10 @@ def _load_env() -> None:
     1. 尝试从 coze_workload_identity 获取项目环境变量（云端部署）
     2. 不再调用 load_dotenv()，避免覆盖已设置的环境变量
     """
+    # 如果已经有数据库配置，跳过 coze_workload_identity 调用（避免超时）
+    if os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL") or os.getenv("COZE_SUPABASE_URL"):
+        return
+    
     try:
         from coze_workload_identity import Client as WorkloadClient
         client = WorkloadClient()
