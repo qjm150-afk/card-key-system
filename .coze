@@ -7,6 +7,6 @@ build = ["pip", "install", "-r", "requirements.txt"]
 run = ["sh", "-c", "LOCAL_DEV_MODE=true python -m uvicorn src.main:app --host 0.0.0.0 --port 5000"]
 
 [deploy]
-# 生产部署：使用云端 Supabase 数据库，部署前自动执行数据备份
-build = ["sh", "-c", "python scripts/backup_data.py && pip install -r requirements.txt"]
+# 生产部署：移除备份脚本（避免超时），直接安装依赖并启动服务
+build = ["pip", "install", "-r", "requirements.txt"]
 run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
