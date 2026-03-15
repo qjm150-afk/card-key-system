@@ -3978,6 +3978,46 @@ async def get_online_users():
         return {"success": False, "total_cards": 0, "online_count": 0, "use_real_data": False}
 
 
+@app.get("/api/debug/db")
+async def debug_database():
+    """调试 API - 返回数据库连接状态"""
+    import os
+    from storage.database.db_client import get_db_mode, _load_env
+    
+    # 加载环境变量
+    _load_env()
+    
+    supabase_url = os.getenv("COZE_SUPABASE_URL", "")
+    database_url = os.getenv("DATABASE_URL", "")
+    pgdatabase_url = os.getenv("PGDATABASE_URL", "")
+    local_dev = os.getenv("LOCAL_DEV_MODE", "")
+    
+    debug_info = {
+        "env_vars": {
+            "COZE_SUPABASE_URL": supabase_url[:50] + "..." if supabase_url and len(supabase_url) > 50 else supabase_url,
+            "DATABASE_URL": database_url[:50] + "..." if database_url and len(database_url) > 50 else database_url,
+            "PGDATABASE_URL": pgdatabase_url[:50] + "..." if pgdatabase_url and len(pgdatabase_url) > 50 else pgdatabase_url,
+            "LOCAL_DEV_MODE": local_dev
+        },
+        "db_mode": get_db_mode(),
+        "checks": {}
+    }
+    
+    try:
+        client = get_supabase_client()
+        debug_info["checks"]["client_type"] = type(client).__name__
+        
+        # 测试查询
+        result = client.table('card_keys_table').select('id', count='exact').limit(1).execute()
+        debug_info["checks"]["query_success"] = True
+        debug_info["checks"]["total_records"] = result.count
+    except Exception as e:
+        debug_info["checks"]["query_success"] = False
+        debug_info["checks"]["error"] = str(e)
+    
+    return debug_info
+
+
 # ==================== 静态文件服务 ====================
 
 # 微信验证文件配置（可配置多个）
