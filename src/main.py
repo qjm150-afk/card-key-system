@@ -3364,19 +3364,40 @@ async def get_link_health():
         cards_response = client.table('card_keys_table').select('feishu_url, link_name').execute()
         cards = cards_response.data or []
         
-        # 统计唯一链接
+        # 统计唯一链接，同时收集每个链接的所有名称（去重）
         unique_links = {}
+        link_names = {}  # 收集每个URL的所有名称
+        
         for card in cards:
             url = card.get('feishu_url')
-            if url and url not in unique_links:
-                unique_links[url] = {
-                    'url': url,
-                    'name': card.get('link_name') or '',
-                    'status': 'unknown',
-                    'last_check_time': None,
-                    'http_code': None,
-                    'error_message': None
-                }
+            if url:
+                # 收集名称
+                name = card.get('link_name') or ''
+                if url not in link_names:
+                    link_names[url] = set()
+                if name:  # 只收集非空名称
+                    link_names[url].add(name)
+                
+                # 初始化链接数据
+                if url not in unique_links:
+                    unique_links[url] = {
+                        'url': url,
+                        'name': '',
+                        'status': 'unknown',
+                        'last_check_time': None,
+                        'http_code': None,
+                        'error_message': None
+                    }
+        
+        # 处理名称：优先使用非空名称，多个名称用逗号分隔
+        for url in unique_links:
+            names = link_names.get(url, set())
+            # 过滤空字符串，去重后排序
+            names_list = sorted([n for n in names if n])
+            if names_list:
+                unique_links[url]['name'] = ', '.join(names_list)
+            else:
+                unique_links[url]['name'] = ''
         
         # 合并健康状态数据
         for health in health_data:
@@ -3416,23 +3437,31 @@ async def check_all_links():
     try:
         client = get_supabase_client()
         
-        # 获取所有唯一的飞书链接
+        # 获取所有唯一的飞书链接，同时收集每个链接的所有名称
         cards_response = client.table('card_keys_table').select('feishu_url, link_name').execute()
         cards = cards_response.data or []
         
-        unique_links = {}
+        # 收集每个URL的所有名称（去重）
+        link_names = {}
         for card in cards:
             url = card.get('feishu_url')
-            if url and url not in unique_links:
-                unique_links[url] = card.get('link_name') or ''
+            if url:
+                name = card.get('link_name') or ''
+                if url not in link_names:
+                    link_names[url] = set()
+                if name:
+                    link_names[url].add(name)
         
-        if not unique_links:
+        if not link_names:
             return {"success": True, "msg": "没有需要检测的链接", "results": []}
         
         # 批量检测链接
         results = []
         async with httpx.AsyncClient(timeout=10.0) as http_client:
-            for url, name in unique_links.items():
+            for url, names in link_names.items():
+                # 处理名称：多个名称用逗号分隔
+                names_list = sorted([n for n in names if n])
+                name = ', '.join(names_list) if names_list else ''
                 result = await check_single_link(http_client, url, name, client)
                 results.append(result)
         
@@ -3468,11 +3497,18 @@ async def check_single_link_api(request: Request):
         
         client = get_supabase_client()
         
-        # 获取链接名称
-        cards_response = client.table('card_keys_table').select('link_name').eq('feishu_url', url).limit(1).execute()
-        name = ''
+        # 获取该URL的所有链接名称（去重）
+        cards_response = client.table('card_keys_table').select('link_name').eq('feishu_url', url).execute()
+        names = set()
         if cards_response.data:
-            name = cards_response.data[0].get('link_name') or ''
+            for card in cards_response.data:
+                name = card.get('link_name') or ''
+                if name:
+                    names.add(name)
+        
+        # 处理名称：多个名称用逗号分隔
+        names_list = sorted([n for n in names if n])
+        name = ', '.join(names_list) if names_list else ''
         
         async with httpx.AsyncClient(timeout=10.0) as http_client:
             result = await check_single_link(http_client, url, name, client)
