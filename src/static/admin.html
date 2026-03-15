@@ -4245,7 +4245,7 @@
             
             // 搜索时不清空选中状态，让用户可以继续操作
             // selectedIds.clear();
-            // 更新筛选选项
+            // 更新筛选选项（每个字段排除自身的筛选条件，保持完整选项）
             loadFilterOptions(null);
             loadCards();
         }
@@ -5437,44 +5437,43 @@
             const statusLabels = { '1': '有效', '0': '无效' };
             const saleStatusLabels = { '': '未设置', 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
             
+            // 注意：后端已经为每个字段分别计算了选项（排除该字段自身的筛选条件）
+            // 所以前端不需要根据 excludeField 跳过更新
+            
             // 更新激活状态下拉框（表头筛选）
-            if (excludeField !== 'status') {
-                const statusDropdown = document.getElementById('filter-dropdown-status');
-                if (statusDropdown) {
-                    const currentStatus = headerFilters.status;
-                    let statusHtml = `<div class="filter-option" onclick="applyHeaderFilter('status', '')"><input type="radio" name="filter-status" value="" ${!currentStatus ? 'checked' : ''}> <label>全部</label></div>`;
-                    
-                    for (const [value, count] of Object.entries(data.status)) {
-                        if (count > 0) {
-                            const label = statusLabels[value] || value;
-                            const checked = currentStatus === value ? 'checked' : '';
-                            statusHtml += `<div class="filter-option" onclick="applyHeaderFilter('status', '${value}')"><input type="radio" name="filter-status" value="${value}" ${checked}> <label>${label} (${count})</label></div>`;
-                        }
+            const statusDropdown = document.getElementById('filter-dropdown-status');
+            if (statusDropdown) {
+                const currentStatus = headerFilters.status;
+                let statusHtml = `<div class="filter-option" onclick="applyHeaderFilter('status', '')"><input type="radio" name="filter-status" value="" ${!currentStatus ? 'checked' : ''}> <label>全部</label></div>`;
+                
+                for (const [value, count] of Object.entries(data.status)) {
+                    if (count > 0) {
+                        const label = statusLabels[value] || value;
+                        const checked = currentStatus === value ? 'checked' : '';
+                        statusHtml += `<div class="filter-option" onclick="applyHeaderFilter('status', '${value}')"><input type="radio" name="filter-status" value="${value}" ${checked}> <label>${label} (${count})</label></div>`;
                     }
-                    statusDropdown.innerHTML = statusHtml;
                 }
+                statusDropdown.innerHTML = statusHtml;
             }
             
             // 更新销售状态下拉框（表头筛选）
-            if (excludeField !== 'sale_status') {
-                const saleStatusDropdown = document.getElementById('filter-dropdown-sale_status');
-                if (saleStatusDropdown) {
-                    const currentSaleStatus = headerFilters.sale_status;
-                    let saleStatusHtml = `<div class="filter-option" onclick="applyHeaderFilter('sale_status', '')"><input type="radio" name="filter-sale_status" value="" ${!currentSaleStatus ? 'checked' : ''}> <label>全部</label></div>`;
-                    
-                    for (const [value, count] of Object.entries(data.sale_status)) {
-                        if (count > 0) {
-                            const label = saleStatusLabels[value] || value || '未设置';
-                            const checked = currentSaleStatus === value ? 'checked' : '';
-                            saleStatusHtml += `<div class="filter-option" onclick="applyHeaderFilter('sale_status', '${value}')"><input type="radio" name="filter-sale_status" value="${value}" ${checked}> <label>${label} (${count})</label></div>`;
-                        }
+            const saleStatusDropdown = document.getElementById('filter-dropdown-sale_status');
+            if (saleStatusDropdown) {
+                const currentSaleStatus = headerFilters.sale_status;
+                let saleStatusHtml = `<div class="filter-option" onclick="applyHeaderFilter('sale_status', '')"><input type="radio" name="filter-sale_status" value="" ${!currentSaleStatus ? 'checked' : ''}> <label>全部</label></div>`;
+                
+                for (const [value, count] of Object.entries(data.sale_status)) {
+                    if (count > 0) {
+                        const label = saleStatusLabels[value] || value || '未设置';
+                        const checked = currentSaleStatus === value ? 'checked' : '';
+                        saleStatusHtml += `<div class="filter-option" onclick="applyHeaderFilter('sale_status', '${value}')"><input type="radio" name="filter-sale_status" value="${value}" ${checked}> <label>${label} (${count})</label></div>`;
                     }
-                    saleStatusDropdown.innerHTML = saleStatusHtml;
                 }
+                saleStatusDropdown.innerHTML = saleStatusHtml;
             }
             
             // 更新飞书链接下拉框（表头筛选 + select 下拉框）
-            if (excludeField !== 'feishu_url' && data.feishu_url_list) {
+            if (data.feishu_url_list) {
                 const feishuDropdown = document.getElementById('filter-dropdown-feishu_url');
                 if (feishuDropdown) {
                     const currentFeishuUrl = headerFilters.feishu_url;
@@ -5493,12 +5492,12 @@
             }
             
             // 更新销售渠道 select 下拉框
-            if (excludeField !== 'sales_channel' && data.sales_channel_list) {
+            if (data.sales_channel_list) {
                 updateSelectDropdown('salesChannelFilter', data.sales_channel_list, 'channel', 'channel', '销售渠道');
             }
             
             // 更新过期时间 select 下拉框
-            if (excludeField !== 'expire_days' && data.expire_groups_list) {
+            if (data.expire_groups_list) {
                 updateSelectDropdown('expireDaysFilter', data.expire_groups_list, 'value', 'label', '过期时间');
             }
         }

@@ -5,6 +5,26 @@
 
 import os
 import sys
+
+# 确保模块导入路径正确（支持从任意目录运行）
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+# 项目根目录和 src 目录都加入路径，支持 from storage.xxx 导入
+for _p in [_parent_dir, _current_dir]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
+
+# 加载环境变量（优先加载 .env.local）
+from dotenv import load_dotenv
+_env_local = os.path.join(_parent_dir, '.env.local')
+if os.path.exists(_env_local):
+    load_dotenv(_env_local)
+    print(f"[ENV] Loaded .env.local from {_env_local}")
+    print(f"[ENV] LOCAL_DEV_MODE = {os.getenv('LOCAL_DEV_MODE')}")
+else:
+    load_dotenv()  # 尝试加载默认 .env
+
+# 导入其他模块
 import logging
 import uuid
 import secrets
@@ -20,14 +40,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-
-# 确保模块导入路径正确（支持从任意目录运行）
-_current_dir = os.path.dirname(os.path.abspath(__file__))
-_parent_dir = os.path.dirname(_current_dir)
-# 项目根目录和 src 目录都加入路径，支持 from storage.xxx 导入
-for _p in [_parent_dir, _current_dir]:
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -1127,125 +1139,139 @@ async def get_filter_options(
 ):
     """
     获取基于当前筛选条件的各字段可选值
-    - exclude_field: 排除的字段（用于获取其他字段选项时，不应用该字段的筛选）
+    - 每个字段返回的选项都会排除该字段自身的筛选条件
+    - 例如：status 字段的选项会排除 status 筛选条件，但保留其他筛选条件
     - status: 支持 'valid'、'activated'、'disabled' 或数字 '1'、'0'
     """
     try:
         client = get_supabase_client()
         
-        # 构建基础查询（选择需要的字段）
-        query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, sales_channel')
-        
-        # 应用筛选条件（排除当前字段）
-        if status is not None and status != '' and exclude_field != 'status':
-            # 支持字符串状态值（valid/activated/disabled）和数字状态值（1/0）
-            if status == 'valid':
-                # 有效：status=1 且未使用过且销售状态正常
-                query = query.eq('status', 1).eq('used_count', 0)
-            elif status == 'activated':
-                # 已激活：status=1 且已使用过且销售状态正常
-                query = query.eq('status', 1).gt('used_count', 0)
-            elif status == 'disabled':
-                # 已停用：status=0 或 销售状态为 refunded/disputed
-                query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
-            else:
-                # 尝试作为数字处理（兼容旧版）
+        # 定义一个辅助函数来构建带筛选条件的查询
+        def build_query(exclude: str = None):
+            """构建查询，exclude 指定要排除的筛选字段"""
+            query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, sales_channel')
+            
+            # 应用筛选条件（排除指定字段）
+            if status is not None and status != '' and exclude != 'status':
+                if status == 'valid':
+                    query = query.eq('status', 1).eq('used_count', 0)
+                elif status == 'activated':
+                    query = query.eq('status', 1).gt('used_count', 0)
+                elif status == 'disabled':
+                    query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
+                else:
+                    try:
+                        query = query.eq('status', int(status))
+                    except ValueError:
+                        pass
+            
+            if sale_status and sale_status != '' and exclude != 'sale_status':
+                query = query.eq('sale_status', sale_status)
+            
+            if feishu_url and feishu_url != '' and exclude != 'feishu_url':
+                if feishu_url == '__none__':
+                    query = query.or_('feishu_url.is.null,feishu_url.eq.')
+                else:
+                    query = query.eq('feishu_url', feishu_url)
+            
+            if search and search != '' and exclude != 'search':
+                query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+            
+            if created_start and created_start != '' and exclude != 'created_start':
+                query = query.gte('bstudio_create_time', created_start)
+            if created_end and created_end != '' and exclude != 'created_end':
+                query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
+            
+            if device_filter and device_filter != '' and exclude != 'device_filter':
                 try:
-                    query = query.eq('status', int(status))
+                    device_count = int(device_filter)
+                    if device_count == 0:
+                        query = query.eq('devices', '[]')
                 except ValueError:
                     pass
+            
+            if expire_days and expire_days != '' and exclude != 'expire_days':
+                now = datetime.now()
+                if expire_days == 'expired':
+                    query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                elif expire_days == 'permanent':
+                    query = query.is_('expire_at', 'null')
+                elif expire_days.startswith('date:'):
+                    target_date = expire_days[5:]
+                    start_time = f"{target_date}T00:00:00"
+                    end_time = f"{target_date}T23:59:59"
+                    query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                else:
+                    try:
+                        days = int(expire_days)
+                        future_date = (now + timedelta(days=days)).isoformat()
+                        query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                    except ValueError:
+                        pass
+            
+            if sales_channel and sales_channel != '' and exclude != 'sales_channel':
+                query = query.eq('sales_channel', sales_channel)
+            
+            return query
         
-        if sale_status and sale_status != '' and exclude_field != 'sale_status':
-            query = query.eq('sale_status', sale_status)
+        # 为每个字段分别执行查询（排除该字段自身的筛选条件）
         
-        if feishu_url and feishu_url != '' and exclude_field != 'feishu_url':
-            if feishu_url == '__none__':
-                # 特殊值：筛选未设置飞书链接的记录
-                query = query.or_('feishu_url.is.null,feishu_url.eq.')
-            else:
-                query = query.eq('feishu_url', feishu_url)
-        
-        if search and search != '' and exclude_field != 'search':
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
-        
-        if created_start and created_start != '' and exclude_field != 'created_start':
-            query = query.gte('bstudio_create_time', created_start)
-        if created_end and created_end != '' and exclude_field != 'created_end':
-            query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
-        
-        # 绑定设备筛选
-        if device_filter and device_filter != '' and exclude_field != 'device_filter':
-            try:
-                device_count = int(device_filter)
-                if device_count == 0:
-                    query = query.eq('devices', '[]')
-                # 其他数量需要在应用层过滤，这里先不处理
-            except ValueError:
-                pass
-        
-        # 过期时间筛选
-        if expire_days and expire_days != '' and exclude_field != 'expire_days':
-            now = datetime.now()
-            if expire_days == 'expired':
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
-            elif expire_days == 'permanent':
-                query = query.is_('expire_at', 'null')
-            elif expire_days.startswith('date:'):
-                target_date = expire_days[5:]
-                start_time = f"{target_date}T00:00:00"
-                end_time = f"{target_date}T23:59:59"
-                query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
-            else:
-                try:
-                    days = int(expire_days)
-                    future_date = (now + timedelta(days=days)).isoformat()
-                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
-                except ValueError:
-                    pass
-        
-        # 销售渠道筛选
-        if sales_channel and sales_channel != '' and exclude_field != 'sales_channel':
-            query = query.eq('sales_channel', sales_channel)
-        
-        response = query.execute()
-        
-        # 统计各字段的可选值
+        # 1. 状态统计（排除 status 筛选）
+        status_response = build_query(exclude='status').execute()
         status_count = {}
-        sale_status_count = {}
-        feishu_url_count = {}
-        feishu_url_names = {}  # URL到名称的映射
-        sales_channel_count = {}
-        expire_groups = {}  # 过期时间分组
-        
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        permanent_count = 0
-        expired_count = 0
-        
-        for item in response.data:
-            # 激活状态
+        for item in status_response.data:
             s = item.get('status')
-            status_key = str(s) if s is not None else ''
-            status_count[status_key] = status_count.get(status_key, 0) + 1
-            
-            # 销售状态
-            ss = item.get('sale_status') or ''
-            sale_status_count[ss] = sale_status_count.get(ss, 0) + 1
-            
-            # 飞书链接
-            fu = item.get('feishu_url') or ''
-            feishu_url_count[fu] = feishu_url_count.get(fu, 0) + 1
-            
-            # 记录URL对应的名称（优先使用最后设置的非空名称）
-            link_name = item.get('link_name') or ''
-            if link_name:
-                feishu_url_names[fu] = link_name
-            
-            # 销售渠道
-            sc = item.get('sales_channel') or ''
-            if sc:
-                sales_channel_count[sc] = sales_channel_count.get(sc, 0) + 1
-            
-            # 过期时间分组
+            key = str(s) if s is not None else '0'
+            status_count[key] = status_count.get(key, 0) + 1
+        
+        # 2. 销售状态统计（排除 sale_status 筛选）
+        sale_status_response = build_query(exclude='sale_status').execute()
+        sale_status_count = {}
+        for item in sale_status_response.data:
+            s = item.get('sale_status') or ''
+            sale_status_count[s] = sale_status_count.get(s, 0) + 1
+        
+        # 3. 飞书链接统计（排除 feishu_url 筛选）
+        feishu_response = build_query(exclude='feishu_url').execute()
+        feishu_url_groups = {}
+        for item in feishu_response.data:
+            url = item.get('feishu_url') or ''
+            name = item.get('link_name') or ''
+            url_key = url.strip() if url.strip() else ''
+            if url_key not in feishu_url_groups:
+                feishu_url_groups[url_key] = {"url": url_key, "count": 0, "names": []}
+            feishu_url_groups[url_key]["count"] += 1
+            if name and name not in feishu_url_groups[url_key]["names"]:
+                feishu_url_groups[url_key]["names"].append(name)
+        
+        feishu_url_list = []
+        for url_key, data in feishu_url_groups.items():
+            if url_key:
+                display_name = data["names"][0] if data["names"] else (url_key[:30] + "..." if len(url_key) > 30 else url_key)
+                feishu_url_list.append({"url": url_key, "name": display_name, "count": data["count"]})
+            else:
+                feishu_url_list.append({"url": "", "name": "未设置", "count": data["count"]})
+        feishu_url_list.sort(key=lambda x: x['count'], reverse=True)
+        
+        # 4. 销售渠道统计（排除 sales_channel 筛选）
+        sales_channel_response = build_query(exclude='sales_channel').execute()
+        sales_channel_count = {}
+        for item in sales_channel_response.data:
+            channel = item.get('sales_channel') or '未设置'
+            sales_channel_count[channel] = sales_channel_count.get(channel, 0) + 1
+        
+        sales_channel_list = [{"channel": k, "count": v} for k, v in sales_channel_count.items()]
+        sales_channel_list.sort(key=lambda x: x['count'], reverse=True)
+        
+        # 5. 过期时间统计（排除 expire_days 筛选）
+        expire_response = build_query(exclude='expire_days').execute()
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        expired_count = 0
+        expire_groups = {}
+        permanent_count = 0
+        
+        for item in expire_response.data:
             expire_at = item.get('expire_at')
             if expire_at is None:
                 permanent_count += 1
@@ -1267,20 +1293,6 @@ async def get_filter_options(
                 except Exception:
                     pass
         
-        # 构建飞书链接列表（合并空链接）
-        feishu_url_list = []
-        for url, count in feishu_url_count.items():
-            if url:  # 有链接
-                display_name = feishu_url_names.get(url, url[:25] + '...' if len(url) > 25 else url)
-                feishu_url_list.append({"url": url, "name": display_name, "count": count})
-            else:  # 空链接，合并到"未设置"
-                feishu_url_list.append({"url": "__none__", "name": "未设置", "count": count})
-        feishu_url_list.sort(key=lambda x: x['count'], reverse=True)
-        
-        # 构建销售渠道列表
-        sales_channel_list = [{"channel": k, "count": v} for k, v in sales_channel_count.items()]
-        sales_channel_list.sort(key=lambda x: x['count'], reverse=True)
-        
         # 构建过期时间分组列表
         expire_groups_list = []
         if expired_count > 0:
@@ -1298,7 +1310,7 @@ async def get_filter_options(
                 "feishu_url_list": feishu_url_list,
                 "sales_channel_list": sales_channel_list,
                 "expire_groups_list": expire_groups_list,
-                "total": len(response.data)
+                "total": len(status_response.data)
             }
         }
         
