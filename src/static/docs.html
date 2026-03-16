@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文档中心</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%235D4E37'/%3E%3Cpath d='M50 28 L55 28 L57 35 C59 36 61 37 63 38 L70 35 L73 40 L68 46 C69 48 69 50 69 52 C69 54 69 56 68 58 L73 64 L70 69 L63 66 C61 67 59 68 57 69 L55 76 L45 76 L43 69 C41 68 39 67 37 66 L30 69 L27 64 L32 58 C31 56 31 54 31 52 C31 50 31 48 32 46 L27 40 L30 35 L37 38 C39 37 41 36 43 35 L45 28 Z M50 42 C44 42 39 47 39 53 C39 59 44 64 50 64 C56 64 61 59 61 53 C61 47 56 42 50 42 Z' fill='%23D4A574'/%3E%3Ccircle cx='50' cy='53' r='8' fill='%23D4A574' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #FFF8F0;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #E8D5C4;
+        }
+        .header h1 {
+            font-size: 24px;
+            color: #5D4E37;
+        }
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+        .btn-secondary {
+            background-color: white;
+            color: #5D4E37;
+            border: 1px solid #E8D5C4;
+        }
+        .btn-secondary:hover {
+            background-color: #FFF8F0;
+        }
+        .main-content {
+            display: flex;
+            gap: 24px;
+            min-height: calc(100vh - 150px);
+        }
+        .sidebar {
+            width: 280px;
+            flex-shrink: 0;
+            background: white;
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0 2px 8px rgba(93, 78, 55, 0.08);
+        }
+        .sidebar h2 {
+            font-size: 16px;
+            color: #5D4E37;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E8D5C4;
+        }
+        .doc-list {
+            list-style: none;
+        }
+        .doc-item {
+            padding: 12px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .doc-item:hover {
+            background-color: #FFF8F0;
+        }
+        .doc-item.active {
+            background-color: #D4A574;
+            color: white;
+        }
+        .doc-item .title {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .doc-item .meta {
+            font-size: 12px;
+            color: #999;
+        }
+        .doc-item.active .meta {
+            color: rgba(255,255,255,0.8);
+        }
+        .content-area {
+            flex: 1;
+            background: white;
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 2px 8px rgba(93, 78, 55, 0.08);
+            overflow: auto;
+        }
+        .content-area h1 {
+            font-size: 28px;
+            color: #5D4E37;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #D4A574;
+        }
+        .content-area h2 {
+            font-size: 22px;
+            color: #5D4E37;
+            margin: 32px 0 16px 0;
+        }
+        .content-area h3 {
+            font-size: 18px;
+            color: #5D4E37;
+            margin: 24px 0 12px 0;
+        }
+        .content-area p {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #333;
+            margin-bottom: 16px;
+        }
+        .content-area ul, .content-area ol {
+            margin: 16px 0;
+            padding-left: 24px;
+        }
+        .content-area li {
+            font-size: 15px;
+            line-height: 1.8;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        .content-area table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        .content-area th, .content-area td {
+            padding: 12px;
+            border: 1px solid #E8D5C4;
+            text-align: left;
+        }
+        .content-area th {
+            background-color: #FFF8F0;
+            font-weight: 600;
+            color: #5D4E37;
+        }
+        .content-area code {
+            background-color: #f5f5f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 13px;
+        }
+        .content-area pre {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 16px 0;
+        }
+        .content-area pre code {
+            background: none;
+            padding: 0;
+            color: inherit;
+        }
+        .content-area blockquote {
+            border-left: 4px solid #D4A574;
+            padding-left: 16px;
+            margin: 16px 0;
+            color: #666;
+            font-style: italic;
+        }
+        .content-area hr {
+            border: none;
+            border-top: 1px solid #E8D5C4;
+            margin: 24px 0;
+        }
+        .content-area a {
+            color: #D4A574;
+            text-decoration: none;
+        }
+        .content-area a:hover {
+            text-decoration: underline;
+        }
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 400px;
+            color: #999;
+        }
+        .empty-state svg {
+            width: 64px;
+            height: 64px;
+            margin-bottom: 16px;
+            fill: #D4A574;
+        }
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+        .login-prompt {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-color: #FFF8F0;
+        }
+        .login-prompt h2 {
+            color: #5D4E37;
+            margin-bottom: 16px;
+        }
+        .login-prompt p {
+            color: #666;
+            margin-bottom: 24px;
+        }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+        .toast {
+            padding: 12px 24px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-success { background: #059669; color: white; }
+        .toast-error { background: #DC2626; color: white; }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="loginPrompt" class="login-prompt" style="display: none;">
+        <h2>请先登录</h2>
+        <p>您需要登录管理后台才能访问文档中心</p>
+        <a href="/admin" class="btn btn-secondary">前往登录</a>
+    </div>
+
+    <div id="mainContent" class="container" style="display: none;">
+        <div class="header">
+            <h1>文档中心</h1>
+            <div class="header-actions">
+                <a href="/admin" class="btn btn-secondary">返回后台</a>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="sidebar">
+                <h2>文档列表</h2>
+                <ul id="docList" class="doc-list">
+                    <li class="loading">加载中...</li>
+                </ul>
+            </div>
+
+            <div class="content-area" id="contentArea">
+                <div class="empty-state">
+                    <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z"/></svg>
+                    <p>请从左侧选择文档</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script>
+        // 验证登录状态
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/admin/check-auth');
+                const result = await response.json();
+                if (result.success && result.authenticated) {
+                    document.getElementById('loginPrompt').style.display = 'none';
+                    document.getElementById('mainContent').style.display = 'block';
+                    loadDocsList();
+                } else {
+                    document.getElementById('loginPrompt').style.display = 'flex';
+                    document.getElementById('mainContent').style.display = 'none';
+                }
+            } catch (e) {
+                document.getElementById('loginPrompt').style.display = 'flex';
+                document.getElementById('mainContent').style.display = 'none';
+            }
+        }
+
+        // 加载文档列表
+        async function loadDocsList() {
+            try {
+                const response = await fetch('/api/admin/docs/list');
+                const result = await response.json();
+                if (result.success) {
+                    renderDocList(result.data);
+                } else {
+                    showToast('加载文档列表失败', 'error');
+                }
+            } catch (e) {
+                showToast('加载文档列表失败', 'error');
+            }
+        }
+
+        // 渲染文档列表
+        function renderDocList(docs) {
+            const list = document.getElementById('docList');
+            if (docs.length === 0) {
+                list.innerHTML = '<li class="loading">暂无文档</li>';
+                return;
+            }
+            list.innerHTML = docs.map(doc => `
+                <li class="doc-item" onclick="loadDoc('${doc.filename}')" data-filename="${doc.filename}">
+                    <div class="title">${doc.title}</div>
+                    <div class="meta">${formatSize(doc.size)} · ${doc.modified}</div>
+                </li>
+            `).join('');
+        }
+
+        // 格式化文件大小
+        function formatSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1024 / 1024).toFixed(1) + ' MB';
+        }
+
+        // 加载文档内容
+        async function loadDoc(filename) {
+            // 更新选中状态
+            document.querySelectorAll('.doc-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.filename === filename) {
+                    item.classList.add('active');
+                }
+            });
+
+            try {
+                const response = await fetch(`/api/admin/docs/${encodeURIComponent(filename)}`);
+                const result = await response.json();
+                if (result.success) {
+                    renderContent(result.data.content, filename);
+                } else {
+                    showToast('加载文档失败', 'error');
+                }
+            } catch (e) {
+                showToast('加载文档失败', 'error');
+            }
+        }
+
+        // 简单的Markdown渲染
+        function renderContent(markdown, filename) {
+            let html = markdown
+                // 代码块
+                .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+                // 行内代码
+                .replace(/`([^`]+)`/g, '<code>$1</code>')
+                // 标题
+                .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+                .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+                .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+                // 粗体
+                .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+                // 斜体
+                .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+                // 引用
+                .replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>')
+                // 水平线
+                .replace(/^---$/gm, '<hr>')
+                // 无序列表
+                .replace(/^- (.+)$/gm, '<li>$1</li>')
+                // 有序列表
+                .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
+                // 表格
+                .replace(/\|(.+)\|/g, function(match) {
+                    const cells = match.slice(1, -1).split('|').map(c => c.trim());
+                    if (cells.every(c => c.match(/^-+$/))) {
+                        return ''; // 分隔行跳过
+                    }
+                    return '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+                })
+                // 链接
+                .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>')
+                // 段落
+                .replace(/\n\n/g, '</p><p>')
+                // 换行
+                .replace(/\n/g, '<br>');
+
+            // 包裹表格
+            html = html.replace(/(<tr>.*<\/tr>)+/g, '<table>$&</table>');
+            
+            // 包裹列表
+            html = html.replace(/(<li>.*<\/li>)+/g, '<ul>$&</ul>');
+            
+            // 清理空的p标签
+            html = html.replace(/<p><\/p>/g, '');
+            html = html.replace(/<p><br><\/p>/g, '');
+
+            const contentArea = document.getElementById('contentArea');
+            contentArea.innerHTML = `<h1>${filename.replace('.md', '')}</h1><div class="markdown-body">${html}</div>`;
+        }
+
+        // Toast提示
+        function showToast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        // 初始化
+        checkAuth();
+    </script>
+</body>
+</html>
