@@ -1350,7 +1350,7 @@ async def get_filter_options(
                 display_name = data["names"][0] if data["names"] else (url_key[:30] + "..." if len(url_key) > 30 else url_key)
                 feishu_url_list.append({"url": url_key, "name": display_name, "count": data["count"]})
             else:
-                feishu_url_list.append({"url": "", "name": "未设置", "count": data["count"]})
+                feishu_url_list.append({"url": "__none__", "name": "未设置", "count": data["count"]})
         feishu_url_list.sort(key=lambda x: x['count'], reverse=True)
         
         # 4. 销售渠道统计（排除 sales_channel 筛选）
