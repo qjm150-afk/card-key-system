@@ -637,7 +637,11 @@ async def get_card_keys(
                 query = query.eq('feishu_url', feishu_url)
         
         if sales_channel:
-            query = query.eq('sales_channel', sales_channel)
+            if sales_channel == '未设置':
+                # 特殊值：筛选未设置销售渠道的记录（空值或空字符串）
+                query = query.or_('sales_channel.is.null,sales_channel.eq.')
+            else:
+                query = query.eq('sales_channel', sales_channel)
         
         if sale_status:
             # 映射中文值到英文
@@ -848,7 +852,11 @@ async def batch_update_cards(request: BatchUpdateRequest):
             
             # 销售渠道筛选
             if filters.get('sales_channel') and filters.get('sales_channel') != '':
-                query = query.eq('sales_channel', filters['sales_channel'])
+                if filters['sales_channel'] == '未设置':
+                    # 特殊值：筛选未设置销售渠道的记录
+                    query = query.or_('sales_channel.is.null,sales_channel.eq.')
+                else:
+                    query = query.eq('sales_channel', filters['sales_channel'])
             
             # 绑定设备筛选（按设备数量）
             device_filter = filters.get('device_filter')
@@ -1298,7 +1306,11 @@ async def get_filter_options(
                         pass
             
             if sales_channel and sales_channel != '' and exclude != 'sales_channel':
-                query = query.eq('sales_channel', sales_channel)
+                if sales_channel == '未设置':
+                    # 特殊值：筛选未设置销售渠道的记录
+                    query = query.or_('sales_channel.is.null,sales_channel.eq.')
+                else:
+                    query = query.eq('sales_channel', sales_channel)
             
             return query
         
