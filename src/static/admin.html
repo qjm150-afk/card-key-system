@@ -1928,6 +1928,45 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+
+        /* 防混淆输入框样式 */
+        .input-name {
+            background-color: #FFFBEB !important;  /* 浅黄色背景 */
+            border: 1px solid #FCD34D !important;
+        }
+        .input-name:focus {
+            border-color: #F59E0B !important;
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1) !important;
+        }
+
+        .input-url {
+            background-color: #EFF6FF !important;  /* 浅蓝色背景 */
+            border: 1px solid #93C5FD !important;
+        }
+        .input-url:focus {
+            border-color: #3B82F6 !important;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+        }
+
+        .input-hint {
+            display: block;
+            margin-top: 4px;
+            font-size: 12px;
+            min-height: 16px;
+            transition: all 0.2s;
+        }
+        .input-hint.warning {
+            color: #D97706;
+        }
+        .input-hint.success {
+            color: #059669;
+        }
+
+        /* 批量修改弹窗中的提示样式 */
+        .update-field-input .input-hint {
+            margin-top: 2px;
+            margin-left: 0;
+        }
     </style>
 </head>
 <body>
@@ -2574,12 +2613,14 @@
                         <input type="text" class="form-input" id="userNote" placeholder="可选备注">
                     </div>
                     <div class="form-group">
-                        <label>链接名称</label>
-                        <input type="text" class="form-input" id="linkName" placeholder="如：春招信息汇总表">
+                        <label>🏷️ 链接名称</label>
+                        <input type="text" class="form-input input-name" id="linkName" placeholder="给链接起个名字，如：春招信息汇总表" oninput="validateLinkName(this)">
+                        <small class="input-hint" id="linkNameHint"></small>
                     </div>
                     <div class="form-group">
-                        <label>飞书链接</label>
-                        <input type="text" class="form-input" id="feishuUrl" placeholder="https://...">
+                        <label>🔗 飞书链接</label>
+                        <input type="text" class="form-input input-url" id="feishuUrl" placeholder="粘贴飞书链接，以 https:// 开头" oninput="validateFeishuUrl(this)">
+                        <small class="input-hint" id="feishuUrlHint"></small>
                     </div>
                     <div class="form-group">
                         <label>访问密码</label>
@@ -2622,12 +2663,14 @@
                         <input type="text" class="form-input" id="generateSalesChannel" list="salesChannelList" placeholder="选择或输入渠道名称">
                     </div>
                     <div class="form-group">
-                        <label>链接名称</label>
-                        <input type="text" class="form-input" id="generateLinkName" placeholder="如：春招信息汇总表">
+                        <label>🏷️ 链接名称</label>
+                        <input type="text" class="form-input input-name" id="generateLinkName" placeholder="给链接起个名字，如：春招信息汇总表" oninput="validateLinkName(this)">
+                        <small class="input-hint" id="generateLinkNameHint"></small>
                     </div>
                     <div class="form-group">
-                        <label>飞书链接</label>
-                        <input type="text" class="form-input" id="generateFeishuUrl" placeholder="https://...">
+                        <label>🔗 飞书链接</label>
+                        <input type="text" class="form-input input-url" id="generateFeishuUrl" placeholder="粘贴飞书链接，以 https:// 开头" oninput="validateFeishuUrl(this)">
+                        <small class="input-hint" id="generateFeishuUrlHint"></small>
                     </div>
                     <div class="form-group">
                         <label>访问密码</label>
@@ -2731,17 +2774,19 @@
                         </div>
                     </div>
                     <div class="update-field-row">
-                        <input type="checkbox" class="update-field-checkbox" id="updateFieldFeishuUrl" onchange="toggleUpdateField('feishu_url')">
-                        <span class="update-field-label">飞书链接</span>
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldLinkName" onchange="toggleUpdateField('link_name')">
+                        <span class="update-field-label">🏷️ 链接名称</span>
                         <div class="update-field-input">
-                            <input type="text" id="updateValueFeishuUrl" placeholder="输入新的飞书链接" disabled>
+                            <input type="text" class="input-name" id="updateValueLinkName" placeholder="给链接起个名字" disabled oninput="validateLinkName(this)">
+                            <small class="input-hint" id="updateLinkNameHint"></small>
                         </div>
                     </div>
                     <div class="update-field-row">
-                        <input type="checkbox" class="update-field-checkbox" id="updateFieldLinkName" onchange="toggleUpdateField('link_name')">
-                        <span class="update-field-label">链接名称</span>
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldFeishuUrl" onchange="toggleUpdateField('feishu_url')">
+                        <span class="update-field-label">🔗 飞书链接</span>
                         <div class="update-field-input">
-                            <input type="text" id="updateValueLinkName" placeholder="输入新的链接名称" disabled>
+                            <input type="text" class="input-url" id="updateValueFeishuUrl" placeholder="粘贴飞书链接，以 https:// 开头" disabled oninput="validateFeishuUrl(this)">
+                            <small class="input-hint" id="updateFeishuUrlHint"></small>
                         </div>
                     </div>
                     <div class="update-field-row">
@@ -4612,8 +4657,96 @@
             }
         }
 
+        // ==================== 飞书字段防混淆验证 ====================
+
+        // 验证飞书链接字段
+        function validateFeishuUrl(input) {
+            // 获取对应的提示元素
+            let hintId = input.id + 'Hint';
+            // 处理不同的ID格式
+            if (input.id === 'feishuUrl') hintId = 'feishuUrlHint';
+            else if (input.id === 'generateFeishuUrl') hintId = 'generateFeishuUrlHint';
+            else if (input.id === 'updateValueFeishuUrl') hintId = 'updateFeishuUrlHint';
+            
+            const hint = document.getElementById(hintId);
+            if (!hint) return true;
+            
+            const value = input.value.trim();
+            if (!value) {
+                hint.textContent = '';
+                hint.className = 'input-hint';
+                return true;
+            }
+            
+            if (value.startsWith('http://') || value.startsWith('https://')) {
+                hint.textContent = '✓ 链接格式正确';
+                hint.className = 'input-hint success';
+                return true;
+            } else {
+                hint.textContent = '⚠️ 飞书链接应以 https:// 开头';
+                hint.className = 'input-hint warning';
+                return false;
+            }
+        }
+
+        // 验证链接名称字段
+        function validateLinkName(input) {
+            // 获取对应的提示元素
+            let hintId = input.id + 'Hint';
+            // 处理不同的ID格式
+            if (input.id === 'linkName') hintId = 'linkNameHint';
+            else if (input.id === 'generateLinkName') hintId = 'generateLinkNameHint';
+            else if (input.id === 'updateValueLinkName') hintId = 'updateLinkNameHint';
+            
+            const hint = document.getElementById(hintId);
+            if (!hint) return true;
+            
+            const value = input.value.trim();
+            if (!value) {
+                hint.textContent = '';
+                hint.className = 'input-hint';
+                return true;
+            }
+            
+            if (value.startsWith('http://') || value.startsWith('https://')) {
+                hint.textContent = '⚠️ 这里应该输入名称，不是链接';
+                hint.className = 'input-hint warning';
+                return false;
+            } else {
+                hint.textContent = '✓ 名称格式正确';
+                hint.className = 'input-hint success';
+                return true;
+            }
+        }
+
+        // 提交前综合校验
+        function validateFeishuFields(linkNameInputId, feishuUrlInputId) {
+            const linkNameInput = document.getElementById(linkNameInputId);
+            const feishuUrlInput = document.getElementById(feishuUrlInputId);
+            
+            const linkName = linkNameInput ? linkNameInput.value.trim() : '';
+            const feishuUrl = feishuUrlInput ? feishuUrlInput.value.trim() : '';
+            
+            // 检查链接名称是否像链接
+            if (linkName && (linkName.startsWith('http://') || linkName.startsWith('https://'))) {
+                return confirm('⚠️ 检测到「链接名称」字段输入了链接格式内容，是否继续保存？\n\n链接名称：' + linkName + '\n\n建议检查是否输入反了。');
+            }
+            
+            // 检查飞书链接是否不像链接
+            if (feishuUrl && !feishuUrl.startsWith('http://') && !feishuUrl.startsWith('https://')) {
+                return confirm('⚠️ 检测到「飞书链接」字段没有以 http/https 开头，是否继续保存？\n\n飞书链接：' + feishuUrl + '\n\n建议检查是否输入反了。');
+            }
+            
+            return true;
+        }
+
         // 保存卡密
         async function saveCard() {
+            // 飞书字段防混淆校验
+            if (!validateFeishuFields('linkName', 'feishuUrl')) {
+                return;
+            }
+            
             const id = document.getElementById('cardId').value;
             
             // 将激活状态转换为 status 值
@@ -4709,6 +4842,11 @@
 
         // 批量生成卡密
         async function generateCards() {
+            // 飞书字段防混淆校验
+            if (!validateFeishuFields('generateLinkName', 'generateFeishuUrl')) {
+                return;
+            }
+            
             const shouldExport = document.getElementById('generateAndExport').checked;
             
             // 处理过期时间
@@ -6079,6 +6217,26 @@
             if (Object.keys(updates).length === 0) {
                 showToast('请至少选择一个要修改的字段', 'error');
                 return;
+            }
+            
+            // 飞书字段防混淆校验（只有同时勾选了两个字段时才校验）
+            if (updates['link_name'] && updates['feishu_url']) {
+                const linkNameValue = updates['link_name'].value;
+                const feishuUrlValue = updates['feishu_url'].value;
+                
+                // 检查链接名称是否像链接
+                if (linkNameValue && (linkNameValue.startsWith('http://') || linkNameValue.startsWith('https://'))) {
+                    if (!confirm('⚠️ 检测到「链接名称」字段输入了链接格式内容，是否继续？\n\n链接名称：' + linkNameValue + '\n\n建议检查是否输入反了。')) {
+                        return;
+                    }
+                }
+                
+                // 检查飞书链接是否不像链接
+                if (feishuUrlValue && !feishuUrlValue.startsWith('http://') && !feishuUrlValue.startsWith('https://')) {
+                    if (!confirm('⚠️ 检测到「飞书链接」字段没有以 http/https 开头，是否继续？\n\n飞书链接：' + feishuUrlValue + '\n\n建议检查是否输入反了。')) {
+                        return;
+                    }
+                }
             }
             
             batchUpdateData.updates = updates;
