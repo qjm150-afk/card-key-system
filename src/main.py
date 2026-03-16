@@ -1349,9 +1349,14 @@ async def get_filter_options(
             else:
                 try:
                     if isinstance(expire_at, str):
-                        expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00')).replace(tzinfo=None)
+                        # 解析带时区的时间字符串
+                        expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                        # 转换为不带时区的本地时间进行比较
+                        expire_date = expire_date.replace(tzinfo=None)
                     else:
                         expire_date = expire_at
+                        if expire_date.tzinfo is not None:
+                            expire_date = expire_date.replace(tzinfo=None)
                     expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
                     date_key = expire_date_only.strftime('%Y-%m-%d')
                     
@@ -1361,7 +1366,8 @@ async def get_filter_options(
                         if date_key not in expire_groups:
                             expire_groups[date_key] = {'date': date_key, 'count': 0}
                         expire_groups[date_key]['count'] += 1
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"解析过期时间失败: {expire_at}, {str(e)}")
                     pass
         
         # 构建过期时间分组列表（始终显示所有选项，即使数量为 0）
@@ -1606,9 +1612,14 @@ async def get_expire_groups():
                 # 解析过期时间
                 try:
                     if isinstance(expire_at, str):
-                        expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00')).replace(tzinfo=None)
+                        # 解析带时区的时间字符串
+                        expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                        # 转换为不带时区的本地时间进行比较
+                        expire_date = expire_date.replace(tzinfo=None)
                     else:
                         expire_date = expire_at
+                        if expire_date.tzinfo is not None:
+                            expire_date = expire_date.replace(tzinfo=None)
                     
                     # 只保留日期部分（去掉时分秒），统一用日期比较
                     expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
