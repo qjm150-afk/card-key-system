@@ -4732,7 +4732,7 @@
                 status: status,
                 sale_status: document.getElementById('saleStatus').value,
                 sales_channel: document.getElementById('salesChannel').value,
-                order_id: document.getElementById('orderId').value || null,
+                order_id: document.getElementById('orderId').value,  // 空字符串表示清空，不发送表示不修改
                 user_note: document.getElementById('userNote').value,
                 link_name: document.getElementById('linkName').value,
                 feishu_url: document.getElementById('feishuUrl').value,
@@ -4758,15 +4758,21 @@
                 
                 for (const field of fieldsToCheck) {
                     const currentValue = formValues[field];
-                    const originalValue = originalCardData[field] || '';
+                    const originalValue = originalCardData[field];
                     
-                    // 对于 order_id，null 和空字符串视为相同
-                    const normalizedCurrent = (field === 'order_id' && currentValue === null) ? '' : (currentValue || '');
-                    const normalizedOriginal = (field === 'order_id' && originalValue === null) ? '' : (originalValue || '');
+                    // 对于 order_id、user_note 等可选字段，null 和空字符串视为相同
+                    const nullableFields = ['order_id', 'user_note', 'sales_channel', 'link_name', 'feishu_url', 'feishu_password'];
+                    const normalizedCurrent = nullableFields.includes(field) ? (currentValue || '') : currentValue;
+                    const normalizedOriginal = nullableFields.includes(field) ? (originalValue || '') : originalValue;
                     
                     // 只有值发生变化时才发送
                     if (normalizedCurrent !== normalizedOriginal) {
-                        data[field] = currentValue;
+                        // 对于可选字段，空字符串表示清空
+                        if (nullableFields.includes(field) && currentValue === '') {
+                            data[field] = '';  // 发送空字符串，后端会转为 NULL
+                        } else {
+                            data[field] = currentValue;
+                        }
                     }
                 }
                 

@@ -2811,9 +2811,14 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
             if card.sale_status == 'sold':
                 update_data["sold_at"] = datetime.now().isoformat()
         if card.order_id is not None:
-            update_data["order_id"] = card.order_id or None
+            # 空字符串转为 None，用于清空订单号
+            update_data["order_id"] = card.order_id if card.order_id else None
         if card.sales_channel is not None:
             update_data["sales_channel"] = card.sales_channel
+        
+        # 检查是否有实际需要更新的内容
+        if not update_data:
+            return {"success": True, "msg": "没有需要更新的字段"}
         
         response = client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
         
