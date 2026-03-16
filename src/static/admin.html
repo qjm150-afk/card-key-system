@@ -3093,7 +3093,17 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             
-            event.target.classList.add('active');
+            // 安全获取事件目标
+            if (typeof event !== 'undefined' && event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果没有事件对象，手动激活对应的标签
+                document.querySelectorAll('.tab').forEach(t => {
+                    if (t.textContent.includes(getTabName(tab))) {
+                        t.classList.add('active');
+                    }
+                });
+            }
             document.getElementById(`${tab}-tab`).classList.add('active');
             
             if (tab === 'logs') {
@@ -3106,6 +3116,18 @@
                 initAnalyticsDate();
                 loadAnalytics();
             }
+        }
+        
+        // 获取标签名称
+        function getTabName(tab) {
+            const tabNames = {
+                'cards': '卡密管理',
+                'logs': '访问日志',
+                'operation-logs': '操作日志',
+                'link-health': '链接健康',
+                'analytics': '数据分析'
+            };
+            return tabNames[tab] || tab;
         }
 
         // ==================== 数据分析功能 ====================
@@ -6143,14 +6165,30 @@
                 if (operationType) params.append('operation_type', operationType);
                 
                 const response = await fetch(`/api/admin/operation-logs?${params}`);
+                
+                if (!response.ok) {
+                    // 处理 HTTP 错误
+                    if (response.status === 401) {
+                        showToast('请先登录', 'error');
+                        showLogin();
+                        return;
+                    }
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
                 const result = await response.json();
                 
                 if (result.success) {
                     renderOperationLogsTable(result.data);
                     renderOperationLogsPagination(result.total, result.total_pages);
+                } else {
+                    showToast(result.msg || '加载操作日志失败', 'error');
+                    renderOperationLogsTable([]);  // 显示空状态
                 }
             } catch (error) {
+                console.error('加载操作日志失败:', error);
                 showToast('加载操作日志失败', 'error');
+                renderOperationLogsTable([]);  // 显示空状态
             }
         }
         
