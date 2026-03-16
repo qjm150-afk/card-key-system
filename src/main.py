@@ -3322,6 +3322,7 @@ async def get_statistics_distribution():
         expired_count = 0
         expiring_7days = 0
         expiring_30days = 0
+        permanent_count = 0  # 永久有效（expire_at 为空）
         
         for card in cards:
             # 销售状态
@@ -3354,15 +3355,26 @@ async def get_statistics_distribution():
             expire_at = card.get('expire_at')
             if expire_at:
                 try:
-                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    # 处理字符串或 datetime 对象
+                    if isinstance(expire_at, str):
+                        expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    else:
+                        expire_time = expire_at
+                    # 移除时区信息，避免与 naive datetime 比较时报错
+                    if expire_time.tzinfo is not None:
+                        expire_time = expire_time.replace(tzinfo=None)
                     if expire_time < now:
                         expired_count += 1
                     elif expire_time < now + timedelta(days=7):
                         expiring_7days += 1
                     elif expire_time < now + timedelta(days=30):
                         expiring_30days += 1
+                    # 其他情况：未过期但不在近期内过期，不计入任何统计
                 except:
                     pass
+            else:
+                # expire_at 为空，表示永久有效
+                permanent_count += 1
         
         return {
             "success": True,
@@ -3375,7 +3387,7 @@ async def get_statistics_distribution():
                     "expired": expired_count,
                     "expiring_7days": expiring_7days,
                     "expiring_30days": expiring_30days,
-                    "permanent": len(cards) - expired_count - expiring_7days - expiring_30days
+                    "permanent": permanent_count
                 }
             }
         }
@@ -3467,7 +3479,14 @@ async def export_statistics():
             expire_at = card.get('expire_at')
             if expire_at:
                 try:
-                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    # 处理字符串或 datetime 对象
+                    if isinstance(expire_at, str):
+                        expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    else:
+                        expire_time = expire_at
+                    # 移除时区信息，避免与 naive datetime 比较时报错
+                    if expire_time.tzinfo is not None:
+                        expire_time = expire_time.replace(tzinfo=None)
                     if expire_time < now:
                         expired += 1
                     elif expire_time < now + timedelta(days=7):
