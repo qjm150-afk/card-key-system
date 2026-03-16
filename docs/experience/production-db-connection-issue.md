@@ -361,3 +361,123 @@ def get_database_url() -> Optional[str]:
 原因：
 - Supabase SDK 需要完整的 URL 和 ANON_KEY
 - PostgreSQL 直连更简单可靠，不依赖额外的 SDK
+
+---
+
+## 扩展问题：管理后台登录后循环跳转
+
+### 问题现象
+
+管理后台登录成功后，页面一直在"登录页面"和"主内容"之间循环跳转，无法正常使用。
+
+### 根本原因分析
+
+1. **Cookie 设置问题**：
+   - 生产环境的 cookie 设置可能因为域名、HTTPS 等因素失败
+   - 登录成功后，`check-auth` 接口返回 `authenticated: false`
+   - 前端检测到未认证，重新显示登录页面
+
+2. **认证检查流程问题**：
+   - 登录成功后立即调用 `check-auth` 检查认证状态
+   - 如果 `check-auth` 失败，会触发 `showLogin()`
+   - 导致循环跳转
+
+### 解决方案：Token + Authorization Header 双重认证
+
+#### 1. 后端支持两种认证方式
+
+后端中间件已经支持从两个地方获取 token：
+
+```python
+# 从 Authorization header 获取
+auth_header = request.headers.get("Authorization", "")
+if auth_header.startswith("Bearer "):
+    token = auth_header[7:]
+
+# 从 cookie 获取
+if not token:
+    token = request.cookies.get("admin_token")
+```
+
+#### 2. 前端实现 Token 存储和自动附加
+
+```javascript
+// Token 管理
+const TOKEN_KEY = 'admin_token';
+
+function getStoredToken() {
+    return localStorage.getItem(TOKEN_KEY);
+}
+
+function setStoredToken(token) {
+    localStorage.setItem(TOKEN_KEY, token);
+}
+
+// 保存原始 fetch 函数
+const originalFetch = window.fetch.bind(window);
+
+// 重写 fetch 函数，自动添加 Authorization header
+window.fetch = async function(url, options = {}) {
+    const token = getStoredToken();
+    const headers = options.headers || {};
+    
+    // 如果有 token 且请求的是 API 路径，添加 Authorization header
+    if (token && typeof url === 'string' && url.startsWith('/api/')) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    return originalFetch(url, {
+        ...options,
+        headers,
+        credentials: options.credentials || 'include'
+    });
+};
+```
+
+#### 3. 登录流程优化
+
+```javascript
+async function handleLogin(event) {
+    const response = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: password }),
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+        // 存储 token（如果有返回）
+        if (data.token) {
+            setStoredToken(data.token);
+        }
+        
+        // 检查认证状态
+        const authCheck = await fetch('/api/admin/check-auth');
+        const authData = await authCheck.json();
+        
+        if (authData.authenticated) {
+            showMainContent();
+        } else {
+            clearStoredToken();
+            showError('登录状态异常，请重试');
+        }
+    }
+}
+```
+
+### 关键改进点
+
+| 改动点 | 修复前 | 修复后 |
+|--------|--------|--------|
+| Token 存储 | 仅 cookie | **cookie + localStorage** |
+| Token 发送 | 自动发送 cookie | **自动附加 Authorization header** |
+| 认证检查 | 单一 cookie | **header 优先，cookie 备用** |
+| 失败处理 | 直接跳转登录页 | **清除 token 后显示错误** |
+
+### 教训
+
+1. **不要完全依赖 cookie** - localStorage 可以作为备选方案
+2. **双重认证机制更可靠** - header 和 cookie 两种方式互为备份
+3. **fetch 拦截器更优雅** - 无需修改每个 API 调用
+4. **错误信息要明确** - 区分"密码错误"和"登录状态异常"

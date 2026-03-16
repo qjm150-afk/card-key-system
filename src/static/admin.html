@@ -5501,6 +5501,45 @@
         
         // 登录流程标志（防止 401 检测在登录过程中触发）
         let isLoggingIn = false;
+        
+        // Token 管理
+        const TOKEN_KEY = 'admin_token';
+        
+        // 获取存储的 token
+        function getStoredToken() {
+            return localStorage.getItem(TOKEN_KEY);
+        }
+        
+        // 存储 token
+        function setStoredToken(token) {
+            localStorage.setItem(TOKEN_KEY, token);
+        }
+        
+        // 清除 token
+        function clearStoredToken() {
+            localStorage.removeItem(TOKEN_KEY);
+        }
+        
+        // 保存原始 fetch 函数
+        const originalFetch = window.fetch.bind(window);
+        
+        // 重写 fetch 函数，自动添加 Authorization header
+        window.fetch = async function(url, options = {}) {
+            const token = getStoredToken();
+            const headers = options.headers || {};
+            
+            // 如果有 token 且请求的是 API 路径，添加 Authorization header
+            if (token && typeof url === 'string' && url.startsWith('/api/')) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            // 调用原始 fetch，保留 credentials: 'include'
+            return originalFetch(url, {
+                ...options,
+                headers,
+                credentials: options.credentials || 'include'
+            });
+        };
 
         // 检查登录状态
         async function checkAuth() {
@@ -5529,14 +5568,22 @@
             loginOverlay.style.display = 'none';
             mainContent.classList.add('visible');
             
-            // 按顺序加载数据，确保筛选选项先加载
-            // 先加载筛选下拉框选项
-            await loadFilterOptions(null);
-            // 初始化销售渠道datalist
-            loadSalesChannelDatalist();
-            // 然后加载卡密列表和统计数据
-            loadCards();
-            loadStats();
+            // 保持登录流程标志，直到所有数据加载完成
+            // 这样可以防止 API 请求返回 401 时触发 showLogin()
+            
+            try {
+                // 按顺序加载数据，确保筛选选项先加载
+                // 先加载筛选下拉框选项
+                await loadFilterOptions(null);
+                // 初始化销售渠道datalist
+                loadSalesChannelDatalist();
+                // 然后加载卡密列表和统计数据
+                loadCards();
+                loadStats();
+            } finally {
+                // 无论成功失败，都清除登录流程标志
+                isLoggingIn = false;
+            }
         }
 
         // 处理登录
@@ -5567,16 +5614,23 @@
                 if (data.success) {
                     loginError.style.display = 'none';
                     loginPassword.value = '';
+                    
+                    // 存储 token（如果有返回）
+                    if (data.token) {
+                        setStoredToken(data.token);
+                    }
+                    
                     // 登录成功后，重新检查认证状态，确保 cookie 已正确设置
                     const authCheck = await fetch('/api/admin/check-auth');
                     const authData = await authCheck.json();
                     if (authData.authenticated) {
-                        // 登录流程完成
-                        isLoggingIn = false;
+                        // 进入主内容页面（isLoggingIn 会在 showMainContent 完成后清除）
                         showMainContent();
                     } else {
                         // 如果认证检查失败，可能是服务器重启或 cookie 设置失败
                         isLoggingIn = false;
+                        // 清除 token
+                        clearStoredToken();
                         loginError.textContent = '登录状态异常，请重试';
                         loginError.style.display = 'block';
                     }
@@ -5599,6 +5653,8 @@
             } catch (error) {
                 // 忽略错误
             }
+            // 清除本地 token
+            clearStoredToken();
             showLogin();
         }
 

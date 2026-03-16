@@ -3138,15 +3138,17 @@ async def admin_login(request: LoginRequest, response: JSONResponse):
         return {"success": False, "msg": "密码错误"}
     
     token = create_token()
-    logger.info(f"管理员登录成功")
+    logger.info(f"管理员登录成功, token={token[:10]}...")
     
     # 设置 cookie
+    # 注意：生产环境 HTTPS 需要设置 secure=True
     response.set_cookie(
         key="admin_token",
         value=token,
         max_age=TOKEN_EXPIRE_HOURS * 3600,
         httponly=True,
-        samesite="lax"
+        samesite="lax",
+        path="/"  # 确保 cookie 在所有路径下都可用
     )
     
     return {"success": True, "token": token}
