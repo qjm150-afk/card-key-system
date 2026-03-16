@@ -1137,11 +1137,21 @@ async def get_operation_logs(
         
         # 格式化返回数据
         for item in response.data:
-            # 使用 operation_time 字段
+            # 格式化时间字段
+            for time_field in ['operation_time', 'created_at']:
+                if item.get(time_field):
+                    val = item[time_field]
+                    # 如果是 datetime 对象，转为字符串
+                    if hasattr(val, 'isoformat'):
+                        item[time_field] = val.isoformat()
+                    # 如果是字符串，保持不变
+                    # 统一格式化显示
+                    if isinstance(item[time_field], str):
+                        item[time_field] = item[time_field].replace('T', ' ').split('+')[0].split('.')[0]
+            
+            # 兼容旧字段：如果 operation_time 存在，用它覆盖 created_at 显示
             if item.get('operation_time'):
-                item['created_at'] = item['operation_time'].replace('T', ' ').split('+')[0].split('.')[0]
-            elif item.get('created_at'):
-                item['created_at'] = item['created_at'].replace('T', ' ').split('+')[0].split('.')[0]
+                item['created_at'] = item['operation_time']
             
             # 解析JSON字段
             if item.get('filter_conditions') and isinstance(item['filter_conditions'], str):
