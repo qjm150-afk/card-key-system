@@ -288,9 +288,9 @@
         // 验证登录状态
         async function checkAuth() {
             try {
-                const response = await fetch('/api/admin/check-auth');
+                const response = await fetch('/api/admin/check-auth', { credentials: 'same-origin' });
                 const result = await response.json();
-                if (result.success && result.authenticated) {
+                if (result.authenticated) {
                     document.getElementById('loginPrompt').style.display = 'none';
                     document.getElementById('mainContent').style.display = 'block';
                     loadDocsList();
@@ -307,7 +307,7 @@
         // 加载文档列表
         async function loadDocsList() {
             try {
-                const response = await fetch('/api/admin/docs/list');
+                const response = await fetch('/api/admin/docs/list', { credentials: 'same-origin' });
                 const result = await response.json();
                 if (result.success) {
                     renderDocList(result.data);
@@ -352,7 +352,7 @@
             });
 
             try {
-                const response = await fetch(`/api/admin/docs/${encodeURIComponent(filename)}`);
+                const response = await fetch(`/api/admin/docs/${encodeURIComponent(filename)}`, { credentials: 'same-origin' });
                 const result = await response.json();
                 if (result.success) {
                     renderContent(result.data.content, filename);
