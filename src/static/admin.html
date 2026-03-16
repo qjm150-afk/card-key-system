@@ -4068,7 +4068,7 @@
             
             const saleStatus = document.getElementById('saleStatusFilter').value;
             if (saleStatus) {
-                const textMap = { 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
+                const textMap = { '__none__': '未设置', 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
                 tags.push({ field: 'saleStatus', label: `销售状态: ${textMap[saleStatus] || saleStatus}`, value: saleStatus });
             }
             
@@ -5770,7 +5770,7 @@
         // 更新筛选下拉框选项
         function updateFilterDropdowns(data, excludeField) {
             const statusLabels = { '1': '有效', '0': '无效' };
-            const saleStatusLabels = { '': '未设置', 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
+            const saleStatusLabels = { '__none__': '未设置', '': '未设置', 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
             
             // 注意：后端已经为每个字段分别计算了选项（排除该字段自身的筛选条件）
             // 所以前端不需要根据 excludeField 跳过更新

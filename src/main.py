@@ -644,16 +644,20 @@ async def get_card_keys(
                 query = query.eq('sales_channel', sales_channel)
         
         if sale_status:
-            # 映射中文值到英文
-            sale_status_map = {
-                '未销售': 'unsold',
-                '已售出': 'sold',
-                '已核销': 'used',
-                '已退款': 'refunded',
-                '有纠纷': 'disputed'
-            }
-            mapped_status = sale_status_map.get(sale_status, sale_status)
-            query = query.eq('sale_status', mapped_status)
+            if sale_status == '__none__':
+                # 特殊值：筛选未设置销售状态的记录（空值或空字符串）
+                query = query.or_('sale_status.is.null,sale_status.eq.')
+            else:
+                # 映射中文值到英文
+                sale_status_map = {
+                    '未销售': 'unsold',
+                    '已售出': 'sold',
+                    '已核销': 'used',
+                    '已退款': 'refunded',
+                    '有纠纷': 'disputed'
+                }
+                mapped_status = sale_status_map.get(sale_status, sale_status)
+                query = query.eq('sale_status', mapped_status)
         
         if created_start:
             query = query.gte('bstudio_create_time', created_start)
@@ -836,16 +840,21 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     query = query.or_("devices.neq.[],used_count.gt.0")
             
             if filters.get('sale_status') and filters.get('sale_status') != '':
-                # 映射中文值到英文
-                sale_status_map = {
-                    '未销售': 'unsold',
-                    '已售出': 'sold',
-                    '已核销': 'used',
-                    '已退款': 'refunded',
-                    '有纠纷': 'disputed'
-                }
-                mapped_status = sale_status_map.get(filters['sale_status'], filters['sale_status'])
-                query = query.eq('sale_status', mapped_status)
+                sale_status_value = filters['sale_status']
+                if sale_status_value == '__none__':
+                    # 特殊值：筛选未设置销售状态的记录
+                    query = query.or_('sale_status.is.null,sale_status.eq.')
+                else:
+                    # 映射中文值到英文
+                    sale_status_map = {
+                        '未销售': 'unsold',
+                        '已售出': 'sold',
+                        '已核销': 'used',
+                        '已退款': 'refunded',
+                        '有纠纷': 'disputed'
+                    }
+                    mapped_status = sale_status_map.get(sale_status_value, sale_status_value)
+                    query = query.eq('sale_status', mapped_status)
             
             if filters.get('feishu_url') and filters.get('feishu_url') != '':
                 query = query.eq('feishu_url', filters['feishu_url'])
@@ -1040,16 +1049,20 @@ async def count_by_filters(
                 query = query.or_("devices.neq.[],used_count.gt.0")
         
         if sale_status and sale_status != '':
-            # 映射中文值到英文
-            sale_status_map = {
-                '未销售': 'unsold',
-                '已售出': 'sold',
-                '已核销': 'used',
-                '已退款': 'refunded',
-                '有纠纷': 'disputed'
-            }
-            mapped_status = sale_status_map.get(sale_status, sale_status)
-            query = query.eq('sale_status', mapped_status)
+            if sale_status == '__none__':
+                # 特殊值：筛选未设置销售状态的记录
+                query = query.or_('sale_status.is.null,sale_status.eq.')
+            else:
+                # 映射中文值到英文
+                sale_status_map = {
+                    '未销售': 'unsold',
+                    '已售出': 'sold',
+                    '已核销': 'used',
+                    '已退款': 'refunded',
+                    '有纠纷': 'disputed'
+                }
+                mapped_status = sale_status_map.get(sale_status, sale_status)
+                query = query.eq('sale_status', mapped_status)
         
         if feishu_url and feishu_url != '':
             if feishu_url == '__none__':
@@ -1262,7 +1275,11 @@ async def get_filter_options(
                         pass
             
             if sale_status and sale_status != '' and exclude != 'sale_status':
-                query = query.eq('sale_status', sale_status)
+                if sale_status == '__none__':
+                    # 特殊值：筛选未设置销售状态的记录
+                    query = query.or_('sale_status.is.null,sale_status.eq.')
+                else:
+                    query = query.eq('sale_status', sale_status)
             
             if feishu_url and feishu_url != '' and exclude != 'feishu_url':
                 if feishu_url == '__none__':
@@ -1328,7 +1345,7 @@ async def get_filter_options(
         sale_status_response = build_query(exclude='sale_status').execute()
         sale_status_count = {}
         for item in sale_status_response.data:
-            s = item.get('sale_status') or ''
+            s = item.get('sale_status') or '__none__'  # 空值使用特殊标记
             sale_status_count[s] = sale_status_count.get(s, 0) + 1
         
         # 3. 飞书链接统计（排除 feishu_url 筛选）
