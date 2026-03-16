@@ -4727,14 +4727,16 @@
             const linkName = linkNameInput ? linkNameInput.value.trim() : '';
             const feishuUrl = feishuUrlInput ? feishuUrlInput.value.trim() : '';
             
-            // 检查链接名称是否像链接
+            // 检查链接名称是否像链接 → 直接阻止提交
             if (linkName && (linkName.startsWith('http://') || linkName.startsWith('https://'))) {
-                return confirm('⚠️ 检测到「链接名称」字段输入了链接格式内容，是否继续保存？\n\n链接名称：' + linkName + '\n\n建议检查是否输入反了。');
+                showToast('⚠️ 「链接名称」字段不应输入链接，请修改后再保存', 'error');
+                return false;
             }
             
-            // 检查飞书链接是否不像链接
+            // 检查飞书链接是否不像链接 → 直接阻止提交
             if (feishuUrl && !feishuUrl.startsWith('http://') && !feishuUrl.startsWith('https://')) {
-                return confirm('⚠️ 检测到「飞书链接」字段没有以 http/https 开头，是否继续保存？\n\n飞书链接：' + feishuUrl + '\n\n建议检查是否输入反了。');
+                showToast('⚠️ 「飞书链接」应以 https:// 开头，请修改后再保存', 'error');
+                return false;
             }
             
             return true;
@@ -6219,23 +6221,22 @@
                 return;
             }
             
-            // 飞书字段防混淆校验（只有同时勾选了两个字段时才校验）
-            if (updates['link_name'] && updates['feishu_url']) {
+            // 飞书字段防混淆校验（只要勾选了该字段就校验）
+            if (updates['link_name']) {
                 const linkNameValue = updates['link_name'].value;
-                const feishuUrlValue = updates['feishu_url'].value;
-                
-                // 检查链接名称是否像链接
+                // 检查链接名称是否像链接 → 直接阻止提交
                 if (linkNameValue && (linkNameValue.startsWith('http://') || linkNameValue.startsWith('https://'))) {
-                    if (!confirm('⚠️ 检测到「链接名称」字段输入了链接格式内容，是否继续？\n\n链接名称：' + linkNameValue + '\n\n建议检查是否输入反了。')) {
-                        return;
-                    }
+                    showToast('⚠️ 「链接名称」字段不应输入链接，请修改后再保存', 'error');
+                    return;
                 }
-                
-                // 检查飞书链接是否不像链接
+            }
+            
+            if (updates['feishu_url']) {
+                const feishuUrlValue = updates['feishu_url'].value;
+                // 检查飞书链接是否不像链接 → 直接阻止提交
                 if (feishuUrlValue && !feishuUrlValue.startsWith('http://') && !feishuUrlValue.startsWith('https://')) {
-                    if (!confirm('⚠️ 检测到「飞书链接」字段没有以 http/https 开头，是否继续？\n\n飞书链接：' + feishuUrlValue + '\n\n建议检查是否输入反了。')) {
-                        return;
-                    }
+                    showToast('⚠️ 「飞书链接」应以 https:// 开头，请修改后再保存', 'error');
+                    return;
                 }
             }
             
