@@ -607,7 +607,9 @@ async def get_card_keys(
         
         # 搜索支持卡密、备注、订单号
         if search:
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
+            or_query = f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%"
+            logger.info(f"[搜索] 搜索关键词: {search}, OR查询: {or_query}")
+            query = query.or_(or_query)
         
         # 激活状态筛选（动态计算）
         # - valid（有效）：status=1 且未使用过且销售状态正常
@@ -772,6 +774,8 @@ async def get_card_keys(
         end = start + page_size - 1
         
         response = query.range(start, end).order('id', desc=True).execute()
+        
+        logger.info(f"[搜索结果] 返回数据条数: {len(response.data)}, 总数: {response.count}")
         
         return {
             "success": True,

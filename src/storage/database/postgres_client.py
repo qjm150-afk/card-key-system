@@ -202,29 +202,82 @@ class PostgresTable:
         return " AND ".join(clauses), params
     
     def _parse_or_conditions(self, conditions: str) -> str:
-        """解析 OR 条件"""
-        # 简单实现，支持 status.eq.0,sale_status.in.(refunded,disputed) 格式
-        parts = conditions.split(",")
+        """解析 OR 条件
+        
+        格式: col1.op1.val1,col2.op2.val2,...
+        其中 op 可以是 eq, in, is, ilike, like, neq, gt, gte, lt, lte
+        
+        注意：值中可能包含逗号（如 ilike 的值），需要智能分割
+        """
+        import re
+        
         or_parts = []
         
-        for part in parts:
+        # 使用正则表达式匹配每个条件
+        # 模式：字段名.操作符.值（值不包含下一个 "字段名.操作符." 模式）
+        # 更好的方法：按 ",字段名." 分割
+        
+        # 首先，找出所有条件的起始位置
+        # 条件格式：字段名.操作符.
+        condition_starts = []
+        for match in re.finditer(r',(\w+)\.(eq|in|is|ilike|like|neq|gt|gte|lt|lte)\.', conditions):
+            condition_starts.append(match.start())
+        
+        # 根据起始位置分割条件
+        if condition_starts:
+            # 第一个条件从开始到第一个逗号
+            first_end = condition_starts[0]
+            condition_parts = [conditions[:first_end]]
+            
+            # 中间的条件
+            for i in range(len(condition_starts)):
+                start = condition_starts[i] + 1  # 跳过逗号
+                end = condition_starts[i + 1] if i + 1 < len(condition_starts) else len(conditions)
+                condition_parts.append(conditions[start:end])
+        else:
+            condition_parts = [conditions]
+        
+        # 解析每个条件
+        for part in condition_parts:
             part = part.strip()
-            if ".eq." in part:
-                col, val = part.split(".eq.")
-                or_parts.append(f"{col} = '{val}'")
-            elif ".in." in part:
-                col, val_part = part.split(".in.", 1)
-                # 提取括号内的值
-                if val_part.startswith("(") and val_part.endswith(")"):
-                    values = val_part[1:-1].split(",")
-                    values_str = ", ".join([f"'{v.strip()}'" for v in values])
-                    or_parts.append(f"{col} IN ({values_str})")
-            elif ".is." in part:
-                col, val = part.split(".is.")
-                if val == "null":
-                    or_parts.append(f"{col} IS NULL")
-                else:
-                    or_parts.append(f"{col} IS {val}")
+            
+            # 匹配字段名.操作符.值
+            match = re.match(r'(\w+)\.(eq|in|is|ilike|like|neq|gt|gte|lt|lte)\.(.+)', part)
+            if match:
+                col = match.group(1)
+                op = match.group(2)
+                val = match.group(3)
+                
+                # 构建条件
+                if op == "eq":
+                    if val.lower() in ('true', 'false'):
+                        or_parts.append(f"{col} = {val.lower()}")
+                    else:
+                        or_parts.append(f"{col} = '{val}'")
+                elif op == "neq":
+                    or_parts.append(f"{col} != '{val}'")
+                elif op == "in":
+                    if val.startswith("(") and val.endswith(")"):
+                        values = val[1:-1].split(",")
+                        values_str = ", ".join([f"'{v.strip()}'" for v in values])
+                        or_parts.append(f"{col} IN ({values_str})")
+                elif op == "is":
+                    if val == "null":
+                        or_parts.append(f"{col} IS NULL")
+                    else:
+                        or_parts.append(f"{col} IS {val}")
+                elif op == "ilike":
+                    or_parts.append(f"{col} ILIKE '{val}'")
+                elif op == "like":
+                    or_parts.append(f"{col} LIKE '{val}'")
+                elif op == "gt":
+                    or_parts.append(f"{col} > '{val}'")
+                elif op == "gte":
+                    or_parts.append(f"{col} >= '{val}'")
+                elif op == "lt":
+                    or_parts.append(f"{col} < '{val}'")
+                elif op == "lte":
+                    or_parts.append(f"{col} <= '{val}'")
         
         return "(" + " OR ".join(or_parts) + ")" if or_parts else ""
     
@@ -268,7 +321,11 @@ class PostgresTable:
         if self._offset_val:
             sql += f" OFFSET {self._offset_val}"
         
-        cur.execute(sql, params)
+        # 执行查询 - 如果有参数则使用参数化查询，否则直接执行
+        if params:
+            cur.execute(sql, params)
+        else:
+            cur.execute(sql)
         rows = cur.fetchall()
         
         # 转换为字典列表
@@ -280,7 +337,10 @@ class PostgresTable:
             count_sql = f"SELECT COUNT(*) as count FROM {self.table_name}"
             if where_clause:
                 count_sql += f" WHERE {where_clause}"
-            cur.execute(count_sql, params)
+            if params:
+                cur.execute(count_sql, params)
+            else:
+                cur.execute(count_sql)
             count = cur.fetchone()['count']
         
         return PostgresResponse(data, count)
