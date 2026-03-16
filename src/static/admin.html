@@ -3553,37 +3553,46 @@
             const startDate = document.getElementById('analyticsStartDate').value;
             const endDate = document.getElementById('analyticsEndDate').value;
             
-            // 并行加载数据
-            const [overviewRes, channelsRes, distributionRes, expireGroupsRes] = await Promise.all([
-                fetch(`/api/admin/analytics/overview?start_date=${startDate}&end_date=${endDate}`),
-                fetch(`/api/admin/analytics/channels?start_date=${startDate}&end_date=${endDate}`),
-                fetch('/api/admin/statistics/distribution'),
-                fetch('/api/admin/expire-groups')
-            ]);
-            
-            const overview = await overviewRes.json();
-            const channels = await channelsRes.json();
-            const distribution = await distributionRes.json();
-            const expireGroups = await expireGroupsRes.json();
-            
-            // 渲染概览
-            renderAnalyticsOverview(overview.data);
-            
-            // 渲染渠道分析
-            renderChannelAnalysis(channels.data);
-            
-            // 渲染分布数据
-            if (distribution.success) {
-                renderDistributionData(distribution.data);
+            try {
+                // 并行加载数据
+                const [overviewRes, channelsRes, distributionRes, expireGroupsRes] = await Promise.all([
+                    fetch(`/api/admin/analytics/overview?start_date=${startDate}&end_date=${endDate}`).catch(e => { console.error('overview API failed:', e); return null; }),
+                    fetch(`/api/admin/analytics/channels?start_date=${startDate}&end_date=${endDate}`).catch(e => { console.error('channels API failed:', e); return null; }),
+                    fetch('/api/admin/statistics/distribution').catch(e => { console.error('distribution API failed:', e); return null; }),
+                    fetch('/api/admin/expire-groups').catch(e => { console.error('expire-groups API failed:', e); return null; })
+                ]);
+                
+                // 安全解析 JSON
+                const overview = overviewRes ? await overviewRes.json().catch(e => ({ success: false })) : { success: false };
+                const channels = channelsRes ? await channelsRes.json().catch(e => ({ success: false })) : { success: false };
+                const distribution = distributionRes ? await distributionRes.json().catch(e => ({ success: false })) : { success: false };
+                const expireGroups = expireGroupsRes ? await expireGroupsRes.json().catch(e => ({ success: false })) : { success: false };
+                
+                // 渲染概览
+                if (overview.success && overview.data) {
+                    renderAnalyticsOverview(overview.data);
+                }
+                
+                // 渲染渠道分析
+                if (channels.success && channels.data) {
+                    renderChannelAnalysis(channels.data);
+                }
+                
+                // 渲染分布数据
+                if (distribution.success && distribution.data) {
+                    renderDistributionData(distribution.data);
+                }
+                
+                // 渲染过期状态柱状图
+                if (expireGroups.success && expireGroups.data) {
+                    renderExpireChart(expireGroups.data);
+                }
+                
+                // 加载趋势数据
+                loadTrendData();
+            } catch (e) {
+                console.error('加载分析数据失败:', e);
             }
-            
-            // 渲染过期状态柱状图
-            if (expireGroups.success) {
-                renderExpireChart(expireGroups.data);
-            }
-            
-            // 加载趋势数据
-            loadTrendData();
         }
         
         // 渲染过期状态柱状图
