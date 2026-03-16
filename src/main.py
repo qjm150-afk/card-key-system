@@ -1817,7 +1817,7 @@ async def export_cards(
             return {"success": False, "msg": "没有可导出的数据"}
         
         # 状态映射
-        status_map = {1: '有效', 0: '无效'}
+        status_map = {1: '有效', 0: '已停用'}
         sale_status_map = {
             'unsold': '未售出', 
             'sold': '已售出', 
@@ -2331,7 +2331,7 @@ async def download_cards_import_template():
         # 示例数据行1
         writer.writerow([
             'CSS-XXXX-XXXX-XXXX',  # 卡密值（必填）
-            '有效',  # 激活状态：有效/无效
+            '有效',  # 激活状态：有效/无效/已停用
             '2026-12-31 23:59:59',  # 过期时间
             '测试备注',  # 备注
             '春招信息表',  # 链接名称
@@ -2390,7 +2390,7 @@ async def import_cards(file: UploadFile = File(...)):
     - 飞书链接：卡密对应的飞书链接
     - 访问密码：飞书访问密码
     - 链接名称：链接的中文名称
-    - 激活状态：有效/无效
+    - 激活状态：有效/无效/已停用（有效=启用，无效/已停用=停用）
     - 销售状态：未售出/已售出/已核销/已退款/有纠纷
     - 订单号：销售订单号
     - 销售渠道：如小红书、淘宝等
@@ -2434,7 +2434,7 @@ async def import_cards(file: UploadFile = File(...)):
         
         # 状态映射
         status_map = {
-            '有效': 1, '无效': 0,
+            '有效': 1, '无效': 0, '已停用': 0,
             '1': 1, '0': 0
         }
         

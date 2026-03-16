@@ -3012,7 +3012,7 @@
                         <strong>支持字段：</strong><br>
                         卡密值（必填）、激活状态、过期时间、备注、链接名称、销售状态、销售渠道、订单号、访问密码、飞书链接、最大设备数<br><br>
                         <strong>字段说明：</strong><br>
-                        • 激活状态：有效 / 无效<br>
+                        • 激活状态：有效 / 无效 / 已停用（有效=启用，无效/已停用=停用）<br>
                         • 销售状态：未售出 / 已售出 / 已核销 / 已退款 / 有纠纷<br>
                         • 过期时间格式：2026-12-31 23:59:59<br><br>
                         <span style="color: #22C55E;">✓ 卡密已存在：更新该卡密信息</span><br>
@@ -5770,7 +5770,7 @@
 
         // 更新筛选下拉框选项
         function updateFilterDropdowns(data, excludeField) {
-            const statusLabels = { '1': '有效', '0': '无效' };
+            const statusLabels = { '1': '有效', '0': '已停用' };
             const saleStatusLabels = { '__none__': '未设置', '': '未设置', 'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷' };
             
             // 注意：后端已经为每个字段分别计算了选项（排除该字段自身的筛选条件）
@@ -6260,7 +6260,7 @@
                     if (filters.ids) parts.push(`ID: ${Array.isArray(filters.ids) ? filters.ids.join(', ') : filters.ids}`);
                     if (filters.card_id) parts.push(`卡密ID: ${filters.card_id}`);
                     if (filters.key_value) parts.push(`卡密: ${filters.key_value}`);
-                    if (filters.status !== undefined && filters.status !== '') parts.push(`状态: ${filters.status === 1 ? '有效' : '无效'}`);
+                    if (filters.status !== undefined && filters.status !== '') parts.push(`状态: ${filters.status === 1 ? '有效' : '已停用'}`);
                     if (filters.sale_status) parts.push(`销售: ${saleStatusMap[filters.sale_status] || filters.sale_status}`);
                     if (filters.search && typeof filters.search === 'string') parts.push(`搜索: ${filters.search}`);
                     filterHtml = parts.join(', ') || '-';
@@ -6283,7 +6283,7 @@
                 
                 if (fields && typeof fields === 'object') {
                     const parts = [];
-                    if (fields.status !== undefined) parts.push(`状态→${fields.status === 1 ? '有效' : '无效'}`);
+                    if (fields.status !== undefined) parts.push(`状态→${fields.status === 1 ? '有效' : '已停用'}`);
                     if (fields.sale_status) parts.push(`销售→${saleStatusMap[fields.sale_status] || fields.sale_status}`);
                     if (fields.feishu_url !== undefined) parts.push(`链接→已更新`);
                     if (fields.link_name !== undefined) parts.push(`名称→${fields.link_name || '(空)'}`);
