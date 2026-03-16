@@ -465,13 +465,13 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         # 检查过期时间
         expire_at = card_data.get('expire_at')
         if expire_at:
-            # 处理不同的时间格式
-            # 格式1: 2027-07-16 18:01:00+08:00 (已包含时区)
-            # 格式2: 2027-07-16T18:01:00Z (ISO格式，UTC时间)
-            # 格式3: 2027-07-16T18:01:00+00:00 (ISO格式，带时区)
+            # 处理不同的时间格式（可能是 datetime 对象或字符串）
             try:
-                if 'T' in expire_at:
-                    # ISO 格式
+                # 如果已经是 datetime 对象，直接使用
+                if hasattr(expire_at, 'tzinfo'):
+                    expire_time = expire_at
+                elif 'T' in expire_at:
+                    # ISO 格式字符串
                     expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
                 elif '+' in expire_at or expire_at.count('-') > 2:
                     # 已包含时区信息 (如 2027-07-16 18:01:00+08:00)
@@ -1195,8 +1195,15 @@ async def get_operation_log(log_id: int):
             return {"success": False, "msg": "日志不存在"}
         
         log = response.data[0]
-        if log.get('created_at'):
-            log['created_at'] = log['created_at'].replace('T', ' ').split('+')[0].split('.')[0]
+        
+        # 格式化时间字段（处理 datetime 对象或字符串）
+        for time_field in ['operation_time', 'created_at']:
+            if log.get(time_field):
+                val = log[time_field]
+                if hasattr(val, 'isoformat'):
+                    log[time_field] = val.isoformat()
+                if isinstance(log[time_field], str):
+                    log[time_field] = log[time_field].replace('T', ' ').split('+')[0].split('.')[0]
         
         return {"success": True, "data": log}
         
@@ -3242,7 +3249,14 @@ async def get_statistics_trend(
         trend_data = {}
         
         for log in logs:
-            access_time = datetime.fromisoformat(log['access_time'].replace('Z', '+00:00'))
+            # 解析访问时间（处理 datetime 对象或字符串）
+            access_time_raw = log['access_time']
+            if hasattr(access_time_raw, 'strftime'):
+                # 已经是 datetime 对象
+                access_time = access_time_raw
+            else:
+                # 字符串，需要解析
+                access_time = datetime.fromisoformat(str(access_time_raw).replace('Z', '+00:00'))
             
             if period == "day":
                 key = access_time.strftime('%Y-%m-%d')
