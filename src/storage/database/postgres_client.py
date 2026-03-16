@@ -67,8 +67,8 @@ class PostgresTable:
             self._count_mode = True
         return self
     
-    def insert(self, data: Dict) -> "PostgresTable":
-        """插入数据"""
+    def insert(self, data) -> "PostgresTable":
+        """插入数据（支持单个字典或列表）"""
         self._insert_data = data
         return self
     
@@ -370,17 +370,52 @@ class PostgresTable:
         return PostgresResponse(data, count)
     
     def _execute_insert(self, cur, conn) -> PostgresResponse:
-        """执行 INSERT"""
+        """执行 INSERT（支持单条和批量）"""
         data = self._insert_data
-        columns = ", ".join(data.keys())
-        placeholders = ", ".join(["%s" for _ in data])
         
-        sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
-        cur.execute(sql, list(data.values()))
-        conn.commit()
-        
-        row = cur.fetchone()
-        return PostgresResponse([dict(row)] if row else [], 1)
+        # 判断是单条还是批量
+        if isinstance(data, list):
+            # 批量插入
+            if not data:
+                return PostgresResponse([], 0)
+            
+            # 获取所有列名（从第一条记录）
+            all_columns = set()
+            for item in data:
+                all_columns.update(item.keys())
+            columns = sorted(all_columns)
+            columns_str = ", ".join(columns)
+            
+            # 构建批量插入 SQL
+            values_list = []
+            all_params = []
+            for item in data:
+                placeholders = []
+                for col in columns:
+                    if col in item:
+                        placeholders.append("%s")
+                        all_params.append(item[col])
+                    else:
+                        placeholders.append("DEFAULT")
+                values_list.append(f"({', '.join(placeholders)})")
+            
+            sql = f"INSERT INTO {self.table_name} ({columns_str}) VALUES {', '.join(values_list)} RETURNING *"
+            cur.execute(sql, all_params)
+            conn.commit()
+            
+            rows = cur.fetchall()
+            return PostgresResponse([dict(row) for row in rows], len(rows))
+        else:
+            # 单条插入
+            columns = ", ".join(data.keys())
+            placeholders = ", ".join(["%s" for _ in data])
+            
+            sql = f"INSERT INTO {self.table_name} ({columns}) VALUES ({placeholders}) RETURNING *"
+            cur.execute(sql, list(data.values()))
+            conn.commit()
+            
+            row = cur.fetchone()
+            return PostgresResponse([dict(row)] if row else [], 1)
     
     def _execute_update(self, cur, conn) -> PostgresResponse:
         """执行 UPDATE"""
