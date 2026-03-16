@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, index, unique, varchar, integer, text, uniqueIndex, foreignKey, boolean } from "drizzle-orm/pg-core"
+import { pgTable, serial, timestamp, uniqueIndex, varchar, integer, text, index, boolean, date, jsonb, unique } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -7,22 +7,6 @@ export const healthCheck = pgTable("health_check", {
 	id: serial().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
-
-export const cardKeys = pgTable("card_keys", {
-	id: serial().notNull(),
-	keyValue: varchar("key_value", { length: 50 }).notNull(),
-	status: integer().default(1).notNull(),
-	orderId: varchar("order_id", { length: 100 }),
-	productName: varchar("product_name", { length: 200 }),
-	feishuUrl: text("feishu_url").notNull(),
-	feishuPassword: varchar("feishu_password", { length: 100 }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("card_keys_key_value_idx").using("btree", table.keyValue.asc().nullsLast().op("text_ops")),
-	index("card_keys_status_idx").using("btree", table.status.asc().nullsLast().op("int4_ops")),
-	unique("card_keys_key_value_unique").on(table.keyValue),
-]);
 
 export const cardKeysTable = pgTable("card_keys_table", {
 	id: serial().primaryKey().notNull(),
@@ -38,6 +22,13 @@ export const cardKeysTable = pgTable("card_keys_table", {
 	usedCount: integer("used_count").default(0).notNull(),
 	lastUsedAt: timestamp("last_used_at", { withTimezone: true, mode: 'string' }),
 	maxUses: integer("max_uses").default(1).notNull(),
+	devices: text().default('[]'),
+	maxDevices: integer("max_devices").default(5),
+	saleStatus: varchar("sale_status", { length: 20 }).default('unsold'),
+	orderId: varchar("order_id", { length: 100 }),
+	soldAt: timestamp("sold_at", { withTimezone: true, mode: 'string' }),
+	salesChannel: varchar("sales_channel", { length: 50 }).default('),
+	linkName: varchar("link_name", { length: 100 }).default('),
 }, (table) => [
 	uniqueIndex("card_keys_table_key_value_idx").using("btree", table.keyValue.asc().nullsLast().op("text_ops")),
 ]);
@@ -46,17 +37,57 @@ export const accessLogs = pgTable("access_logs", {
 	id: serial().primaryKey().notNull(),
 	cardKeyId: integer("card_key_id"),
 	keyValue: varchar("key_value", { length: 50 }).notNull(),
-	// 注意：根据《个人信息保护法》合规要求，不再收集IP地址、User-Agent、设备类型
+	ipAddress: varchar("ip_address", { length: 50 }),
+	userAgent: varchar("user_agent", { length: 500 }),
 	success: boolean().default(false).notNull(),
 	errorMsg: varchar("error_msg", { length: 200 }),
 	accessTime: timestamp("access_time", { withTimezone: true, mode: 'string' }).defaultNow(),
+	accessDate: date("access_date"),
+	deviceType: varchar("device_type", { length: 20 }),
+	contentLoaded: boolean("content_loaded"),
+	sessionDuration: integer("session_duration"),
+	ipProvince: varchar("ip_province", { length: 50 }),
+	accessHour: integer("access_hour"),
+	salesChannel: varchar("sales_channel", { length: 100 }),
+	isFirstAccess: boolean("is_first_access").default(false),
 }, (table) => [
+	index("idx_access_logs_access_date").using("btree", table.accessDate.asc().nullsLast().op("date_ops")),
+	index("idx_access_logs_access_hour").using("btree", table.accessHour.asc().nullsLast().op("int4_ops")),
+	index("idx_access_logs_device_type").using("btree", table.deviceType.asc().nullsLast().op("text_ops")),
+	index("idx_access_logs_ip_province").using("btree", table.ipProvince.asc().nullsLast().op("text_ops")),
+	index("idx_access_logs_is_first_access").using("btree", table.isFirstAccess.asc().nullsLast().op("bool_ops")),
+	index("idx_access_logs_sales_channel").using("btree", table.salesChannel.asc().nullsLast().op("text_ops")),
 	index("ix_access_logs_access_time").using("btree", table.accessTime.asc().nullsLast().op("timestamptz_ops")),
 	index("ix_access_logs_card_key_id").using("btree", table.cardKeyId.asc().nullsLast().op("int4_ops")),
 	index("ix_access_logs_key_value").using("btree", table.keyValue.asc().nullsLast().op("text_ops")),
-	foreignKey({
-			columns: [table.cardKeyId],
-			foreignColumns: [cardKeysTable.id],
-			name: "access_logs_card_key_id_fkey"
-		}),
+]);
+
+export const batchOperationLogs = pgTable("batch_operation_logs", {
+	id: serial().primaryKey().notNull(),
+	operator: varchar({ length: 50 }).default('admin').notNull(),
+	operationType: varchar("operation_type", { length: 50 }).notNull(),
+	filterConditions: jsonb("filter_conditions"),
+	affectedCount: integer("affected_count").default(0).notNull(),
+	affectedIds: integer("affected_ids").array(),
+	updateFields: jsonb("update_fields"),
+	remark: text(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+});
+
+export const linkHealthTable = pgTable("link_health_table", {
+	id: serial().primaryKey().notNull(),
+	feishuUrl: text("feishu_url").notNull(),
+	linkName: varchar("link_name", { length: 200 }),
+	status: varchar({ length: 20 }).default('unknown').notNull(),
+	httpCode: integer("http_code"),
+	errorMessage: varchar("error_message", { length: 500 }),
+	lastCheckTime: timestamp("last_check_time", { withTimezone: true, mode: 'string' }),
+	nextCheckTime: timestamp("next_check_time", { withTimezone: true, mode: 'string' }),
+	consecutiveFailures: integer("consecutive_failures").default(0),
+	totalChecks: integer("total_checks").default(0),
+	successfulChecks: integer("successful_checks").default(0),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	unique("link_health_table_feishu_url_key").on(table.feishuUrl),
 ]);

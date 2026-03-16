@@ -1,6 +1,11 @@
 """
 卡密验证系统 - 主入口
-使用 FastAPI + Supabase 连接 Coze 内置数据库
+使用 FastAPI + PostgreSQL 连接扣子数据库
+
+数据库架构：
+- 开发环境：扣子平台自动注入 DATABASE_URL（开发环境数据库）
+- 生产环境：扣子平台自动注入 DATABASE_URL（生产环境数据库）
+- 环境切换由扣子平台自动处理，无需手动配置
 """
 
 import os
@@ -14,38 +19,18 @@ for _p in [_parent_dir, _current_dir]:
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-# 加载环境变量
+# 环境变量说明
 # ========================================
-# 重要：防止本地配置覆盖生产环境变量
+# 扣子平台会自动注入以下环境变量：
+# - DATABASE_URL: PostgreSQL 连接字符串
+# - PGDATABASE, PGHOST, PGPORT, PGUSER, PGPASSWORD: 分离的连接参数
+#
+# 无需手动配置，平台会根据环境（开发/生产）自动切换
 # ========================================
-# 加载策略：
-# 1. 如果已有生产环境变量（DATABASE_URL 或 COZE_SUPABASE_URL），跳过 .env.local
-# 2. 只有在没有任何数据库配置时，才加载 .env.local（本地开发场景）
-# 3. 这样即使 .env.local 被意外提交，也不会影响生产环境
-from dotenv import load_dotenv
-_env_local = os.path.join(_parent_dir, '.env.local')
 
-# 检查是否已有生产环境数据库配置
-_has_production_db = bool(
-    os.getenv('DATABASE_URL') or 
-    os.getenv('PGDATABASE_URL') or 
-    os.getenv('COZE_SUPABASE_URL')
-)
-
-if _has_production_db:
-    # 生产环境：不加载 .env.local，避免覆盖系统环境变量
-    print(f"[ENV] Production database config detected, skipping .env.local")
-    print(f"[ENV] DATABASE_URL = {'已设置' if os.getenv('DATABASE_URL') or os.getenv('PGDATABASE_URL') else '未设置'}")
-    print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
-elif os.path.exists(_env_local):
-    # 本地开发：加载 .env.local（设置 LOCAL_DEV_MODE=true 使用 SQLite）
-    load_dotenv(_env_local, override=True)
-    print(f"[ENV] Loaded .env.local from {_env_local} (local dev mode)")
-    print(f"[ENV] LOCAL_DEV_MODE = {os.getenv('LOCAL_DEV_MODE')}")
-    print(f"[ENV] COZE_SUPABASE_URL = {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
-else:
-    # 无任何配置
-    print(f"[ENV] No .env.local and no production config, using defaults")
+# 打印启动信息
+print(f"[ENV] DATABASE_URL = {'已设置' if os.getenv('DATABASE_URL') else '未设置'}")
+print(f"[ENV] PGHOST = {os.getenv('PGHOST', '未设置')}")
 
 # 导入其他模块
 import logging
@@ -76,9 +61,8 @@ app = FastAPI(title="卡密验证系统")
 async def startup_event():
     logger.info("=" * 50)
     logger.info("[STARTUP] 卡密验证系统启动中...")
-    logger.info(f"[STARTUP] ENV - DATABASE_URL: {'已设置' if os.getenv('DATABASE_URL') or os.getenv('PGDATABASE_URL') else '未设置'}")
-    logger.info(f"[STARTUP] ENV - COZE_SUPABASE_URL: {'已设置' if os.getenv('COZE_SUPABASE_URL') else '未设置'}")
-    logger.info(f"[STARTUP] ENV - LOCAL_DEV_MODE: {os.getenv('LOCAL_DEV_MODE')}")
+    logger.info(f"[STARTUP] ENV - DATABASE_URL: {'已设置' if os.getenv('DATABASE_URL') else '未设置'}")
+    logger.info(f"[STARTUP] ENV - PGHOST: {os.getenv('PGHOST', '未设置')}")
     
     try:
         # 测试数据库连接

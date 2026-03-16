@@ -2,11 +2,11 @@
 requires = ["python-3.11"]
 
 [dev]
-# 本地开发模式：使用 SQLite 数据库，与云端 Supabase 完全隔离
+# 开发环境：扣子平台自动注入 DATABASE_URL（开发环境数据库）
 build = ["pip", "install", "-r", "requirements.txt"]
-run = ["sh", "-c", "LOCAL_DEV_MODE=true python -m uvicorn src.main:app --host 0.0.0.0 --port 5000"]
+run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]
 
 [deploy]
-# 生产部署：移除备份脚本（避免超时），直接安装依赖并启动服务
+# 生产环境：扣子平台自动注入 DATABASE_URL（生产环境数据库）
 build = ["pip", "install", "-r", "requirements.txt"]
 run = ["python", "-m", "uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "5000"]

@@ -1,7 +1,11 @@
 """
 PostgreSQL 直连客户端 - 模拟 Supabase 接口
 
-当生产环境没有 COZE_SUPABASE_URL 但有 DATABASE_URL 时使用
+支持两种连接方式：
+1. DATABASE_URL：完整的 PostgreSQL 连接字符串
+2. 分离参数：PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
+
+扣子平台会自动注入这些环境变量，开发环境和生产环境自动切换
 """
 
 import os
@@ -10,6 +14,7 @@ from typing import Optional, Any, Dict, List
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from contextlib import contextmanager
+from urllib.parse import quote_plus
 
 
 class PostgresResponse:
@@ -363,10 +368,28 @@ class PostgresClient:
 def get_database_url() -> Optional[str]:
     """获取数据库连接 URL
     
-    注意：不再调用 _load_env()，避免潜在的延迟
-    环境变量应在 main.py 启动时加载
+    支持两种方式：
+    1. DATABASE_URL 或 PGDATABASE_URL：完整的连接字符串
+    2. 分离参数：PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
     """
-    return os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
+    # 方式1：完整的连接字符串
+    url = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
+    if url:
+        return url
+    
+    # 方式2：从分离参数构建连接字符串
+    pghost = os.getenv("PGHOST")
+    pgport = os.getenv("PGPORT", "5432")
+    pgdatabase = os.getenv("PGDATABASE")
+    pguser = os.getenv("PGUSER")
+    pgpassword = os.getenv("PGPASSWORD")
+    
+    if pghost and pgdatabase and pguser:
+        # 对密码进行 URL 编码
+        password_part = f":{quote_plus(pgpassword)}" if pgpassword else ""
+        return f"postgresql://{pguser}{password_part}@{pghost}:{pgport}/{pgdatabase}"
+    
+    return None
 
 
 def _load_env() -> None:
