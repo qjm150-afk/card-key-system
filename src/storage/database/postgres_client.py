@@ -208,6 +208,7 @@ class PostgresTable:
         其中 op 可以是 eq, in, is, ilike, like, neq, gt, gte, lt, lte
         
         注意：值中可能包含逗号（如 ilike 的值），需要智能分割
+        特殊情况：值可以是空字符串（如 feishu_url.eq.）
         """
         import re
         
@@ -241,21 +242,31 @@ class PostgresTable:
         for part in condition_parts:
             part = part.strip()
             
-            # 匹配字段名.操作符.值
-            match = re.match(r'(\w+)\.(eq|in|is|ilike|like|neq|gt|gte|lt|lte)\.(.+)', part)
+            # 匹配字段名.操作符.值（值可以为空）
+            # 使用更灵活的正则：值部分可以是任意字符或为空
+            match = re.match(r'(\w+)\.(eq|in|is|ilike|like|neq|gt|gte|lt|lte)\.(.*)', part)
             if match:
                 col = match.group(1)
                 op = match.group(2)
-                val = match.group(3)
+                val = match.group(3)  # 可能为空字符串
+                
+                # 判断值是否为数字（用于比较操作符）
+                is_numeric = val.lstrip('-').replace('.', '', 1).isdigit() if val else False
                 
                 # 构建条件
                 if op == "eq":
-                    if val.lower() in ('true', 'false'):
+                    if not val:
+                        # 空字符串：col = ''
+                        or_parts.append(f"{col} = ''")
+                    elif val.lower() in ('true', 'false'):
                         or_parts.append(f"{col} = {val.lower()}")
                     else:
                         or_parts.append(f"{col} = '{val}'")
                 elif op == "neq":
-                    or_parts.append(f"{col} != '{val}'")
+                    if not val:
+                        or_parts.append(f"{col} != ''")
+                    else:
+                        or_parts.append(f"{col} != '{val}'")
                 elif op == "in":
                     if val.startswith("(") and val.endswith(")"):
                         values = val[1:-1].split(",")
@@ -271,13 +282,26 @@ class PostgresTable:
                 elif op == "like":
                     or_parts.append(f"{col} LIKE '{val}'")
                 elif op == "gt":
-                    or_parts.append(f"{col} > '{val}'")
+                    # 数字不加引号
+                    if is_numeric:
+                        or_parts.append(f"{col} > {val}")
+                    else:
+                        or_parts.append(f"{col} > '{val}'")
                 elif op == "gte":
-                    or_parts.append(f"{col} >= '{val}'")
+                    if is_numeric:
+                        or_parts.append(f"{col} >= {val}")
+                    else:
+                        or_parts.append(f"{col} >= '{val}'")
                 elif op == "lt":
-                    or_parts.append(f"{col} < '{val}'")
+                    if is_numeric:
+                        or_parts.append(f"{col} < {val}")
+                    else:
+                        or_parts.append(f"{col} < '{val}'")
                 elif op == "lte":
-                    or_parts.append(f"{col} <= '{val}'")
+                    if is_numeric:
+                        or_parts.append(f"{col} <= {val}")
+                    else:
+                        or_parts.append(f"{col} <= '{val}'")
         
         return "(" + " OR ".join(or_parts) + ")" if or_parts else ""
     
