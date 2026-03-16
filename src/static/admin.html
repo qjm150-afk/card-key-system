@@ -3826,7 +3826,7 @@
 
         // 加载卡密列表
         async function loadCards() {
-            const search = document.getElementById('searchInput').value;
+            const search = document.getElementById('searchInput').value.trim();  // 去除前后空格
             const activateStatus = headerFilters.status;
             const saleStatus = headerFilters.sale_status;
             const feishuUrl = headerFilters.feishu_url;
@@ -5203,7 +5203,7 @@
                 });
                 
                 // 搜索关键字
-                const search = document.getElementById('logSearchInput')?.value || '';
+                const search = document.getElementById('logSearchInput')?.value.trim() || '';
                 if (search) {
                     params.append('search', search);
                 }
@@ -6153,7 +6153,7 @@
 
         async function loadOperationLogs() {
             try {
-                const search = document.getElementById('operationLogSearchInput')?.value || '';
+                const search = document.getElementById('operationLogSearchInput')?.value.trim() || '';
                 const operationType = document.getElementById('operationTypeFilter')?.value || '';
                 
                 const params = new URLSearchParams({

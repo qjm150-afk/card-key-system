@@ -603,6 +603,10 @@ async def get_card_keys(
     try:
         client = get_supabase_client()
         
+        # 处理搜索参数（去除前后空格）
+        if search:
+            search = search.strip()
+        
         query = client.table('card_keys_table').select('*', count='exact')
         
         # 搜索支持卡密、备注、订单号
@@ -908,7 +912,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
                         pass
             
             if filters.get('search') and filters.get('search') != '':
-                search = filters['search']
+                search = filters['search'].strip()  # 去除前后空格
                 query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
             
             if filters.get('created_start') and filters.get('created_start') != '':
@@ -1018,6 +1022,10 @@ async def count_by_filters(
     """根据筛选条件统计记录数"""
     try:
         client = get_supabase_client()
+        
+        # 处理搜索参数（去除前后空格）
+        if search:
+            search = search.strip()
         
         # 如果需要设备数量筛选，需要选择devices字段
         need_device_filter = False
@@ -1147,6 +1155,10 @@ async def get_operation_logs(
     try:
         client = get_supabase_client()
         
+        # 处理搜索参数（去除前后空格）
+        if search:
+            search = search.strip()
+        
         query = client.table('batch_operation_logs').select('*', count='exact')
         
         if operation_type:
@@ -1258,6 +1270,10 @@ async def get_filter_options(
     """
     try:
         client = get_supabase_client()
+        
+        # 处理搜索参数（去除前后空格）
+        if search:
+            search = search.strip()
         
         # 定义一个辅助函数来构建带筛选条件的查询
         def build_query(exclude: str = None):
@@ -2982,6 +2998,10 @@ async def get_access_logs(
     """获取访问日志，关联卡密详细信息"""
     try:
         client = get_supabase_client()
+        
+        # 处理搜索参数（去除前后空格）
+        if search:
+            search = search.strip()
         
         # 如果有销售状态筛选，先获取符合销售状态的卡密列表
         sale_status_key_values = None
