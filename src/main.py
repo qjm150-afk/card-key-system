@@ -658,7 +658,6 @@ async def get_card_keys(
                 sale_status_map = {
                     '未销售': 'unsold',
                     '已售出': 'sold',
-                    '已核销': 'used',
                     '已退款': 'refunded',
                     '有纠纷': 'disputed'
                 }
@@ -857,7 +856,6 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     sale_status_map = {
                         '未销售': 'unsold',
                         '已售出': 'sold',
-                        '已核销': 'used',
                         '已退款': 'refunded',
                         '有纠纷': 'disputed'
                     }
@@ -1069,7 +1067,6 @@ async def count_by_filters(
                 sale_status_map = {
                     '未销售': 'unsold',
                     '已售出': 'sold',
-                    '已核销': 'used',
                     '已退款': 'refunded',
                     '有纠纷': 'disputed'
                 }
@@ -1822,8 +1819,7 @@ async def export_cards(
             'unsold': '未售出', 
             'sold': '已售出', 
             'refunded': '已退款', 
-            'disputed': '有纠纷',
-            'used': '已核销'
+            'disputed': '有纠纷'
         }
         
         # 格式化数据
@@ -2335,7 +2331,7 @@ async def download_cards_import_template():
             '2026-12-31 23:59:59',  # 过期时间
             '测试备注',  # 备注
             '春招信息表',  # 链接名称
-            '未售出',  # 销售状态：未售出/已售出/已核销/已退款/有纠纷
+            '未售出',  # 销售状态：未售出/已售出/已退款/有纠纷
             '小红书',  # 销售渠道
             'ORDER123456',  # 订单号
             'pwd123',  # 访问密码
@@ -2391,7 +2387,7 @@ async def import_cards(file: UploadFile = File(...)):
     - 访问密码：飞书访问密码
     - 链接名称：链接的中文名称
     - 激活状态：有效/无效/已停用（有效=启用，无效/已停用=停用）
-    - 销售状态：未售出/已售出/已核销/已退款/有纠纷
+    - 销售状态：未售出/已售出/已退款/有纠纷
     - 订单号：销售订单号
     - 销售渠道：如小红书、淘宝等
     - 过期时间：格式 YYYY-MM-DD HH:MM:SS
@@ -2442,7 +2438,6 @@ async def import_cards(file: UploadFile = File(...)):
             '未售出': 'unsold',
             '已售出': 'sold',
             '已销售': 'sold',
-            '已核销': 'used',
             '已退款': 'refunded',
             '有纠纷': 'disputed'
         }
