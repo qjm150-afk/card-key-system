@@ -676,7 +676,7 @@ async def get_card_keys(
             now = datetime.now()
             if expire_days == 'expired':
                 # 已过期：过期时间不为空且小于当前时间
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
             elif expire_days == 'permanent':
                 # 永久有效：过期时间为空
                 query = query.is_('expire_at', 'null')
@@ -686,13 +686,13 @@ async def get_card_keys(
                 # 匹配该日期的过期时间（00:00:00 ~ 23:59:59）
                 start_time = f"{target_date}T00:00:00"
                 end_time = f"{target_date}T23:59:59"
-                query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
             else:
                 # 未来N天内过期：过期时间在当前时间和N天后之间
                 try:
                     days = int(expire_days)
                     future_date = (now + timedelta(days=days)).isoformat()
-                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                    query = query.not_().is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
                 except ValueError:
                     pass
         
@@ -824,11 +824,11 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     # 有效：status=1 且 未使用过且销售状态正常
                     query = query.eq('status', 1)
                     query = query.eq('devices', '[]').eq('used_count', 0)
-                    query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                    query = query.not_().in_('sale_status', ['refunded', 'disputed'])
                 elif activate_status == 'activated':
                     # 已激活：status=1 且 已使用过且销售状态正常
                     query = query.eq('status', 1)
-                    query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                    query = query.not_().in_('sale_status', ['refunded', 'disputed'])
                     query = query.or_("devices.neq.[],used_count.gt.0")
             
             if filters.get('sale_status') and filters.get('sale_status') != '':
@@ -869,7 +869,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
             if expire_days and expire_days != '':
                 now = datetime.now()
                 if expire_days == 'expired':
-                    query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                    query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
                 elif expire_days == 'permanent':
                     query = query.is_('expire_at', 'null')
                 elif expire_days.startswith('date:'):
@@ -877,12 +877,12 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     target_date = expire_days[5:]
                     start_time = f"{target_date}T00:00:00"
                     end_time = f"{target_date}T23:59:59"
-                    query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                    query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
                 else:
                     try:
                         days = int(expire_days)
                         future_date = (now + timedelta(days=days)).isoformat()
-                        query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                        query = query.not_().is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
                     except ValueError:
                         pass
             
@@ -1024,11 +1024,11 @@ async def count_by_filters(
                 # 有效：status=1 且 未使用过且销售状态正常
                 query = query.eq('status', 1)
                 query = query.eq('devices', '[]').eq('used_count', 0)
-                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                query = query.not_().in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
                 # 已激活：status=1 且 已使用过且销售状态正常
                 query = query.eq('status', 1)
-                query = query.not_.in_('sale_status', ['refunded', 'disputed'])
+                query = query.not_().in_('sale_status', ['refunded', 'disputed'])
                 query = query.or_("devices.neq.[],used_count.gt.0")
         
         if sale_status and sale_status != '':
@@ -1064,7 +1064,7 @@ async def count_by_filters(
         if expire_days and expire_days != '':
             now = datetime.now()
             if expire_days == 'expired':
-                query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
             elif expire_days == 'permanent':
                 query = query.is_('expire_at', 'null')
             elif expire_days.startswith('date:'):
@@ -1072,12 +1072,12 @@ async def count_by_filters(
                 target_date = expire_days[5:]
                 start_time = f"{target_date}T00:00:00"
                 end_time = f"{target_date}T23:59:59"
-                query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
             else:
                 try:
                     days = int(expire_days)
                     future_date = (now + timedelta(days=days)).isoformat()
-                    query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                    query = query.not_().is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
                 except ValueError:
                     pass
         
@@ -1264,19 +1264,19 @@ async def get_filter_options(
             if expire_days and expire_days != '' and exclude != 'expire_days':
                 now = datetime.now()
                 if expire_days == 'expired':
-                    query = query.not_.is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                    query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
                 elif expire_days == 'permanent':
                     query = query.is_('expire_at', 'null')
                 elif expire_days.startswith('date:'):
                     target_date = expire_days[5:]
                     start_time = f"{target_date}T00:00:00"
                     end_time = f"{target_date}T23:59:59"
-                    query = query.not_.is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                    query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
                 else:
                     try:
                         days = int(expire_days)
                         future_date = (now + timedelta(days=days)).isoformat()
-                        query = query.not_.is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
+                        query = query.not_().is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
                     except ValueError:
                         pass
             
@@ -1364,14 +1364,15 @@ async def get_filter_options(
                 except Exception:
                     pass
         
-        # 构建过期时间分组列表
+        # 构建过期时间分组列表（始终显示所有选项，即使数量为 0）
         expire_groups_list = []
-        if expired_count > 0:
-            expire_groups_list.append({"value": "expired", "label": "已过期", "count": expired_count})
+        # 已过期（始终显示）
+        expire_groups_list.append({"value": "expired", "label": "已过期", "count": expired_count})
+        # 具体日期
         for group in sorted(expire_groups.values(), key=lambda x: x['date']):
             expire_groups_list.append({"value": f"date:{group['date']}", "label": f"{group['date']} 到期", "count": group['count']})
-        if permanent_count > 0:
-            expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
+        # 永久有效（始终显示）
+        expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
         
         return {
             "success": True,
@@ -1640,6 +1641,7 @@ async def get_expire_groups():
         # 1. 已过期（始终显示）
         result.append({
             'type': 'expired',
+            'value': 'expired',
             'label': '已过期',
             'count': expired_count,
             'is_expired': True
@@ -1654,6 +1656,7 @@ async def get_expire_groups():
             
             result.append({
                 'type': 'date',
+                'value': f"date:{group['date']}",
                 'date': group['date'],
                 'label': label,
                 'count': group['count'],
@@ -1664,16 +1667,7 @@ async def get_expire_groups():
         # 3. 永久有效（始终显示）
         result.append({
             'type': 'permanent',
-            'label': '永久有效',
-            'count': permanent_count,
-            'is_expired': False
-        })
-        
-        return {"success": True, "data": result}
-        
-        # 3. 永久有效（始终显示）
-        result.append({
-            'type': 'permanent',
+            'value': 'permanent',
             'label': '永久有效',
             'count': permanent_count,
             'is_expired': False
