@@ -481,3 +481,84 @@ async function handleLogin(event) {
 2. **双重认证机制更可靠** - header 和 cookie 两种方式互为备份
 3. **fetch 拦截器更优雅** - 无需修改每个 API 调用
 4. **错误信息要明确** - 区分"密码错误"和"登录状态异常"
+
+---
+
+## 扩展问题：数据丢失（LOCAL_DEV_MODE 优先级问题）
+
+### 问题现象
+
+用户在生产环境添加的卡密数据（link_name、feishu_url）在部署后丢失。
+
+### 根本原因
+
+**系统环境变量 `LOCAL_DEV_MODE=true` 的优先级过高，导致生产环境错误地使用 SQLite 数据库。**
+
+#### 问题链路
+
+```
+系统环境变量 LOCAL_DEV_MODE=true（优先级最高）
+    ↓
+每次部署/重启 → 使用 SQLite（/tmp/card_key_local.db）
+    ↓
+用户添加数据 → 保存到 SQLite
+    ↓
+下次部署/重启 → /tmp 目录清空 → 数据丢失
+    ↓
+修复后 → 连接到 PostgreSQL（正确的数据库）
+    ↓
+但 PostgreSQL 中从未有过这些数据
+```
+
+#### 原代码逻辑（有问题）
+
+```python
+# db_client.py
+def is_local_dev_mode() -> bool:
+    """判断是否为本地开发模式"""
+    local_dev = os.getenv("LOCAL_DEV_MODE", "").lower()
+    return local_dev in ("true", "1", "yes")  # 最高优先级，无视 DATABASE_URL
+```
+
+### 解决方案
+
+修改数据库选择逻辑，**当有生产数据库配置时，忽略 LOCAL_DEV_MODE**：
+
+```python
+# db_client.py
+def is_local_dev_mode() -> bool:
+    """判断是否为本地开发模式
+    
+    优先级（从高到低）：
+    1. 如果有 DATABASE_URL 或 COZE_SUPABASE_URL，忽略 LOCAL_DEV_MODE（强制生产模式）
+    2. LOCAL_DEV_MODE=true → 本地模式
+    3. 默认 → 生产模式（如果有数据库配置）或本地模式（无配置）
+    """
+    # 如果有生产数据库配置，忽略 LOCAL_DEV_MODE
+    has_production_db = bool(
+        os.getenv("DATABASE_URL") or 
+        os.getenv("PGDATABASE_URL") or 
+        os.getenv("COZE_SUPABASE_URL")
+    )
+    if has_production_db:
+        return False  # 强制生产模式
+    
+    # 否则检查 LOCAL_DEV_MODE 环境变量
+    local_dev = os.getenv("LOCAL_DEV_MODE", "").lower()
+    return local_dev in ("true", "1", "yes")
+```
+
+### 关键改动说明
+
+| 改动点 | 修复前 | 修复后 |
+|--------|--------|--------|
+| LOCAL_DEV_MODE 优先级 | 最高（无视其他配置） | **低于 DATABASE_URL** |
+| 数据库选择逻辑 | LOCAL_DEV_MODE=true → SQLite | 有 DATABASE_URL → PostgreSQL |
+| 数据安全 | 部署时丢失 | **持久化到 PostgreSQL** |
+
+### 教训
+
+1. **环境变量优先级要合理** - 生产数据库配置应该优先于本地开发标志
+2. **临时目录数据不持久** - `/tmp` 目录在部署时会清空，不能存储重要数据
+3. **日志监控很重要** - 应该监控数据库连接类型，及时发现异常
+4. **部署后验证** - 部署后应检查数据库连接是否正确

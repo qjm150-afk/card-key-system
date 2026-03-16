@@ -28,7 +28,24 @@ from contextlib import contextmanager
 # ============================================
 
 def is_local_dev_mode() -> bool:
-    """判断是否为本地开发模式"""
+    """判断是否为本地开发模式
+    
+    优先级（从高到低）：
+    1. 如果有 DATABASE_URL 或 COZE_SUPABASE_URL，忽略 LOCAL_DEV_MODE（强制生产模式）
+    2. LOCAL_DEV_MODE=true → 本地模式
+    3. 默认 → 生产模式（如果有数据库配置）或本地模式（无配置）
+    """
+    # 如果有生产数据库配置，忽略 LOCAL_DEV_MODE
+    # 这是为了防止 LOCAL_DEV_MODE 被误设置导致生产环境使用错误的数据库
+    has_production_db = bool(
+        os.getenv("DATABASE_URL") or 
+        os.getenv("PGDATABASE_URL") or 
+        os.getenv("COZE_SUPABASE_URL")
+    )
+    if has_production_db:
+        return False  # 强制生产模式
+    
+    # 否则检查 LOCAL_DEV_MODE 环境变量
     local_dev = os.getenv("LOCAL_DEV_MODE", "").lower()
     return local_dev in ("true", "1", "yes")
 
