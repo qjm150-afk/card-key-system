@@ -2748,7 +2748,8 @@ async def batch_generate_cards(req: BatchGenerateRequest):
                 "expire_at": expire_at,
                 "max_uses": req.max_uses,
                 "used_count": 0,
-                "sales_channel": req.sales_channel
+                "sales_channel": req.sales_channel,
+                "sale_status": "unsold"  # 默认未售出
             })
         
         # 批量插入
