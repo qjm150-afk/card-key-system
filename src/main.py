@@ -237,6 +237,12 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ChangePasswordRequest(BaseModel):
+    """修改密码请求"""
+    old_password: str
+    new_password: str
+
+
 # ==================== 管理员认证 ====================
 
 # 管理员密码（从环境变量读取，默认为 QJM150）
@@ -247,6 +253,33 @@ VALID_TOKENS = {}
 
 # Token 有效期（24小时）
 TOKEN_EXPIRE_HOURS = 24
+
+
+def get_admin_password() -> str:
+    """获取管理员密码（优先从数据库获取，否则使用环境变量）"""
+    try:
+        client = get_supabase_client()
+        result = client.table('admin_settings').select('value').eq('key', 'admin_password').execute()
+        if result.data and len(result.data) > 0:
+            return result.data[0]['value']
+    except Exception as e:
+        logger.warning(f"获取数据库密码失败，使用环境变量密码: {str(e)}")
+    return ADMIN_PASSWORD
+
+
+def set_admin_password(new_password: str) -> bool:
+    """设置管理员密码到数据库"""
+    try:
+        client = get_supabase_client()
+        # 先尝试更新
+        result = client.table('admin_settings').update({'value': new_password}).eq('key', 'admin_password').execute()
+        if not result.data:
+            # 如果没有更新到，说明记录不存在，尝试插入
+            client.table('admin_settings').insert({'key': 'admin_password', 'value': new_password}).execute()
+        return True
+    except Exception as e:
+        logger.error(f"设置管理员密码失败: {str(e)}")
+        return False
 
 
 def create_token() -> str:
@@ -3226,7 +3259,8 @@ async def clean_logs(request: CleanLogsRequest):
 @app.post("/api/admin/login")
 async def admin_login(request: LoginRequest, response: JSONResponse):
     """管理员登录"""
-    if request.password != ADMIN_PASSWORD:
+    current_password = get_admin_password()
+    if request.password != current_password:
         logger.warning(f"登录失败: 密码错误")
         return {"success": False, "msg": "密码错误"}
     
@@ -3252,6 +3286,34 @@ async def admin_logout(response: JSONResponse):
     """管理员登出"""
     response.delete_cookie("admin_token")
     return {"success": True}
+
+
+@app.post("/api/admin/change-password")
+async def change_password(request: ChangePasswordRequest, req: Request):
+    """修改管理员密码"""
+    # 验证是否已登录
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    # 验证旧密码
+    current_password = get_admin_password()
+    if request.old_password != current_password:
+        return {"success": False, "msg": "旧密码错误"}
+    
+    # 验证新密码
+    if not request.new_password or len(request.new_password) < 4:
+        return {"success": False, "msg": "新密码长度不能少于4位"}
+    
+    if len(request.new_password) > 50:
+        return {"success": False, "msg": "新密码长度不能超过50位"}
+    
+    # 保存新密码
+    if set_admin_password(request.new_password):
+        logger.info("管理员密码修改成功")
+        return {"success": True, "msg": "密码修改成功"}
+    else:
+        return {"success": False, "msg": "密码保存失败，请稍后重试"}
 
 
 # ==================== 行为数据上报 API ====================
