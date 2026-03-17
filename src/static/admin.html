@@ -4648,7 +4648,7 @@
                     
                     openModal(id);
                 } else {
-                    showToast(result.msg || '获取数据失败', 'error');
+                    showToast(getErrorMsg(result, '获取数据失败'), 'error');
                 }
             } catch (error) {
                 console.error('编辑卡密失败:', error);
@@ -6344,7 +6344,7 @@
                     renderOperationLogsTable(result.data);
                     renderOperationLogsPagination(result.total, result.total_pages);
                 } else {
-                    showToast(result.msg || '加载操作日志失败', 'error');
+                    showToast(getErrorMsg(result, '加载操作日志失败'), 'error');
                     renderOperationLogsTable([]);  // 显示空状态
                 }
             } catch (error) {
