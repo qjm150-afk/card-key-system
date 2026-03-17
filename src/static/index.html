@@ -1232,13 +1232,6 @@
 
         // ==================== 协作者头像效果 ====================
         
-        // 模拟协作者数据（虚拟模式下使用）- 参考飞书效果
-        const collaboratorNames = [
-            '访客44901', '访客88079', '访客93397', '访客78495',
-            '用户6765', '访客69091', '访客39214', '访客10670',
-            '访客22583', '用户9102', '访客55671', '访客33028'
-        ];
-        
         // 头像颜色池 - 参考飞书效果
         const avatarColors = [
             '#8B5CF6',  // 紫色
@@ -1249,6 +1242,186 @@
         
         let collaboratorsInterval = null;
         let useRealData = false;
+        
+        // ==================== 虚拟在线用户模拟系统 ====================
+        // 模拟应届毕业生浏览招聘信息的真实行为模式
+        const virtualOnlineState = {
+            currentCount: 0,           // 当前在线人数
+            lastUpdateTime: 0,         // 上次更新时间戳
+            currentAvatars: [],        // 当前显示的头像索引
+            initialized: false,        // 是否已初始化
+            
+            // 用户池 - 模拟真实用户名（看起来像真实的应届生）
+            userPool: [
+                '求职者_小李', '应届生_王同学', '求职者_Zhang', '2024届_小陈',
+                '校招_刘同学', '求职者_小周', '应届生_Wu', '24届_小赵',
+                '求职者_Sun', '校招_小李', '应届生_小钱', '求职者_Zheng',
+                '24届_小吴', '校招_小王', '求职者_Feng', '应届生_Chen'
+            ],
+            
+            // 用户详细信息池（用于更真实的展示）
+            userDetails: [
+                { name: '小李', school: '清华大学', major: '计算机科学' },
+                { name: '王同学', school: '北京大学', major: '软件工程' },
+                { name: 'Zhang', school: '浙江大学', major: '电子信息' },
+                { name: '小陈', school: '复旦大学', major: '数据科学' },
+                { name: '刘同学', school: '上海交大', major: '人工智能' },
+                { name: '小周', school: '南京大学', major: '网络安全' },
+                { name: 'Wu', school: '中科大', major: '机器学习' },
+                { name: '小赵', school: '哈工大', major: '计算机' },
+                { name: 'Sun', school: '武汉大学', major: '软件工程' },
+                { name: '小李', school: '华中科大', major: '数据科学' },
+                { name: '小钱', school: '中山大学', major: '人工智能' },
+                { name: 'Zheng', school: '四川大学', major: '计算机科学' }
+            ]
+        };
+        
+        // 根据时间段获取应届生活跃度基准值
+        // 模拟应届生浏览招聘网站的真实行为模式
+        function getGraduateActivityBase() {
+            const now = new Date();
+            const hour = now.getHours();
+            const dayOfWeek = now.getDay(); // 0=周日, 6=周六
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+            
+            // 基准在线人数
+            let baseCount = 5;
+            
+            if (isWeekend) {
+                // 周末：应届生有更多时间浏览
+                if (hour >= 9 && hour < 12) {
+                    baseCount = 12;  // 上午：睡醒后开始投简历
+                } else if (hour >= 12 && hour < 14) {
+                    baseCount = 8;   // 中午：吃饭休息
+                } else if (hour >= 14 && hour < 18) {
+                    baseCount = 15;  // 下午：黄金投递时间
+                } else if (hour >= 18 && hour < 21) {
+                    baseCount = 18;  // 傍晚：最高峰
+                } else if (hour >= 21 && hour < 24) {
+                    baseCount = 10;  // 深夜：逐渐减少
+                } else {
+                    baseCount = 3;   // 凌晨：极少
+                }
+            } else {
+                // 工作日：应届生可能在校上课或实习
+                if (hour >= 8 && hour < 10) {
+                    baseCount = 6;   // 早晨：早起刷一刷
+                } else if (hour >= 10 && hour < 12) {
+                    baseCount = 8;   // 上午：课间/摸鱼时间
+                } else if (hour >= 12 && hour < 14) {
+                    baseCount = 12;  // 中午：午休高峰
+                } else if (hour >= 14 && hour < 17) {
+                    baseCount = 7;   // 下午：上课/实习，较少
+                } else if (hour >= 17 && hour < 19) {
+                    baseCount = 10;  // 傍晚：下班/下课
+                } else if (hour >= 19 && hour < 22) {
+                    baseCount = 16;  // 晚上：黄金投递时间
+                } else if (hour >= 22 && hour < 24) {
+                    baseCount = 8;   // 深夜：逐渐减少
+                } else {
+                    baseCount = 2;   // 凌晨：极少
+                }
+            }
+            
+            return baseCount;
+        }
+        
+        // 初始化虚拟在线状态
+        function initVirtualOnlineState() {
+            if (virtualOnlineState.initialized) return;
+            
+            // 尝试从 localStorage 恢复状态（跨页面一致性）
+            const saved = localStorage.getItem('virtualOnlineState');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    const elapsed = Date.now() - parsed.lastUpdateTime;
+                    
+                    // 如果保存时间在5分钟内，使用保存的状态
+                    if (elapsed < 5 * 60 * 1000) {
+                        virtualOnlineState.currentCount = parsed.currentCount;
+                        virtualOnlineState.lastUpdateTime = parsed.lastUpdateTime;
+                        virtualOnlineState.currentAvatars = parsed.currentAvatars || [];
+                        virtualOnlineState.initialized = true;
+                        return;
+                    }
+                } catch (e) {
+                    // 解析失败，使用默认初始化
+                }
+            }
+            
+            // 首次访问或过期：根据当前时间生成初始值
+            const baseCount = getGraduateActivityBase();
+            // 添加 ±2 的随机波动
+            virtualOnlineState.currentCount = Math.max(1, baseCount + Math.floor(Math.random() * 5) - 2);
+            virtualOnlineState.lastUpdateTime = Date.now();
+            
+            // 随机选择初始头像
+            const avatarCount = Math.min(5, Math.max(2, Math.ceil(virtualOnlineState.currentCount / 4)));
+            const indices = [];
+            while (indices.length < avatarCount) {
+                const idx = Math.floor(Math.random() * virtualOnlineState.userPool.length);
+                if (!indices.includes(idx)) indices.push(idx);
+            }
+            virtualOnlineState.currentAvatars = indices;
+            virtualOnlineState.initialized = true;
+        }
+        
+        // 更新虚拟在线人数（模拟真实用户进出）
+        function updateVirtualOnlineCount() {
+            const baseCount = getGraduateActivityBase();
+            const current = virtualOnlineState.currentCount;
+            
+            // 计算目标人数（基准 ±2）
+            const targetBase = baseCount + Math.floor(Math.random() * 5) - 2;
+            
+            // 平滑变化：每次只变化 0-2 人，避免跳跃
+            const diff = targetBase - current;
+            const change = Math.sign(diff) * Math.min(Math.abs(diff), Math.floor(Math.random() * 3));
+            
+            // 更新人数（确保至少1人）
+            virtualOnlineState.currentCount = Math.max(1, current + change);
+            virtualOnlineState.lastUpdateTime = Date.now();
+            
+            // 更新头像：根据人数变化调整
+            const desiredAvatarCount = Math.min(5, Math.max(2, Math.ceil(virtualOnlineState.currentCount / 4)));
+            const currentAvatarCount = virtualOnlineState.currentAvatars.length;
+            
+            if (desiredAvatarCount > currentAvatarCount) {
+                // 需要添加头像
+                const available = [];
+                for (let i = 0; i < virtualOnlineState.userPool.length; i++) {
+                    if (!virtualOnlineState.currentAvatars.includes(i)) available.push(i);
+                }
+                while (virtualOnlineState.currentAvatars.length < desiredAvatarCount && available.length > 0) {
+                    const idx = available.splice(Math.floor(Math.random() * available.length), 1)[0];
+                    virtualOnlineState.currentAvatars.push(idx);
+                }
+            } else if (desiredAvatarCount < currentAvatarCount) {
+                // 需要移除头像
+                while (virtualOnlineState.currentAvatars.length > desiredAvatarCount) {
+                    virtualOnlineState.currentAvatars.splice(Math.floor(Math.random() * virtualOnlineState.currentAvatars.length), 1);
+                }
+            }
+            
+            // 保存状态到 localStorage
+            localStorage.setItem('virtualOnlineState', JSON.stringify({
+                currentCount: virtualOnlineState.currentCount,
+                lastUpdateTime: virtualOnlineState.lastUpdateTime,
+                currentAvatars: virtualOnlineState.currentAvatars
+            }));
+            
+            return virtualOnlineState.currentCount;
+        }
+        
+        // 获取当前虚拟在线用户列表
+        function getVirtualOnlineUsers() {
+            return virtualOnlineState.currentAvatars.map(idx => ({
+                name: virtualOnlineState.userPool[idx],
+                detail: virtualOnlineState.userDetails[idx % virtualOnlineState.userDetails.length],
+                color: avatarColors[idx % avatarColors.length]
+            }));
+        }
         
         // 初始化协作者
         async function initCollaborators() {
@@ -1420,18 +1593,28 @@
                     useRealData = true;
                     displayCount = data.online_count;
                     
-                    // 生成随机头像显示（最多显示5个）
-                    const showCount = Math.min(5, Math.max(3, Math.ceil(displayCount * 0.1)));
-                    const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
-                    onlineUsers = shuffledNames.slice(0, showCount);
+                    // 真实数据：随机显示头像
+                    const avatarCount = Math.min(5, Math.max(3, Math.ceil(displayCount * 0.1)));
+                    const shuffledIndices = [...Array(virtualOnlineState.userPool.length).keys()].sort(() => Math.random() - 0.5);
+                    const selectedIndices = shuffledIndices.slice(0, avatarCount);
+                    
+                    onlineUsers = selectedIndices.map(idx => ({
+                        name: virtualOnlineState.userPool[idx],
+                        color: avatarColors[idx % avatarColors.length]
+                    }));
                     
                 } else {
-                    // 使用虚拟数据
+                    // 使用虚拟数据 - 模拟应届生浏览行为
                     useRealData = false;
-                    displayCount = Math.floor(Math.random() * 10) + 8; // 8-17人
-                    const showCount = Math.floor(Math.random() * 2) + 3; // 3-4个头像
-                    const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
-                    onlineUsers = shuffledNames.slice(0, showCount);
+                    
+                    // 初始化虚拟状态（首次调用时）
+                    initVirtualOnlineState();
+                    
+                    // 更新虚拟在线人数
+                    displayCount = updateVirtualOnlineCount();
+                    
+                    // 获取虚拟在线用户列表
+                    onlineUsers = getVirtualOnlineUsers();
                 }
                 
                 // 生成头像HTML（参考飞书效果）
@@ -1442,12 +1625,11 @@
                 // 飞书风格的用户图标
                 const userIcon = `<svg viewBox="0 0 16 16" fill="white" width="14" height="14"><circle cx="8" cy="5" r="3"/><path d="M8 9c-3 0-5 1.5-5 3v1h10v-1c0-1.5-2-3-5-3z"/></svg>`;
                 
-                let html = visibleUsers.map((name, index) => {
-                    const color = avatarColors[index % avatarColors.length];
+                let html = visibleUsers.map((user, index) => {
                     return `
                         <div class="collaborator-avatar" 
-                             style="background-color: ${color};"
-                             title="${name}">
+                             style="background-color: ${user.color};"
+                             title="${user.name}">
                             ${userIcon}
                             <span class="online-dot"></span>
                         </div>
@@ -1471,19 +1653,17 @@
             } catch (error) {
                 // 网络错误时使用虚拟数据
                 console.log('获取在线用户失败，使用虚拟数据');
-                const virtualCount = Math.floor(Math.random() * 10) + 8;
-                const showCount = Math.floor(Math.random() * 2) + 3;
-                const shuffledNames = [...collaboratorNames].sort(() => Math.random() - 0.5);
-                const onlineUsers = shuffledNames.slice(0, showCount);
+                initVirtualOnlineState();
+                const virtualCount = updateVirtualOnlineCount();
+                const onlineUsers = getVirtualOnlineUsers();
                 
                 const userIcon = `<svg viewBox="0 0 16 16" fill="white" width="14" height="14"><circle cx="8" cy="5" r="3"/><path d="M8 9c-3 0-5 1.5-5 3v1h10v-1c0-1.5-2-3-5-3z"/></svg>`;
                 
-                let html = onlineUsers.map((name, index) => {
-                    const color = avatarColors[index % avatarColors.length];
+                let html = onlineUsers.map((user, index) => {
                     return `
                         <div class="collaborator-avatar" 
-                             style="background-color: ${color};"
-                             title="${name}">
+                             style="background-color: ${user.color};"
+                             title="${user.name}">
                             ${userIcon}
                             <span class="online-dot"></span>
                         </div>
