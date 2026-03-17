@@ -979,7 +979,7 @@
             const session = {
                 cardKey: cardKey,
                 url: url,
-                password: password || '',
+                password: (password && password.trim() !== '') ? password : '',
                 deviceId: getDeviceId(),
                 expireAt: Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000
             };
@@ -1015,7 +1015,8 @@
         function showPasswordToast(password) {
             const toast = document.getElementById('passwordToast');
             const valueEl = document.getElementById('passwordToastValue');
-            if (toast && valueEl && password) {
+            // 只有密码非空时才显示
+            if (toast && valueEl && password && password.trim() !== '') {
                 valueEl.textContent = password;
                 toast.classList.add('show');
                 // 不自动关闭，用户手动点击 X 关闭
@@ -1058,8 +1059,8 @@
             successPage.style.display = 'flex';
             feishuFrame.src = url;
             
-            // 显示浮动密码提示框
-            if (password) {
+            // 显示浮动密码提示框（只有密码非空时才显示）
+            if (password && password.trim() !== '') {
                 passwordValue.textContent = password;
                 passwordInfo.style.display = 'block';
                 showPasswordToast(password);
