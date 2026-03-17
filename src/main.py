@@ -174,6 +174,9 @@ class CardKeyCreate(BaseModel):
     link_name: Optional[str] = ""
     expire_days: Optional[int] = None  # 有效期天数
     max_uses: int = 1  # 最大使用次数
+    sale_status: Optional[str] = "unsold"  # 销售状态
+    order_id: Optional[str] = ""  # 订单号
+    sales_channel: Optional[str] = ""  # 销售渠道
 
 
 class CardKeyUpdate(BaseModel):
@@ -2689,7 +2692,10 @@ async def create_card_key(card: CardKeyCreate):
             "bstudio_create_time": datetime.now().isoformat(),
             "expire_at": expire_at,
             "max_uses": card.max_uses,
-            "used_count": 0
+            "used_count": 0,
+            "sale_status": card.sale_status or "unsold",
+            "order_id": card.order_id or None,
+            "sales_channel": card.sales_channel or ""
         }
         
         response = client.table('card_keys_table').insert(data).execute()
