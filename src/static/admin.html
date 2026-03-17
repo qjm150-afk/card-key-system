@@ -3303,7 +3303,7 @@
                     showToast(result.msg, 'success');
                     await loadLinkHealth();
                 } else {
-                    showToast('检测失败: ' + result.msg, 'error');
+                    showToast('检测失败: ' + getErrorMsg(result), 'error');
                     loadLinkHealth();
                 }
             } catch (e) {
@@ -3331,7 +3331,7 @@
                     showToast('检测结果: ' + statusText, status === 'healthy' ? 'success' : 'warning');
                     await loadLinkHealth();
                 } else {
-                    showToast('检测失败: ' + result.msg, 'error');
+                    showToast('检测失败: ' + getErrorMsg(result), 'error');
                 }
             } catch (e) {
                 console.error('检测单个链接失败', e);
@@ -3607,7 +3607,7 @@
                     
                     showToast('报表导出成功', 'success');
                 } else {
-                    showToast('导出失败: ' + result.msg, 'error');
+                    showToast('导出失败: ' + getErrorMsg(result), 'error');
                 }
             } catch (e) {
                 console.error('导出报表失败', e);
@@ -4793,7 +4793,7 @@
                     showToast(result.msg, 'success');
                     closeChangePasswordModal();
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('修改失败: ' + error.message, 'error');
@@ -4899,7 +4899,7 @@
                     // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
                     loadSalesChannelDatalist();
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('保存失败: ' + error.message, 'error');
@@ -4963,7 +4963,7 @@
                         downloadExportFile(ids, allFields);
                     }
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('生成失败: ' + error.message, 'error');
@@ -5011,7 +5011,7 @@
                     loadCards();
                     loadStats();
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('删除失败: ' + error.message, 'error');
@@ -5054,7 +5054,7 @@
                     // 刷新下拉列表
                     loadFilterOptions(null);
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('操作失败: ' + error.message, 'error');
@@ -5223,7 +5223,7 @@
                     loadCards();
                     loadStats();
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('导入失败: ' + error.message, 'error');
@@ -5295,7 +5295,7 @@
                     loadStats();
                     loadFilterOptions(null);
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('导入失败: ' + error.message, 'error');
@@ -5480,7 +5480,7 @@
                     `;
                     document.getElementById('executeCleanLogsBtn').disabled = result.count === 0;
                 } else {
-                    document.getElementById('cleanLogsPreview').innerHTML = `<span style="color: #d32f2f;">预览失败：${result.msg}</span>`;
+                    document.getElementById('cleanLogsPreview').innerHTML = `<span style="color: #d32f2f;">预览失败：${getErrorMsg(result)}</span>`;
                     document.getElementById('executeCleanLogsBtn').disabled = true;
                 }
             } catch (error) {
@@ -5513,7 +5513,7 @@
                     loadLogs();
                     loadStats();
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('清理失败：' + error.message, 'error');
@@ -5593,6 +5593,11 @@
             container.appendChild(toast);
             
             setTimeout(() => toast.remove(), 3000);
+        }
+
+        // 从API响应中提取错误消息（统一处理 msg/detail 格式）
+        function getErrorMsg(result, defaultMsg = '操作失败') {
+            return result.msg || result.detail || defaultMsg;
         }
 
         // 格式化日期
@@ -6296,7 +6301,7 @@
                         loadFilterOptions(null);
                     }
                 } else {
-                    showToast(result.msg, 'error');
+                    showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('批量更新失败: ' + error.message, 'error');

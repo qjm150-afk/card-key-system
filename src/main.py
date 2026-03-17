@@ -318,6 +318,22 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 security = HTTPBearer(auto_error=False)
 
 
+class UnifiedHTTPException(Exception):
+    """统一格式的HTTP异常，用于返回一致的错误响应格式"""
+    def __init__(self, status_code: int, message: str):
+        self.status_code = status_code
+        self.message = message
+
+
+@app.exception_handler(UnifiedHTTPException)
+async def unified_http_exception_handler(request: Request, exc: UnifiedHTTPException):
+    """统一处理自定义异常，返回一致的响应格式"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "msg": exc.message, "detail": exc.message}
+    )
+
+
 async def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(security), request: Request = None):
     """验证管理员权限的依赖项"""
     # 首先尝试从 Authorization header 获取
@@ -329,7 +345,7 @@ async def get_current_admin(credentials: HTTPAuthorizationCredentials = Depends(
         token = request.cookies.get("admin_token")
     
     if not verify_token(token):
-        raise HTTPException(status_code=401, detail="未授权访问，请先登录")
+        raise UnifiedHTTPException(status_code=401, message="未授权访问，请先登录")
     return token
 
 
