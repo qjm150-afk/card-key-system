@@ -140,7 +140,7 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
             if not token or token not in VALID_TOKENS:
                 return JSONResponse(
                     status_code=401,
-                    content={"detail": "未授权访问，请先登录"}
+                    content={"success": False, "msg": "未授权访问，请先登录", "detail": "未授权访问，请先登录"}
                 )
             
             # 检查token是否过期
@@ -148,7 +148,7 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
                 del VALID_TOKENS[token]
                 return JSONResponse(
                     status_code=401,
-                    content={"detail": "登录已过期，请重新登录"}
+                    content={"success": False, "msg": "登录已过期，请重新登录", "detail": "登录已过期，请重新登录"}
                 )
         
         return await call_next(request)
