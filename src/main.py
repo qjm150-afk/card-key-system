@@ -75,6 +75,15 @@ async def startup_event():
         # 测试查询
         result = client.table('card_keys_table').select('id', count='exact').limit(1).execute()
         logger.info(f"[STARTUP] 数据库连接成功，总记录数: {result.count}")
+        
+        # 同步主键序列（防止因数据迁移等原因导致序列不同步）
+        try:
+            from storage.database.postgres_client import get_postgres_client
+            pg_client = get_postgres_client()
+            pg_client.sync_sequence()
+            logger.info("[STARTUP] 主键序列同步完成")
+        except Exception as seq_err:
+            logger.warning(f"[STARTUP] 主键序列同步失败（非致命错误）: {str(seq_err)}")
     except Exception as e:
         logger.error(f"[STARTUP] 数据库连接失败: {str(e)}")
     
@@ -2617,6 +2626,15 @@ async def import_cards(file: UploadFile = File(...)):
                 error_list.append(f"第{row_num}行处理失败: {str(e)}")
                 logger.error(f"第{row_num}行处理失败: {str(e)}")
         
+        # 同步主键序列（防止序列不同步导致的主键冲突）
+        try:
+            from storage.database.postgres_client import get_postgres_client
+            pg_client = get_postgres_client()
+            pg_client.sync_sequence()
+            logger.info("主键序列同步完成")
+        except Exception as seq_err:
+            logger.warning(f"同步主键序列失败（不影响导入结果）: {str(seq_err)}")
+        
         # 记录操作日志
         if added_count > 0 or updated_count > 0:
             safe_log_operation(client, {
@@ -2774,6 +2792,15 @@ async def batch_generate_cards(req: BatchGenerateRequest):
             "update_fields": {},
             "remark": f"批量生成 {generated_count} 条卡密"
         })
+        
+        # 同步主键序列（防止序列不同步导致的主键冲突）
+        try:
+            from storage.database.postgres_client import get_postgres_client
+            pg_client = get_postgres_client()
+            pg_client.sync_sequence()
+            logger.info("主键序列同步完成")
+        except Exception as seq_err:
+            logger.warning(f"同步主键序列失败（不影响生成结果）: {str(seq_err)}")
         
         return {
             "success": True,

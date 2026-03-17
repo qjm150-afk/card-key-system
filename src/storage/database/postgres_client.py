@@ -482,6 +482,41 @@ class PostgresClient:
     def rpc(self, function_name: str, params: dict) -> PostgresResponse:
         """调用存储过程（暂不支持）"""
         raise NotImplementedError(f"RPC function '{function_name}' is not supported")
+    
+    def execute_raw(self, sql: str) -> Any:
+        """执行原始 SQL 语句
+        
+        用于执行序列同步等特殊操作
+        """
+        with self._get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute(sql)
+            conn.commit()
+            try:
+                result = cur.fetchone()
+                return result[0] if result else None
+            except:
+                return None
+    
+    def sync_sequence(self, table_name: str = "card_keys_table", sequence_name: str = "card_keys_table_id_seq") -> bool:
+        """同步主键序列到当前最大ID
+        
+        解决因手动插入ID或数据迁移导致的序列不同步问题
+        
+        Args:
+            table_name: 表名
+            sequence_name: 序列名
+            
+        Returns:
+            bool: 是否同步成功
+        """
+        try:
+            sql = f"SELECT setval('{sequence_name}', (SELECT COALESCE(MAX(id), 0) + 1 FROM {table_name}))"
+            self.execute_raw(sql)
+            return True
+        except Exception as e:
+            print(f"同步序列失败: {str(e)}")
+            return False
 
 
 def get_database_url() -> Optional[str]:
