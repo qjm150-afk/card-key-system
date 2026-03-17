@@ -4249,7 +4249,7 @@ async def get_online_users():
             "success": True,
             "total_cards": total_cards,
             "online_count": online_count,
-            "use_real_data": total_cards >= 20  # 总卡密数>=20时使用真实数据
+            "use_real_data": online_count >= 20  # 在线人数>=20时使用真实数据
         }
         
     except Exception as e:
