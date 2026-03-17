@@ -446,16 +446,16 @@
             top: 80px;
             right: 20px;
             background: linear-gradient(135deg, #FFF8F0 0%, #FFE8D6 100%);
-            border: 1px solid #D4A574;
-            border-radius: 12px;
-            padding: 12px 16px;
-            box-shadow: 0 4px 20px rgba(212, 165, 116, 0.3);
+            border: 2px solid #D4A574;
+            border-radius: 16px;
+            padding: 16px 20px;
+            box-shadow: 0 6px 24px rgba(212, 165, 116, 0.35);
             z-index: 9999;
             display: none;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
             animation: slideInRight 0.3s ease-out;
-            max-width: 280px;
+            max-width: 320px;
         }
 
         .password-toast.show {
@@ -463,9 +463,9 @@
         }
 
         .password-toast-icon {
-            width: 24px;
-            height: 24px;
-            background: #D4A574;
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, #D4A574 0%, #C49464 100%);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -474,8 +474,8 @@
         }
 
         .password-toast-icon svg {
-            width: 14px;
-            height: 14px;
+            width: 18px;
+            height: 18px;
             color: white;
         }
 
@@ -484,54 +484,63 @@
         }
 
         .password-toast-label {
-            font-size: 12px;
+            font-size: 13px;
             color: #8B7355;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
 
         .password-toast-value {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             color: #5D4E37;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
         }
 
         .password-toast-copy {
-            background: #D4A574;
+            background: linear-gradient(135deg, #D4A574 0%, #C49464 100%);
             color: white;
             border: none;
-            border-radius: 6px;
-            padding: 4px 10px;
-            font-size: 12px;
+            border-radius: 8px;
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .password-toast-copy:hover {
-            background: #C49464;
+            background: linear-gradient(135deg, #C49464 0%, #B48454 100%);
+            transform: scale(1.05);
         }
 
         .password-toast-copy.copied {
-            background: #5D9C59;
+            background: linear-gradient(135deg, #5D9C59 0%, #4A8B46 100%);
         }
 
         .password-toast-close {
-            position: absolute;
-            top: 6px;
-            right: 8px;
-            background: none;
-            border: none;
+            width: 32px;
+            height: 32px;
+            background: #F5E6D3;
+            border: 2px solid #D4A574;
+            border-radius: 50%;
             color: #8B7355;
             cursor: pointer;
-            font-size: 14px;
-            padding: 0;
-            line-height: 1;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.2s;
+            margin-left: 8px;
         }
 
         .password-toast-close:hover {
+            background: #E8D4C0;
             color: #5D4E37;
+            border-color: #C49464;
+            transform: scale(1.1);
         }
 
         @keyframes slideInRight {
@@ -900,7 +909,7 @@
                     <button class="password-toast-copy" onclick="copyPassword()">复制</button>
                 </div>
             </div>
-            <button class="password-toast-close" onclick="hidePasswordToast()">✕</button>
+            <button class="password-toast-close" onclick="hidePasswordToast()" title="关闭">✕</button>
         </div>
         
         <div class="iframe-container">
@@ -1009,10 +1018,7 @@
             if (toast && valueEl && password) {
                 valueEl.textContent = password;
                 toast.classList.add('show');
-                // 5秒后自动隐藏
-                setTimeout(() => {
-                    hidePasswordToast();
-                }, 8000);
+                // 不自动关闭，用户手动点击 X 关闭
             }
         }
 
