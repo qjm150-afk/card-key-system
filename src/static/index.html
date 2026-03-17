@@ -440,6 +440,111 @@
             color: #5D4E37;
         }
 
+        /* 浮动密码提示框 */
+        .password-toast {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background: linear-gradient(135deg, #FFF8F0 0%, #FFE8D6 100%);
+            border: 1px solid #D4A574;
+            border-radius: 12px;
+            padding: 12px 16px;
+            box-shadow: 0 4px 20px rgba(212, 165, 116, 0.3);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            animation: slideInRight 0.3s ease-out;
+            max-width: 280px;
+        }
+
+        .password-toast.show {
+            display: flex;
+        }
+
+        .password-toast-icon {
+            width: 24px;
+            height: 24px;
+            background: #D4A574;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .password-toast-icon svg {
+            width: 14px;
+            height: 14px;
+            color: white;
+        }
+
+        .password-toast-content {
+            flex: 1;
+        }
+
+        .password-toast-label {
+            font-size: 12px;
+            color: #8B7355;
+            margin-bottom: 2px;
+        }
+
+        .password-toast-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #5D4E37;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .password-toast-copy {
+            background: #D4A574;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .password-toast-copy:hover {
+            background: #C49464;
+        }
+
+        .password-toast-copy.copied {
+            background: #5D9C59;
+        }
+
+        .password-toast-close {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #8B7355;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .password-toast-close:hover {
+            color: #5D4E37;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
         .feishu-frame {
             border: none;
         }
@@ -781,6 +886,23 @@
             </div>
         </div>
         
+        <!-- 浮动密码提示框 -->
+        <div id="passwordToast" class="password-toast">
+            <div class="password-toast-icon">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                </svg>
+            </div>
+            <div class="password-toast-content">
+                <div class="password-toast-label">访问密码</div>
+                <div class="password-toast-value">
+                    <span id="passwordToastValue"></span>
+                    <button class="password-toast-copy" onclick="copyPassword()">复制</button>
+                </div>
+            </div>
+            <button class="password-toast-close" onclick="hidePasswordToast()">✕</button>
+        </div>
+        
         <div class="iframe-container">
             <iframe id="feishuFrame" class="feishu-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox" allowfullscreen></iframe>
             <!-- 博主在线图标 -->
@@ -880,6 +1002,44 @@
             localStorage.removeItem(STORAGE_KEY);
         }
 
+        // 显示浮动密码提示框
+        function showPasswordToast(password) {
+            const toast = document.getElementById('passwordToast');
+            const valueEl = document.getElementById('passwordToastValue');
+            if (toast && valueEl && password) {
+                valueEl.textContent = password;
+                toast.classList.add('show');
+                // 5秒后自动隐藏
+                setTimeout(() => {
+                    hidePasswordToast();
+                }, 8000);
+            }
+        }
+
+        // 隐藏浮动密码提示框
+        function hidePasswordToast() {
+            const toast = document.getElementById('passwordToast');
+            if (toast) {
+                toast.classList.remove('show');
+            }
+        }
+
+        // 复制密码
+        function copyPassword() {
+            const valueEl = document.getElementById('passwordToastValue');
+            const btn = document.querySelector('.password-toast-copy');
+            if (valueEl && btn) {
+                navigator.clipboard.writeText(valueEl.textContent).then(() => {
+                    btn.textContent = '已复制';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = '复制';
+                        btn.classList.remove('copied');
+                    }, 2000);
+                });
+            }
+        }
+
         // 显示成功页面
         function showSuccess(url, password) {
             // 隐藏加载动画
@@ -892,9 +1052,11 @@
             successPage.style.display = 'flex';
             feishuFrame.src = url;
             
+            // 显示浮动密码提示框
             if (password) {
                 passwordValue.textContent = password;
                 passwordInfo.style.display = 'block';
+                showPasswordToast(password);
             }
             
             // 初始化协作者头像
