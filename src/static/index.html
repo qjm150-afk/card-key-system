@@ -821,7 +821,7 @@
         }
     </style>
 </head>
-<body class="loading-mode" oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;" oncopy="return false;" oncut="return false;">
+<body class="loading-mode" oncontextmenu="return false;" onselectstart="return false;" ondragstart="return false;">
     <!-- 加载动画 -->
     <div id="loadingSpinner" class="loading-spinner"></div>
 
@@ -1716,17 +1716,29 @@
         if (pasteBtn) {
             pasteBtn.addEventListener('click', async function() {
                 try {
+                    // 优先使用 Clipboard API
                     const text = await navigator.clipboard.readText();
                     if (text) {
                         cardKeyInput.value = text.toUpperCase();
-                        // 触发 input 事件以应用格式化
                         cardKeyInput.dispatchEvent(new Event('input'));
                         cardKeyInput.focus();
                     }
                 } catch (err) {
-                    // 如果无法访问剪贴板，尝试使用旧方法
+                    console.log('Clipboard API 失败，尝试备用方案:', err.message);
+                    // 备用方案：聚焦输入框并提示用户手动粘贴
                     cardKeyInput.focus();
-                    document.execCommand('paste');
+                    // 在移动端，尝试触发粘贴（部分浏览器支持）
+                    try {
+                        // 创建一个临时的 paste 事件
+                        const pasteEvent = new ClipboardEvent('paste', {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        cardKeyInput.dispatchEvent(pasteEvent);
+                    } catch (e) {
+                        // 忽略错误，用户可以手动粘贴
+                        console.log('备用粘贴方案失败，请手动粘贴');
+                    }
                 }
             });
         }
