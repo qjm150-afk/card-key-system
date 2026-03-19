@@ -821,7 +821,7 @@
         }
     </style>
 </head>
-<body class="loading-mode" oncontextmenu="return false;" ondragstart="return false;">
+<body class="loading-mode">
     <!-- 加载动画 -->
     <div id="loadingSpinner" class="loading-spinner"></div>
 
@@ -1976,32 +1976,43 @@
 
         // 禁用右键菜单（已通过 oncontextmenu 实现，这里作为备用）
         document.addEventListener('contextmenu', function(e) {
-            e.preventDefault();
-            return false;
+            // 只在成功页面禁用右键
+            if (successPage.style.display !== 'none') {
+                e.preventDefault();
+                return false;
+            }
         });
 
-        // 禁用选择文本
+        // 禁用选择文本（只在成功页面生效，验证页面需要允许选择和粘贴）
         document.addEventListener('selectstart', function(e) {
-            e.preventDefault();
-            return false;
+            if (successPage.style.display !== 'none') {
+                e.preventDefault();
+                return false;
+            }
         });
 
         // 禁用拖拽
         document.addEventListener('dragstart', function(e) {
-            e.preventDefault();
-            return false;
+            if (successPage.style.display !== 'none') {
+                e.preventDefault();
+                return false;
+            }
         });
 
-        // 禁用复制
+        // 禁用复制（只在成功页面生效）
         document.addEventListener('copy', function(e) {
-            e.preventDefault();
-            return false;
+            if (successPage.style.display !== 'none') {
+                e.preventDefault();
+                return false;
+            }
         });
 
-        // 禁用剪切
+        // 禁用剪切（只在成功页面生效）
         document.addEventListener('cut', function(e) {
-            e.preventDefault();
-            return false;
+            if (successPage.style.display !== 'none') {
+                e.preventDefault();
+                return false;
+            }
         });
 
         // 检测窗口尺寸变化（开发者工具打开会改变窗口尺寸）
