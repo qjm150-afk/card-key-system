@@ -515,6 +515,90 @@ def get_client_ip(request) -> str:
     return ""  # 返回空字符串
 
 
+# ==================== 预览转化模式 API ====================
+
+@app.get("/api/preview/{card_type_id}")
+async def get_card_type_preview(card_type_id: int):
+    """
+    获取卡种预览信息（用于预览转化模式）
+    - 返回预览图片URL和启用状态
+    - 用于未验证用户查看模糊预览
+    """
+    try:
+        client = get_supabase_client()
+        
+        response = client.table('card_types').select('id, name, preview_image, preview_enabled, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = response.data[0]
+        
+        return {
+            "success": True,
+            "data": {
+                "id": card_type['id'],
+                "name": card_type['name'],
+                "preview_image": card_type.get('preview_image'),
+                "preview_enabled": card_type.get('preview_enabled', False)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取卡种预览信息失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/preview/by-link/{link_name}")
+async def get_card_type_preview_by_link(link_name: str):
+    """
+    根据链接名称获取卡种预览信息
+    - 用于从飞书链接名称反向查找卡种
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 先查找卡密获取卡种ID
+        card_response = client.table('card_keys_table').select('card_type_id').eq('link_name', link_name).execute()
+        
+        if not card_response.data:
+            return {"success": False, "msg": "未找到对应卡种"}
+        
+        # 过滤掉没有卡种ID的记录
+        card_with_type = None
+        for card in card_response.data:
+            if card.get('card_type_id'):
+                card_with_type = card
+                break
+        
+        if not card_with_type:
+            return {"success": False, "msg": "未找到对应卡种"}
+        
+        card_type_id = card_with_type['card_type_id']
+        
+        # 获取卡种信息
+        response = client.table('card_types').select('id, name, preview_image, preview_enabled, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = response.data[0]
+        
+        return {
+            "success": True,
+            "data": {
+                "id": card_type['id'],
+                "name": card_type['name'],
+                "preview_image": card_type.get('preview_image'),
+                "preview_enabled": card_type.get('preview_enabled', False)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"根据链接名称获取卡种预览信息失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 # ==================== 验证 API ====================
 
 @app.post("/api/validate", response_model=ValidateResponse)
@@ -2502,8 +2586,11 @@ async def export_cards(
         field_config = {
             'key_value': {'db_field': 'key_value', 'label': '卡密值'},
             'status': {'db_field': 'status', 'label': '激活状态'},
+            'card_type_id': {'db_field': 'card_type_id', 'label': '卡种ID'},
             'devices': {'db_field': 'devices', 'label': '绑定设备'},
             'expire_at': {'db_field': 'expire_at', 'label': '过期时间'},
+            'expire_after_days': {'db_field': 'expire_after_days', 'label': '有效天数'},
+            'activated_at': {'db_field': 'activated_at', 'label': '激活时间'},
             'user_note': {'db_field': 'user_note', 'label': '备注'},
             'link_name': {'db_field': 'link_name', 'label': '链接名称'},
             'bstudio_create_time': {'db_field': 'bstudio_create_time', 'label': '创建时间'},
@@ -3046,7 +3133,7 @@ async def download_cards_import_template():
         
         # 模板表头（与列表字段顺序一致）
         headers = [
-            '卡密值', '激活状态', '过期时间', '备注', '链接名称',
+            '卡密值', '激活状态', '卡种ID', '过期时间', '有效天数', '备注', '链接名称',
             '销售状态', '销售渠道', '订单号', 
             '访问密码', '飞书链接', '最大设备数'
         ]
@@ -3056,7 +3143,9 @@ async def download_cards_import_template():
         writer.writerow([
             'CSS-XXXX-XXXX-XXXX',  # 卡密值（必填）
             '有效',  # 激活状态：有效/已停用
+            '1',  # 卡种ID（可选）
             '2026-12-31 23:59:59',  # 过期时间
+            '',  # 有效天数（激活后有效天数，与过期时间二选一）
             '测试备注',  # 备注
             '春招信息表',  # 链接名称
             '未售出',  # 销售状态：未售出/已售出/已退款/有纠纷
@@ -3067,11 +3156,13 @@ async def download_cards_import_template():
             '5'  # 最大设备数
         ])
         
-        # 示例数据行2
+        # 示例数据行2（使用有效天数过期）
         writer.writerow([
             'CSS-YYYY-YYYY-YYYY',
             '有效',
+            '2',
             '',
+            '30',  # 激活后30天过期
             '',
             '秋招信息表',
             '已售出',
@@ -3153,7 +3244,10 @@ async def import_cards(file: UploadFile = File(...)):
             '销售渠道': 'sales_channel',
             '过期时间': 'expire_at',
             '最大设备数': 'max_devices',
-            '备注': 'user_note'
+            '备注': 'user_note',
+            '卡种ID': 'card_type_id',
+            '卡种': 'card_type_id',
+            '有效天数': 'expire_after_days'
         }
         
         # 状态映射

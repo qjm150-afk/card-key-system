@@ -43,6 +43,143 @@
             to { transform: rotate(360deg); }
         }
 
+        /* 预览模式样式 */
+        body.preview-mode {
+            display: block;
+            padding: 0;
+            margin: 0;
+        }
+        
+        #previewPage {
+            display: none;
+            min-height: 100vh;
+            position: relative;
+        }
+        
+        body.preview-mode #previewPage {
+            display: block;
+        }
+        
+        .preview-container {
+            position: relative;
+            width: 100%;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        .preview-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            filter: blur(20px);
+            transform: scale(1.1);
+        }
+        
+        .preview-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(8px);
+        }
+        
+        .preview-content {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+        
+        .preview-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 24px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            padding: 48px 32px;
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+        
+        .preview-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 16px;
+        }
+        
+        .preview-hint {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        
+        .preview-input-wrapper {
+            margin-bottom: 16px;
+        }
+        
+        .preview-input {
+            width: 100%;
+            padding: 14px 18px;
+            font-size: 16px;
+            border: 2px solid #E5E5E5;
+            border-radius: 12px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            text-align: center;
+            letter-spacing: 1px;
+        }
+        
+        .preview-input:focus {
+            border-color: #FF8A5C;
+            box-shadow: 0 0 0 3px rgba(255, 138, 92, 0.15);
+        }
+        
+        .preview-btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #FF8A5C 0%, #E67345 100%);
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .preview-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(255, 138, 92, 0.3);
+        }
+        
+        .preview-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .preview-error {
+            margin-top: 16px;
+            padding: 12px;
+            background: #FFF0F0;
+            border: 1px solid #FFCCCC;
+            border-radius: 8px;
+            color: #CC3333;
+            font-size: 14px;
+            display: none;
+        }
+
         /* 验证页面居中 */
         body.validate-mode {
             display: flex;
@@ -825,6 +962,25 @@
     <!-- 加载动画 -->
     <div id="loadingSpinner" class="loading-spinner"></div>
 
+    <!-- 预览页面（预览转化模式） -->
+    <div id="previewPage">
+        <div class="preview-container">
+            <div class="preview-background" id="previewBackground"></div>
+            <div class="preview-overlay"></div>
+            <div class="preview-content">
+                <div class="preview-card">
+                    <h2 class="preview-title" id="previewTitle">内容已加密</h2>
+                    <p class="preview-hint" id="previewHint">此内容需要卡密验证后才能查看完整版本</p>
+                    <form id="previewForm" class="preview-input-wrapper">
+                        <input type="text" class="preview-input" id="previewCardKey" placeholder="请输入卡密" autocomplete="off">
+                    </form>
+                    <button class="preview-btn" id="previewSubmitBtn" onclick="submitPreviewKey()">验证并查看</button>
+                    <div class="preview-error" id="previewError"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 验证页面 -->
     <div id="validatePage" class="container">
         <div class="card">
@@ -957,6 +1113,7 @@
         const errorText = document.getElementById('errorText');
         const validatePage = document.getElementById('validatePage');
         const successPage = document.getElementById('successPage');
+        const previewPage = document.getElementById('previewPage');
         const feishuFrame = document.getElementById('feishuFrame');
         const passwordInfo = document.getElementById('passwordInfo');
         const passwordValue = document.getElementById('passwordValue');
@@ -1689,8 +1846,100 @@
             document.body.classList.remove('loading-mode');
             document.body.classList.add('validate-mode');
             document.body.classList.remove('success-mode');
+            document.body.classList.remove('preview-mode');
             validatePage.style.display = 'flex';
             successPage.style.display = 'none';
+            previewPage.style.display = 'none';
+        }
+        
+        // 显示预览页面
+        function showPreview(previewData) {
+            document.getElementById('loadingSpinner').style.display = 'none';
+            document.body.classList.remove('loading-mode');
+            document.body.classList.add('preview-mode');
+            document.body.classList.remove('validate-mode');
+            document.body.classList.remove('success-mode');
+            
+            // 设置预览背景图
+            if (previewData.preview_image) {
+                document.getElementById('previewBackground').style.backgroundImage = `url(${previewData.preview_image})`;
+            }
+            
+            // 设置标题和提示
+            document.getElementById('previewTitle').textContent = previewData.name || '内容已加密';
+            document.getElementById('previewHint').textContent = '此内容需要卡密验证后才能查看完整版本';
+            
+            validatePage.style.display = 'none';
+            successPage.style.display = 'none';
+            previewPage.style.display = 'block';
+        }
+        
+        // 预览模式提交卡密
+        async function submitPreviewKey() {
+            const cardKey = document.getElementById('previewCardKey').value.trim().toUpperCase();
+            const errorEl = document.getElementById('previewError');
+            const submitBtn = document.getElementById('previewSubmitBtn');
+            
+            if (!cardKey) {
+                errorEl.textContent = '请输入卡密';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            // 禁用按钮
+            submitBtn.disabled = true;
+            submitBtn.textContent = '验证中...';
+            errorEl.style.display = 'none';
+            
+            try {
+                const result = await validateCardKey(cardKey, true);
+                if (result.success) {
+                    // 验证成功，showSuccess会在validateCardKey中调用
+                } else {
+                    errorEl.textContent = result.msg || '验证失败';
+                    errorEl.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '验证并查看';
+                }
+            } catch (err) {
+                errorEl.textContent = '验证失败，请稍后重试';
+                errorEl.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '验证并查看';
+            }
+        }
+        
+        // 检查URL参数中的预览模式
+        function checkPreviewMode() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const cardTypeId = urlParams.get('card_type_id');
+            const linkName = urlParams.get('link_name') || urlParams.get('name');
+            
+            if (cardTypeId) {
+                // 通过卡种ID获取预览信息
+                return fetch(`/api/preview/${cardTypeId}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.data.preview_enabled) {
+                            return data.data;
+                        }
+                        return null;
+                    })
+                    .catch(() => null);
+            } else if (linkName) {
+                // 通过链接名称获取预览信息
+                return fetch(`/api/preview/by-link/${encodeURIComponent(linkName)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.success && data.data.preview_enabled) {
+                            return data.data;
+                        }
+                        return null;
+                    })
+                    .catch(() => null);
+            }
+            
+            return Promise.resolve(null);
         }
 
         // 自动格式化输入（仅对 CSS 开头的卡密格式化）
@@ -1830,6 +2079,13 @@
 
         // 页面加载时检查本地会话
         async function checkSession() {
+            // 首先检查是否有预览模式参数
+            const previewData = await checkPreviewMode();
+            if (previewData) {
+                showPreview(previewData);
+                return;
+            }
+            
             const session = getLocalSession();
             
             if (session) {
