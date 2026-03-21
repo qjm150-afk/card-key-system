@@ -1387,6 +1387,7 @@ async def get_card_type_cards(
     search: Optional[str] = None,
     status: Optional[int] = None,
     sale_status: Optional[str] = None,
+    activate_status: Optional[str] = None,  # valid, activated, disabled
     expire_filter: Optional[str] = None  # expired, valid, permanent
 ):
     """获取卡种下的卡券列表"""
@@ -1408,7 +1409,23 @@ async def get_card_type_cards(
             search = search.strip()
             query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
         
-        # 状态筛选
+        # 激活状态筛选
+        if activate_status:
+            if activate_status == 'disabled':
+                # 已停用：status=0 或 退款或有纠纷
+                query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
+            elif activate_status == 'valid':
+                # 有效：status=1 且 未使用过且销售状态正常
+                query = query.eq('status', 1)
+                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.not_().in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'activated':
+                # 已激活：status=1 且 已使用过且销售状态正常
+                query = query.eq('status', 1)
+                query = query.not_().in_('sale_status', ['refunded', 'disputed'])
+                query = query.or_("devices.neq.[],used_count.gt.0")
+        
+        # 状态筛选（兼容旧参数）
         if status is not None:
             query = query.eq('status', status)
         
@@ -1583,6 +1600,227 @@ async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV
         
     except Exception as e:
         logger.error(f"批量生成卡密失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+class SimpleGenerateRequest(BaseModel):
+    """简单生成卡券请求"""
+    count: int = 10
+
+
+@app.post("/api/admin/card-types/{type_id}/generate-cards")
+async def simple_generate_cards_for_type(type_id: int, req: SimpleGenerateRequest):
+    """在卡种下简单生成卡券（使用卡种默认配置）"""
+    try:
+        client = get_supabase_client()
+        
+        # 验证卡种存在
+        type_response = client.table('card_types').select('*').eq('id', type_id).is_('deleted_at', 'null').execute()
+        if not type_response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = type_response.data[0]
+        
+        if req.count < 1 or req.count > 1000:
+            return {"success": False, "msg": "生成数量必须在 1-1000 之间"}
+        
+        # 批量生成卡密
+        cards = []
+        generated_keys = set()
+        
+        for _ in range(req.count):
+            while True:
+                key = generate_card_key("CSS")
+                if key not in generated_keys:
+                    generated_keys.add(key)
+                    break
+            
+            card_data = {
+                "key_value": key,
+                "card_type_id": type_id,
+                "status": 1,
+                "sys_platform": "卡密系统",
+                "uuid": str(uuid.uuid4()),
+                "bstudio_create_time": datetime.now().isoformat(),
+                "max_devices": 5,
+                "used_count": 0,
+                "devices": "[]",
+                "sale_status": "unsold"
+            }
+            cards.append(card_data)
+        
+        # 批量插入
+        response = client.table('card_keys_table').insert(cards).execute()
+        generated_count = len(response.data)
+        
+        return {
+            "success": True,
+            "data": {"created_count": generated_count},
+            "msg": f"成功生成 {generated_count} 张卡券"
+        }
+        
+    except Exception as e:
+        logger.error(f"生成卡券失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/card-types/{type_id}/export")
+async def export_card_type_cards(
+    type_id: int,
+    format: str = Query("xlsx", description="导出格式: xlsx 或 csv"),
+    search: Optional[str] = None,
+    activate_status: Optional[str] = None,
+    sale_status: Optional[str] = None
+):
+    """导出卡种下的卡券"""
+    try:
+        client = get_supabase_client()
+        
+        # 验证卡种存在
+        type_response = client.table('card_types').select('name').eq('id', type_id).is_('deleted_at', 'null').execute()
+        if not type_response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = type_response.data[0]
+        
+        # 构建查询
+        query = client.table('card_keys_table').select('*').eq('card_type_id', type_id)
+        
+        # 搜索
+        if search:
+            search = search.strip()
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+        
+        # 激活状态筛选
+        if activate_status:
+            if activate_status == 'disabled':
+                query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
+            elif activate_status == 'valid':
+                query = query.eq('status', 1)
+                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.not_().in_('sale_status', ['refunded', 'disputed'])
+            elif activate_status == 'activated':
+                query = query.eq('status', 1)
+                query = query.not_().in_('sale_status', ['refunded', 'disputed'])
+                query = query.or_("devices.neq.[],used_count.gt.0")
+        
+        # 销售状态筛选
+        if sale_status:
+            query = query.eq('sale_status', sale_status)
+        
+        response = query.order('id', desc=True).execute()
+        cards = response.data or []
+        
+        if not cards:
+            return {"success": False, "msg": "没有可导出的数据"}
+        
+        # 生成Excel文件
+        import io
+        from openpyxl import Workbook
+        
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "卡券列表"
+        
+        # 表头
+        headers = ["卡密", "状态", "销售状态", "过期时间", "设备数", "创建时间"]
+        ws.append(headers)
+        
+        # 数据行
+        for card in cards:
+            devices = json.loads(card.get('devices', '[]'))
+            status_text = "有效" if card.get('status') == 1 else "已停用"
+            sale_status_map = {'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷'}
+            sale_status_text = sale_status_map.get(card.get('sale_status'), card.get('sale_status', '-'))
+            
+            # 过期时间
+            expire_text = "-"
+            if card.get('expire_at'):
+                expire_text = card['expire_at'].split('T')[0] if 'T' in card['expire_at'] else card['expire_at']
+            elif card.get('expire_after_days'):
+                if card.get('activated_at'):
+                    expire_text = f"激活后{card['expire_after_days']}天"
+                else:
+                    expire_text = f"激活后{card['expire_after_days']}天有效"
+            else:
+                expire_text = "永久"
+            
+            create_time = card.get('bstudio_create_time', '')
+            if 'T' in create_time:
+                create_time = create_time.replace('T', ' ').split('.')[0]
+            
+            ws.append([
+                card.get('key_value', ''),
+                status_text,
+                sale_status_text,
+                expire_text,
+                len(devices),
+                create_time
+            ])
+        
+        # 保存到内存
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        
+        # 返回文件
+        from fastapi.responses import StreamingResponse
+        filename = f"card_type_{type_id}_cards.xlsx"
+        
+        return StreamingResponse(
+            output,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+        
+    except Exception as e:
+        logger.error(f"导出卡券失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+class BatchDeleteRequest(BaseModel):
+    """批量删除请求"""
+    ids: List[int]
+
+
+@app.post("/api/admin/cards/batch-delete")
+async def batch_delete_cards(request: BatchDeleteRequest):
+    """批量删除卡券"""
+    try:
+        client = get_supabase_client()
+        
+        if not request.ids or len(request.ids) == 0:
+            return {"success": False, "msg": "请选择要删除的卡券"}
+        
+        # 先删除相关的访问日志
+        try:
+            client.table('access_logs').delete().in_('card_key_id', request.ids).execute()
+        except Exception as e:
+            logger.warning(f"删除关联日志失败（不影响主操作）: {str(e)}")
+        
+        # 删除卡券
+        response = client.table('card_keys_table').delete().in_('id', request.ids).execute()
+        deleted_count = len(response.data) if response.data else len(request.ids)
+        
+        # 记录操作日志
+        safe_log_operation(client, {
+            "operator": "admin",
+            "operation_type": "batch_delete",
+            "filter_conditions": {"ids": request.ids},
+            "affected_count": deleted_count,
+            "affected_ids": request.ids[:100],
+            "update_fields": {},
+            "remark": f"批量删除 {deleted_count} 张卡券"
+        })
+        
+        return {
+            "success": True,
+            "data": {"deleted_count": deleted_count},
+            "msg": f"成功删除 {deleted_count} 张卡券"
+        }
+        
+    except Exception as e:
+        logger.error(f"批量删除失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
