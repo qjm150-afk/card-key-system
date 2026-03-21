@@ -1946,6 +1946,7 @@ async def get_filter_options(
     device_filter: Optional[str] = None,
     expire_days: Optional[str] = None,
     sales_channel: Optional[str] = None,
+    card_type_id: Optional[int] = None,
     exclude_field: Optional[str] = None
 ):
     """
@@ -2034,6 +2035,9 @@ async def get_filter_options(
                     query = query.or_('sales_channel.is.null,sales_channel.eq.')
                 else:
                     query = query.eq('sales_channel', sales_channel)
+            
+            if card_type_id is not None and exclude != 'card_type_id':
+                query = query.eq('card_type_id', card_type_id)
             
             return query
         
@@ -2132,6 +2136,40 @@ async def get_filter_options(
         # 永久有效（始终显示）
         expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
         
+        # 6. 卡种统计（排除 card_type_id 筛选）
+        # 先获取所有卡种
+        card_types_response = client.table('card_types').select('id, name').is_('deleted_at', 'null').execute()
+        card_types_map = {ct['id']: ct['name'] for ct in card_types_response.data}
+        
+        # 统计每个卡种下的卡密数量
+        card_type_response = build_query(exclude='card_type_id').select('card_type_id').execute()
+        card_type_count = {}
+        no_card_type_count = 0
+        for item in card_type_response.data:
+            ct_id = item.get('card_type_id')
+            if ct_id:
+                card_type_count[ct_id] = card_type_count.get(ct_id, 0) + 1
+            else:
+                no_card_type_count += 1
+        
+        # 构建卡种列表
+        card_type_list = []
+        for ct_id, ct_name in card_types_map.items():
+            card_type_list.append({
+                "id": ct_id,
+                "name": ct_name,
+                "count": card_type_count.get(ct_id, 0)
+            })
+        card_type_list.sort(key=lambda x: x['count'], reverse=True)
+        
+        # 添加未分配卡种的选项
+        if no_card_type_count > 0:
+            card_type_list.append({
+                "id": None,
+                "name": "未分配卡种",
+                "count": no_card_type_count
+            })
+        
         return {
             "success": True,
             "data": {
@@ -2140,6 +2178,7 @@ async def get_filter_options(
                 "feishu_url_list": feishu_url_list,
                 "sales_channel_list": sales_channel_list,
                 "expire_groups_list": expire_groups_list,
+                "card_type_list": card_type_list,
                 "total": len(status_response.data)
             }
         }

@@ -2064,6 +2064,9 @@
                     <select class="filter-select" id="salesChannelFilter" onchange="searchCards()">
                         <option value="">销售渠道</option>
                     </select>
+                    <select class="filter-select" id="cardTypeFilter" onchange="searchCards()">
+                        <option value="">卡种</option>
+                    </select>
                     <select class="filter-select" id="deviceFilter" onchange="searchCards()">
                         <option value="">绑定设备</option>
                         <option value="0">0 台</option>
@@ -2708,8 +2711,32 @@
                         </div>
                     </div>
                     <div class="form-group">
+                        <label>卡种</label>
+                        <select class="form-input" id="generateCardType">
+                            <option value="">不指定卡种</option>
+                        </select>
+                        <small class="input-hint" style="color: #8B7355;">选择卡种后，生成的卡密将归属到该卡种下</small>
+                    </div>
+                    <div class="form-group">
+                        <label>过期方式</label>
+                        <select class="form-input" id="generateExpireType" onchange="toggleExpireFields()">
+                            <option value="fixed">固定日期</option>
+                            <option value="relative">激活后有效天数</option>
+                            <option value="permanent">永久有效</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="expireDateGroup">
                         <label>过期时间</label>
                         <input type="datetime-local" class="form-input" id="generateExpireAt">
+                    </div>
+                    <div class="form-group" id="expireDaysGroup" style="display: none;">
+                        <label>有效天数</label>
+                        <input type="number" class="form-input" id="generateExpireDays" value="30" min="1" max="3650" placeholder="输入天数">
+                        <small class="input-hint" style="color: #8B7355;">用户首次验证成功后开始计算有效期</small>
+                    </div>
+                    <div class="form-group">
+                        <label>最大设备数</label>
+                        <input type="number" class="form-input" id="generateMaxDevices" value="5" min="1" max="100">
                     </div>
                     <div class="form-group">
                         <label>销售渠道</label>
@@ -4037,6 +4064,7 @@
             const createdStart = document.getElementById('createdStart').value;
             const createdEnd = document.getElementById('createdEnd').value;
             const salesChannel = document.getElementById('salesChannelFilter').value;
+            const cardTypeFilter = document.getElementById('cardTypeFilter').value;
             
             const params = new URLSearchParams({
                 page: currentPage,
@@ -4051,6 +4079,7 @@
             if (createdStart) params.append('created_start', createdStart);
             if (createdEnd) params.append('created_end', createdEnd);
             if (salesChannel) params.append('sales_channel', salesChannel);
+            if (cardTypeFilter) params.append('card_type_id', cardTypeFilter);
 
             try {
                 const response = await fetch(`/api/admin/cards?${params}`);
@@ -4722,8 +4751,53 @@
             document.getElementById('batchModalOverlay').classList.add('active');
             // 重置提示文字显示
             updateGenerateCountHint();
+            // 重置过期方式为固定日期
+            document.getElementById('generateExpireType').value = 'fixed';
+            toggleExpireFields();
             // 加载销售渠道列表
             loadSalesChannelDatalist();
+            // 加载卡种选项
+            loadCardTypeOptions();
+        }
+        
+        // 切换过期方式字段显示
+        function toggleExpireFields() {
+            const expireType = document.getElementById('generateExpireType').value;
+            const expireDateGroup = document.getElementById('expireDateGroup');
+            const expireDaysGroup = document.getElementById('expireDaysGroup');
+            
+            if (expireType === 'fixed') {
+                expireDateGroup.style.display = 'block';
+                expireDaysGroup.style.display = 'none';
+            } else if (expireType === 'relative') {
+                expireDateGroup.style.display = 'none';
+                expireDaysGroup.style.display = 'block';
+            } else {
+                // permanent 永久有效
+                expireDateGroup.style.display = 'none';
+                expireDaysGroup.style.display = 'none';
+            }
+        }
+        
+        // 加载卡种选项
+        async function loadCardTypeOptions() {
+            try {
+                const response = await fetch('/api/admin/card-types/options');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('generateCardType');
+                    select.innerHTML = '<option value="">不指定卡种</option>';
+                    result.data.forEach(type => {
+                        const option = document.createElement('option');
+                        option.value = type.id;
+                        option.textContent = type.name;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载卡种选项失败:', error);
+            }
         }
 
         // 更新生成数量提示文字
@@ -5071,24 +5145,35 @@
             }
             
             const shouldExport = document.getElementById('generateAndExport').checked;
+            const cardTypeId = document.getElementById('generateCardType').value;
+            const expireType = document.getElementById('generateExpireType').value;
             
-            // 处理过期时间
-            const expireAtValue = document.getElementById('generateExpireAt').value;
-            let expireAt = null;
-            if (expireAtValue) {
-                expireAt = new Date(expireAtValue).toISOString();
-            }
-            
+            // 构建请求数据
             const data = {
                 count: parseInt(document.getElementById('generateCount').value) || 10,
                 prefix: document.getElementById('generatePrefix').value || 'CSS',
                 link_name: document.getElementById('generateLinkName').value,
                 feishu_url: document.getElementById('generateFeishuUrl').value,
                 feishu_password: document.getElementById('generateFeishuPassword').value,
-                expire_at: expireAt,
                 user_note: document.getElementById('generateNote').value,
-                sales_channel: document.getElementById('generateSalesChannel').value
+                sales_channel: document.getElementById('generateSalesChannel').value,
+                max_devices: parseInt(document.getElementById('generateMaxDevices').value) || 5
             };
+            
+            // 根据过期方式设置参数
+            if (expireType === 'fixed') {
+                const expireAtValue = document.getElementById('generateExpireAt').value;
+                if (expireAtValue) {
+                    data.expire_at = new Date(expireAtValue).toISOString();
+                }
+                data.expire_type = 'fixed';
+            } else if (expireType === 'relative') {
+                const expireDays = parseInt(document.getElementById('generateExpireDays').value) || 30;
+                data.expire_after_days = expireDays;
+                data.expire_type = 'relative';
+            } else {
+                data.expire_type = 'permanent';
+            }
 
             if (data.count < 1 || data.count > 1000) {
                 showToast('生成数量必须在 1-1000 之间', 'error');
@@ -5096,10 +5181,43 @@
             }
 
             try {
-                const response = await fetch('/api/admin/cards/batch-generate', {
+                let url, requestBody;
+                
+                if (cardTypeId) {
+                    // 使用新版 API（卡种下生成）
+                    url = `/api/admin/card-types/${cardTypeId}/cards/batch-generate`;
+                    requestBody = {
+                        count: data.count,
+                        prefix: data.prefix,
+                        expire_type: data.expire_type,
+                        expire_at: data.expire_at || null,
+                        expire_after_days: data.expire_after_days || null,
+                        max_devices: data.max_devices,
+                        link_name: data.link_name,
+                        feishu_url: data.feishu_url,
+                        feishu_password: data.feishu_password,
+                        user_note: data.user_note,
+                        sales_channel: data.sales_channel
+                    };
+                } else {
+                    // 使用旧版 API（兼容）
+                    url = '/api/admin/cards/batch-generate';
+                    requestBody = {
+                        count: data.count,
+                        prefix: data.prefix,
+                        link_name: data.link_name,
+                        feishu_url: data.feishu_url,
+                        feishu_password: data.feishu_password,
+                        expire_at: data.expire_at || null,
+                        user_note: data.user_note,
+                        sales_channel: data.sales_channel
+                    };
+                }
+                
+                const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    body: JSON.stringify(requestBody)
                 });
                 
                 const result = await response.json();
@@ -5111,10 +5229,13 @@
                     loadStats();
                     // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
                     loadSalesChannelDatalist();
+                    // 刷新筛选选项
+                    loadFilterOptions(null);
                     
                     // 如果勾选了导出，自动下载 CSV（导出所有字段）
-                    if (shouldExport && result.data && result.data.length > 0) {
-                        const ids = result.data.map(card => card.id).join(',');
+                    const generatedCards = result.data;
+                    if (shouldExport && generatedCards && generatedCards.length > 0) {
+                        const ids = generatedCards.map(card => card.id).join(',');
                         // 导出所有字段，适配阿奇索发货
                         const allFields = 'key_value,feishu_password,link_name,expire_at,user_note,sale_status,sales_channel,order_id,status,bstudio_create_time';
                         downloadExportFile(ids, allFields);
@@ -6029,6 +6150,7 @@
                 const deviceFilter = document.getElementById('deviceFilter')?.value || '';
                 const expireDays = document.getElementById('expireDaysFilter')?.value || '';
                 const salesChannel = document.getElementById('salesChannelFilter')?.value || '';
+                const cardTypeFilter = document.getElementById('cardTypeFilter')?.value || '';
                 
                 const params = new URLSearchParams();
                 if (status) params.append('status', status);
@@ -6040,6 +6162,7 @@
                 if (deviceFilter) params.append('device_filter', deviceFilter);
                 if (expireDays) params.append('expire_days', expireDays);
                 if (salesChannel) params.append('sales_channel', salesChannel);
+                if (cardTypeFilter) params.append('card_type_id', cardTypeFilter);
                 if (excludeField) params.append('exclude_field', excludeField);
                 
                 const response = await fetch(`/api/admin/cards/filter-options?${params}`);
@@ -6123,6 +6246,11 @@
             // 更新销售渠道 select 下拉框
             if (data.sales_channel_list) {
                 updateSelectDropdown('salesChannelFilter', data.sales_channel_list, 'channel', 'channel', '销售渠道');
+            }
+            
+            // 更新卡种 select 下拉框
+            if (data.card_type_list) {
+                updateSelectDropdown('cardTypeFilter', data.card_type_list, 'id', 'name', '卡种');
             }
             
             // 更新过期时间 select 下拉框
