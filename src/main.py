@@ -243,6 +243,56 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+# ==================== 卡种管理 API 模型 ====================
+
+class CardTypeCreate(BaseModel):
+    """创建卡种"""
+    name: str
+    preview_image: Optional[str] = None
+    preview_enabled: bool = False
+
+
+class CardTypeUpdate(BaseModel):
+    """更新卡种"""
+    name: Optional[str] = None
+    preview_image: Optional[str] = None
+    preview_enabled: Optional[bool] = None
+    status: Optional[int] = None
+
+
+class CardKeyCreateV2(BaseModel):
+    """创建卡密（新版，支持卡种和过期方式）"""
+    key_value: str
+    card_type_id: Optional[int] = None  # 卡种ID
+    status: int = 1
+    user_note: Optional[str] = ""
+    feishu_url: Optional[str] = ""
+    feishu_password: Optional[str] = ""
+    link_name: Optional[str] = ""
+    expire_at: Optional[str] = None  # 固定过期时间
+    expire_after_days: Optional[int] = None  # 激活后有效天数
+    max_devices: int = 5
+    sale_status: Optional[str] = "unsold"
+    order_id: Optional[str] = ""
+    sales_channel: Optional[str] = ""
+
+
+class BatchGenerateRequestV2(BaseModel):
+    """批量生成卡密请求（新版，支持卡种和过期方式）"""
+    count: int  # 生成数量
+    prefix: str = "CSS"  # 卡密前缀
+    card_type_id: Optional[int] = None  # 卡种ID（可选）
+    feishu_url: str = ""  # 飞书链接
+    feishu_password: str = ""  # 飞书密码
+    link_name: str = ""  # 链接名称
+    expire_type: str = "fixed"  # 过期类型：fixed=固定日期, relative=按激活天数, permanent=永久
+    expire_at: Optional[str] = None  # 过期时间（expire_type=fixed时必填）
+    expire_after_days: Optional[int] = None  # 激活后有效天数（expire_type=relative时必填）
+    max_devices: int = 5  # 最大设备数
+    user_note: str = ""  # 备注
+    sales_channel: str = ""  # 销售渠道
+
+
 # ==================== 管理员认证 ====================
 
 # 管理员密码（从环境变量读取，默认为 QJM150）
@@ -523,32 +573,63 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             log_access(client, card_id, card_key, False, "卡密已失效", device_id, sales_channel, is_first_access)
             return ValidateResponse(can_access=False, msg="卡密已失效")
 
-        # 检查过期时间
+        # 检查过期时间（支持三种过期方式）
         expire_at = card_data.get('expire_at')
+        expire_after_days = card_data.get('expire_after_days')
+        activated_at = card_data.get('activated_at')
+        
+        # 判断是否已过期
+        is_expired = False
+        expire_reason = ""
+        
+        now = datetime.now()
+        
+        # 方式1: 固定日期过期
         if expire_at:
-            # 处理不同的时间格式（可能是 datetime 对象或字符串）
             try:
-                # 如果已经是 datetime 对象，直接使用
                 if hasattr(expire_at, 'tzinfo'):
                     expire_time = expire_at
-                elif 'T' in expire_at:
-                    # ISO 格式字符串
-                    expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
-                elif '+' in expire_at or expire_at.count('-') > 2:
-                    # 已包含时区信息 (如 2027-07-16 18:01:00+08:00)
-                    expire_time = datetime.fromisoformat(expire_at)
+                elif 'T' in str(expire_at):
+                    expire_time = datetime.fromisoformat(str(expire_at).replace('Z', '+00:00'))
+                elif '+' in str(expire_at) or str(expire_at).count('-') > 2:
+                    expire_time = datetime.fromisoformat(str(expire_at))
                 else:
-                    # 无时区信息，假设为本地时间
-                    expire_time = datetime.fromisoformat(expire_at)
+                    expire_time = datetime.fromisoformat(str(expire_at))
                     expire_time = expire_time.replace(tzinfo=None)
                 
-                # 比较时间
-                now = datetime.now(expire_time.tzinfo) if expire_time.tzinfo else datetime.now()
-                if now > expire_time:
-                    log_access(client, card_id, card_key, False, "卡密已过期", device_id, sales_channel, is_first_access)
-                    return ValidateResponse(can_access=False, msg="卡密已过期")
+                compare_now = datetime.now(expire_time.tzinfo) if expire_time.tzinfo else now
+                if compare_now > expire_time:
+                    is_expired = True
+                    expire_reason = "卡密已过期"
             except Exception as e:
                 logger.warning(f"[Validate] 解析过期时间失败: {expire_at}, 错误: {str(e)}")
+        
+        # 方式2: 按激活天数过期
+        elif expire_after_days and activated_at:
+            try:
+                if hasattr(activated_at, 'tzinfo'):
+                    activated_time = activated_at
+                elif 'T' in str(activated_at):
+                    activated_time = datetime.fromisoformat(str(activated_at).replace('Z', '+00:00'))
+                else:
+                    activated_time = datetime.fromisoformat(str(activated_at))
+                    activated_time = activated_time.replace(tzinfo=None)
+                
+                compare_now = datetime.now(activated_time.tzinfo) if activated_time.tzinfo else now
+                expire_time = activated_time + timedelta(days=expire_after_days)
+                
+                if compare_now > expire_time:
+                    is_expired = True
+                    expire_reason = f"卡密已过期（激活后{expire_after_days}天有效）"
+            except Exception as e:
+                logger.warning(f"[Validate] 解析激活时间失败: {activated_at}, 错误: {str(e)}")
+        
+        # 方式3: 永久有效（expire_at为空且expire_after_days为空）
+        # 无需处理，is_expired保持False
+        
+        if is_expired:
+            log_access(client, card_id, card_key, False, expire_reason, device_id, sales_channel, is_first_access)
+            return ValidateResponse(can_access=False, msg=expire_reason)
 
         # 检查设备限制（最多5台设备）
         max_devices = card_data.get('max_devices', 5)
@@ -573,16 +654,25 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             # 添加新设备
             logger.info(f"[Validate] 添加新设备: {device_id}")
             bound_devices.append(device_id)
-            client.table('card_keys_table').update({
+            
+            # 更新数据：设备绑定 + 最后使用时间 + 首次激活时间（如果是首次激活且有按天过期设置）
+            update_data = {
                 "devices": json.dumps(bound_devices),
-                "last_used_at": datetime.now().isoformat()
-            }).eq('id', card_id).execute()
+                "last_used_at": now.isoformat()
+            }
+            
+            # 如果设置了按激活天数过期，且尚未设置激活时间，则设置激活时间
+            if expire_after_days and not activated_at:
+                update_data["activated_at"] = now.isoformat()
+                logger.info(f"[Validate] 设置首次激活时间，{expire_after_days}天后过期")
+            
+            client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
             logger.info(f"[Validate] 设备绑定成功")
         else:
             # 已绑定设备，只更新最后使用时间
             logger.info(f"[Validate] 更新最后使用时间")
             client.table('card_keys_table').update({
-                "last_used_at": datetime.now().isoformat()
+                "last_used_at": now.isoformat()
             }).eq('id', card_id).execute()
             logger.info(f"[Validate] 更新成功")
 
@@ -658,7 +748,8 @@ async def get_card_keys(
     expire_days: Optional[str] = None,
     sale_status: Optional[str] = None,
     device_filter: Optional[str] = None,
-    sales_channel: Optional[str] = None  # 销售渠道筛选
+    sales_channel: Optional[str] = None,  # 销售渠道筛选
+    card_type_id: Optional[int] = None  # 卡种筛选
 ):
     """获取卡密列表"""
     try:
@@ -669,6 +760,10 @@ async def get_card_keys(
             search = search.strip()
         
         query = client.table('card_keys_table').select('*', count='exact')
+        
+        # 卡种筛选
+        if card_type_id:
+            query = query.eq('card_type_id', card_type_id)
         
         # 搜索支持卡密、备注、订单号
         if search:
@@ -871,6 +966,539 @@ async def get_cards_by_ids(ids: str = Query(..., description="逗号分隔的ID�
         
     except Exception as e:
         logger.error(f"根据ID获取卡密失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+# ==================== 卡种管理 API ====================
+
+@app.get("/api/admin/card-types")
+async def get_card_types(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = None,
+    status: Optional[int] = None
+):
+    """获取卡种列表（包含统计信息）"""
+    try:
+        client = get_supabase_client()
+        
+        # 处理搜索参数
+        if search:
+            search = search.strip()
+        
+        # 构建查询
+        query = client.table('card_types').select('*', count='exact')
+        
+        # 排除已删除的
+        query = query.is_('deleted_at', 'null')
+        
+        if search:
+            query = query.ilike('name', f'%{search}%')
+        
+        if status is not None:
+            query = query.eq('status', status)
+        
+        # 分页
+        start = (page - 1) * page_size
+        end = start + page_size - 1
+        
+        response = query.range(start, end).order('id', desc=True).execute()
+        
+        # 获取每个卡种的统计信息
+        card_types = response.data or []
+        
+        for card_type in card_types:
+            type_id = card_type['id']
+            
+            # 统计该卡种下的卡券数量
+            stats_response = client.table('card_keys_table').select('id, status, devices, expire_at, expire_after_days, activated_at', count='exact').eq('card_type_id', type_id).execute()
+            
+            total_count = stats_response.count or 0
+            
+            # 计算已用数（有设备绑定的）
+            used_count = 0
+            expired_count = 0
+            now = datetime.now()
+            
+            for card in (stats_response.data or []):
+                # 统计已使用（有设备绑定）
+                devices = card.get('devices', '[]')
+                try:
+                    device_list = json.loads(devices) if devices else []
+                    if len(device_list) > 0:
+                        used_count += 1
+                except:
+                    pass
+                
+                # 统计已过期
+                expire_at = card.get('expire_at')
+                expire_after_days = card.get('expire_after_days')
+                activated_at = card.get('activated_at')
+                
+                if expire_at:
+                    # 固定日期过期
+                    try:
+                        if isinstance(expire_at, str):
+                            expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                        else:
+                            expire_time = expire_at
+                        if expire_time.tzinfo:
+                            expire_time = expire_time.replace(tzinfo=None)
+                        if expire_time < now:
+                            expired_count += 1
+                    except:
+                        pass
+                elif expire_after_days and activated_at:
+                    # 按激活天数过期
+                    try:
+                        if isinstance(activated_at, str):
+                            activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                        else:
+                            activated_time = activated_at
+                        if activated_time.tzinfo:
+                            activated_time = activated_time.replace(tzinfo=None)
+                        expire_time = activated_time + timedelta(days=expire_after_days)
+                        if expire_time < now:
+                            expired_count += 1
+                    except:
+                        pass
+            
+            card_type['total_count'] = total_count
+            card_type['used_count'] = used_count
+            card_type['stock_count'] = total_count - used_count  # 库存 = 总数 - 已用
+            card_type['expired_count'] = expired_count
+        
+        return {
+            "success": True,
+            "data": card_types,
+            "total": response.count or 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": ((response.count or 0) + page_size - 1) // page_size
+        }
+        
+    except Exception as e:
+        logger.error(f"获取卡种列表失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/card-types/options")
+async def get_card_types_options():
+    """获取卡种选项列表（用于下拉选择）"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取所有有效的卡种
+        response = client.table('card_types').select('id, name').eq('status', 1).is_('deleted_at', 'null').order('name').execute()
+        
+        return {"success": True, "data": response.data or []}
+        
+    except Exception as e:
+        logger.error(f"获取卡种选项失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/card-types")
+async def create_card_type(card_type: CardTypeCreate):
+    """创建卡种"""
+    try:
+        client = get_supabase_client()
+        
+        # 检查名称是否已存在
+        existing = client.table('card_types').select('id').eq('name', card_type.name).is_('deleted_at', 'null').execute()
+        if existing.data:
+            return {"success": False, "msg": "卡种名称已存在"}
+        
+        # 创建卡种
+        data = {
+            "name": card_type.name,
+            "preview_image": card_type.preview_image,
+            "preview_enabled": card_type.preview_enabled,
+            "status": 1,
+            "created_at": datetime.now().isoformat()
+        }
+        
+        response = client.table('card_types').insert(data).execute()
+        
+        logger.info(f"创建卡种成功: {card_type.name}")
+        
+        return {"success": True, "data": response.data[0], "msg": "创建成功"}
+        
+    except Exception as e:
+        logger.error(f"创建卡种失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/card-types/{type_id}")
+async def get_card_type(type_id: int):
+    """获取卡种详情"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取卡种信息
+        response = client.table('card_types').select('*').eq('id', type_id).is_('deleted_at', 'null').execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = response.data[0]
+        
+        # 获取该卡种下的卡券统计
+        stats_response = client.table('card_keys_table').select('id, status, devices, expire_at, expire_after_days, activated_at, sale_status', count='exact').eq('card_type_id', type_id).execute()
+        
+        total_count = stats_response.count or 0
+        used_count = 0
+        expired_count = 0
+        sold_count = 0
+        now = datetime.now()
+        
+        for card in (stats_response.data or []):
+            # 统计已使用
+            devices = card.get('devices', '[]')
+            try:
+                device_list = json.loads(devices) if devices else []
+                if len(device_list) > 0:
+                    used_count += 1
+            except:
+                pass
+            
+            # 统计已过期
+            expire_at = card.get('expire_at')
+            expire_after_days = card.get('expire_after_days')
+            activated_at = card.get('activated_at')
+            
+            if expire_at:
+                try:
+                    if isinstance(expire_at, str):
+                        expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    else:
+                        expire_time = expire_at
+                    if expire_time.tzinfo:
+                        expire_time = expire_time.replace(tzinfo=None)
+                    if expire_time < now:
+                        expired_count += 1
+                except:
+                    pass
+            elif expire_after_days and activated_at:
+                try:
+                    if isinstance(activated_at, str):
+                        activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                    else:
+                        activated_time = activated_at
+                    if activated_time.tzinfo:
+                        activated_time = activated_time.replace(tzinfo=None)
+                    expire_time = activated_time + timedelta(days=expire_after_days)
+                    if expire_time < now:
+                        expired_count += 1
+                except:
+                    pass
+            
+            # 统计已售出
+            if card.get('sale_status') == 'sold':
+                sold_count += 1
+        
+        card_type['stats'] = {
+            'total_count': total_count,
+            'used_count': used_count,
+            'stock_count': total_count - used_count,
+            'expired_count': expired_count,
+            'sold_count': sold_count
+        }
+        
+        return {"success": True, "data": card_type}
+        
+    except Exception as e:
+        logger.error(f"获取卡种详情失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.put("/api/admin/card-types/{type_id}")
+async def update_card_type(type_id: int, card_type: CardTypeUpdate):
+    """更新卡种"""
+    try:
+        client = get_supabase_client()
+        
+        # 检查卡种是否存在
+        existing = client.table('card_types').select('id').eq('id', type_id).is_('deleted_at', 'null').execute()
+        if not existing.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        # 构建更新数据
+        update_data = {}
+        if card_type.name is not None:
+            # 检查名称是否与其他卡种重复
+            name_check = client.table('card_types').select('id').eq('name', card_type.name).neq('id', type_id).is_('deleted_at', 'null').execute()
+            if name_check.data:
+                return {"success": False, "msg": "卡种名称已存在"}
+            update_data['name'] = card_type.name
+        
+        if card_type.preview_image is not None:
+            update_data['preview_image'] = card_type.preview_image
+        
+        if card_type.preview_enabled is not None:
+            update_data['preview_enabled'] = card_type.preview_enabled
+        
+        if card_type.status is not None:
+            update_data['status'] = card_type.status
+        
+        if not update_data:
+            return {"success": True, "msg": "没有需要更新的字段"}
+        
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        response = client.table('card_types').update(update_data).eq('id', type_id).execute()
+        
+        logger.info(f"更新卡种成功: ID={type_id}")
+        
+        return {"success": True, "data": response.data[0], "msg": "更新成功"}
+        
+    except Exception as e:
+        logger.error(f"更新卡种失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.delete("/api/admin/card-types/{type_id}")
+async def delete_card_type(type_id: int):
+    """删除卡种（软删除，同时删除关联卡券）"""
+    try:
+        client = get_supabase_client()
+        
+        # 检查卡种是否存在
+        existing = client.table('card_types').select('id, name').eq('id', type_id).is_('deleted_at', 'null').execute()
+        if not existing.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        type_name = existing.data[0]['name']
+        
+        # 获取该卡种下的卡券ID列表
+        cards_response = client.table('card_keys_table').select('id').eq('card_type_id', type_id).execute()
+        card_ids = [card['id'] for card in (cards_response.data or [])]
+        
+        # 删除关联的访问日志
+        if card_ids:
+            client.table('access_logs').delete().in_('card_key_id', card_ids).execute()
+            # 删除卡券
+            client.table('card_keys_table').delete().eq('card_type_id', type_id).execute()
+        
+        # 软删除卡种
+        client.table('card_types').update({
+            'deleted_at': datetime.now().isoformat(),
+            'status': 0
+        }).eq('id', type_id).execute()
+        
+        logger.info(f"删除卡种成功: {type_name}, 删除卡券数量: {len(card_ids)}")
+        
+        return {"success": True, "msg": f"已删除卡种及其关联的 {len(card_ids)} 张卡券"}
+        
+    except Exception as e:
+        logger.error(f"删除卡种失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/card-types/{type_id}/cards")
+async def get_card_type_cards(
+    type_id: int,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+    search: Optional[str] = None,
+    status: Optional[int] = None,
+    sale_status: Optional[str] = None,
+    expire_filter: Optional[str] = None  # expired, valid, permanent
+):
+    """获取卡种下的卡券列表"""
+    try:
+        client = get_supabase_client()
+        
+        # 检查卡种是否存在
+        type_response = client.table('card_types').select('id, name').eq('id', type_id).is_('deleted_at', 'null').execute()
+        if not type_response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = type_response.data[0]
+        
+        # 构建查询
+        query = client.table('card_keys_table').select('*', count='exact').eq('card_type_id', type_id)
+        
+        # 搜索
+        if search:
+            search = search.strip()
+            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
+        
+        # 状态筛选
+        if status is not None:
+            query = query.eq('status', status)
+        
+        # 销售状态筛选
+        if sale_status:
+            query = query.eq('sale_status', sale_status)
+        
+        # 过期筛选
+        now = datetime.now()
+        if expire_filter == 'expired':
+            # 已过期（需要在应用层处理）
+            pass
+        elif expire_filter == 'valid':
+            # 未过期
+            query = query.or_('expire_at.is.null,expire_at.gte.' + now.isoformat())
+        elif expire_filter == 'permanent':
+            # 永久有效
+            query = query.is_('expire_at', 'null')
+        
+        # 分页
+        start = (page - 1) * page_size
+        end = start + page_size - 1
+        
+        response = query.range(start, end).order('id', desc=True).execute()
+        
+        cards = response.data or []
+        
+        # 处理过期状态（包括按激活天数过期的情况）
+        for card in cards:
+            expire_at = card.get('expire_at')
+            expire_after_days = card.get('expire_after_days')
+            activated_at = card.get('activated_at')
+            
+            # 计算实际过期时间
+            actual_expire_at = None
+            is_expired = False
+            
+            if expire_at:
+                actual_expire_at = expire_at
+                try:
+                    if isinstance(expire_at, str):
+                        expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    else:
+                        expire_time = expire_at
+                    if expire_time.tzinfo:
+                        expire_time = expire_time.replace(tzinfo=None)
+                    is_expired = expire_time < now
+                except:
+                    pass
+            elif expire_after_days and activated_at:
+                try:
+                    if isinstance(activated_at, str):
+                        activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                    else:
+                        activated_time = activated_at
+                    if activated_time.tzinfo:
+                        activated_time = activated_time.replace(tzinfo=None)
+                    actual_expire_at = (activated_time + timedelta(days=expire_after_days)).isoformat()
+                    is_expired = activated_time + timedelta(days=expire_after_days) < now
+                except:
+                    pass
+            
+            card['actual_expire_at'] = actual_expire_at
+            card['is_expired'] = is_expired
+            
+            # 过期筛选
+            if expire_filter == 'expired' and not is_expired:
+                continue
+        
+        # 如果有过期筛选，需要在应用层重新过滤
+        if expire_filter == 'expired':
+            cards = [c for c in cards if c.get('is_expired')]
+        
+        return {
+            "success": True,
+            "data": cards,
+            "card_type": card_type,
+            "total": response.count or 0,
+            "page": page,
+            "page_size": page_size,
+            "total_pages": ((response.count or 0) + page_size - 1) // page_size
+        }
+        
+    except Exception as e:
+        logger.error(f"获取卡种卡券列表失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/card-types/{type_id}/cards/batch-generate")
+async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV2):
+    """在卡种下批量生成卡券"""
+    try:
+        # 验证卡种存在
+        client = get_supabase_client()
+        type_response = client.table('card_types').select('id').eq('id', type_id).is_('deleted_at', 'null').execute()
+        if not type_response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        if req.count < 1 or req.count > 1000:
+            return {"success": False, "msg": "生成数量必须在 1-1000 之间"}
+        
+        # 验证过期方式
+        if req.expire_type == 'fixed' and not req.expire_at:
+            return {"success": False, "msg": "固定日期过期必须指定过期时间"}
+        if req.expire_type == 'relative' and not req.expire_after_days:
+            return {"success": False, "msg": "按激活天数过期必须指定有效天数"}
+        
+        # 批量生成卡密
+        cards = []
+        generated_keys = set()
+        
+        for _ in range(req.count):
+            # 确保卡密不重复
+            while True:
+                key = generate_card_key(req.prefix)
+                if key not in generated_keys:
+                    generated_keys.add(key)
+                    break
+            
+            card_data = {
+                "key_value": key,
+                "card_type_id": type_id,
+                "status": 1,
+                "user_note": req.user_note,
+                "feishu_url": req.feishu_url,
+                "feishu_password": req.feishu_password,
+                "link_name": req.link_name,
+                "sys_platform": "卡密系统",
+                "uuid": str(uuid.uuid4()),
+                "bstudio_create_time": datetime.now().isoformat(),
+                "max_devices": req.max_devices,
+                "used_count": 0,
+                "devices": "[]",
+                "sales_channel": req.sales_channel,
+                "sale_status": "unsold"
+            }
+            
+            # 设置过期方式
+            if req.expire_type == 'fixed':
+                card_data["expire_at"] = req.expire_at
+            elif req.expire_type == 'relative':
+                card_data["expire_after_days"] = req.expire_after_days
+            # permanent 类型不设置过期时间
+            
+            cards.append(card_data)
+        
+        # 批量插入
+        response = client.table('card_keys_table').insert(cards).execute()
+        generated_count = len(response.data)
+        generated_ids = [card['id'] for card in response.data]
+        
+        # 记录操作日志
+        safe_log_operation(client, {
+            "operator": "admin",
+            "operation_type": "batch_generate",
+            "filter_conditions": {
+                "card_type_id": type_id,
+                "count": req.count,
+                "expire_type": req.expire_type
+            },
+            "affected_count": generated_count,
+            "affected_ids": generated_ids,
+            "update_fields": {},
+            "remark": f"在卡种ID={type_id}下批量生成 {generated_count} 条卡密"
+        })
+        
+        return {
+            "success": True,
+            "data": response.data,
+            "msg": f"成功生成 {generated_count} 个卡密"
+        }
+        
+    except Exception as e:
+        logger.error(f"批量生成卡密失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
@@ -2777,9 +3405,11 @@ async def create_card_key(card: CardKeyCreate):
 @app.post("/api/admin/cards/batch-generate")
 async def batch_generate_cards(req: BatchGenerateRequest):
     """
-    批量生成卡密
+    批量生成卡密（兼容旧版API）
     - 生成指定数量的卡密
     - 自动设置过期时间和使用次数限制
+    
+    新版API请使用 POST /api/admin/card-types/{type_id}/cards/batch-generate
     """
     try:
         if req.count < 1 or req.count > 1000:
@@ -2787,7 +3417,7 @@ async def batch_generate_cards(req: BatchGenerateRequest):
         
         client = get_supabase_client()
         
-        # 直接使用传入的过期时间
+        # 直接使用传入的过期时间（兼容旧版）
         expire_at = req.expire_at
         
         # 批量生成卡密
@@ -2813,10 +3443,11 @@ async def batch_generate_cards(req: BatchGenerateRequest):
                 "uuid": str(uuid.uuid4()),
                 "bstudio_create_time": datetime.now().isoformat(),
                 "expire_at": expire_at,
-                "max_uses": req.max_uses,
+                "max_devices": 5,
                 "used_count": 0,
+                "devices": "[]",
                 "sales_channel": req.sales_channel,
-                "sale_status": "unsold"  # 默认未售出
+                "sale_status": "unsold"
             })
         
         # 批量插入

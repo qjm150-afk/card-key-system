@@ -13,6 +13,33 @@ class HealthCheck(Base):
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
+class CardType(Base):
+    """卡种表 - 卡密分组管理"""
+    __tablename__ = "card_types"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    
+    # 基础信息
+    name: Mapped[str] = mapped_column(String(200), nullable=False, comment="卡种名称")
+    
+    # 预览设置
+    preview_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="预览截图URL")
+    preview_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否启用预览")
+    
+    # 状态
+    status: Mapped[int] = mapped_column(Integer, default=1, nullable=False, comment="状态: 1=有效, 0=无效")
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="软删除时间")
+    
+    # 时间戳
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True, comment="更新时间")
+    
+    __table_args__ = (
+        Index("ix_card_types_name", "name"),
+        Index("ix_card_types_status", "status"),
+    )
+
+
 class CardKey(Base):
     """卡密表"""
     __tablename__ = "card_keys_table"
@@ -23,13 +50,18 @@ class CardKey(Base):
     key_value: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, comment="卡密值")
     status: Mapped[int] = mapped_column(Integer, default=1, nullable=False, comment="状态: 1=有效, 0=无效")
     
+    # 卡种关联
+    card_type_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("card_types.id"), nullable=True, comment="卡种ID")
+    
     # 飞书内容
     feishu_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="飞书链接")
     feishu_password: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="飞书访问密码")
     link_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="链接名称")
     
     # 过期与使用限制
-    expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="过期时间")
+    expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="过期时间(固定日期)")
+    expire_after_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, comment="激活后有效天数")
+    activated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="首次激活时间")
     max_uses: Mapped[int] = mapped_column(Integer, default=1, nullable=False, comment="最大使用次数（已废弃）")
     used_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False, comment="已使用次数（已废弃）")
     last_used_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="最后使用时间")
@@ -49,6 +81,7 @@ class CardKey(Base):
     __table_args__ = (
         Index("ix_card_keys_key_value", "key_value"),
         Index("ix_card_keys_status", "status"),
+        Index("ix_card_keys_card_type_id", "card_type_id"),
     )
 
 
