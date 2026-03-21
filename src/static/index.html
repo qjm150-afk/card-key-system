@@ -1258,8 +1258,31 @@
                 });
                 
                 // 绑定退出按钮事件
-                exitBtn.addEventListener('click', function(e) {
+                exitBtn.addEventListener('click', async function(e) {
                     e.stopPropagation();
+                    
+                    // 获取当前会话信息
+                    const session = getLocalSession();
+                    
+                    // 先调用后端API解除设备绑定
+                    if (session && session.cardKey) {
+                        try {
+                            const deviceId = getDeviceId();
+                            await fetch('/api/logout', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    card_key: session.cardKey,
+                                    device_id: deviceId
+                                })
+                            });
+                            console.log('退出登录成功，已解除设备绑定');
+                        } catch (err) {
+                            console.error('退出登录API调用失败:', err);
+                            // 即使API调用失败，也继续清除本地状态
+                        }
+                    }
+                    
                     // 清除协作者更新定时器
                     if (collaboratorsInterval) {
                         clearInterval(collaboratorsInterval);

@@ -2922,6 +2922,28 @@
         </div>
     </div>
 
+    <!-- 设备管理弹窗 -->
+    <div class="modal-overlay" id="deviceManagerModalOverlay">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>设备管理 - <span id="deviceManagerCardKey"></span></h2>
+                <button class="modal-close" onclick="closeDeviceManager()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+                    <span>已绑定设备：<strong id="deviceManagerCount">0</strong> 台</span>
+                    <button class="btn btn-danger btn-sm" onclick="clearAllDevices()" id="clearAllDevicesBtn">清除全部</button>
+                </div>
+                <div id="deviceList" style="max-height: 300px; overflow-y: auto;">
+                    <p style="text-align: center; color: #999; padding: 20px;">暂无绑定设备</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeDeviceManager()">关闭</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 修改密码模态框 -->
     <div class="modal-overlay" id="changePasswordModalOverlay">
         <div class="modal" style="max-width: 400px;">
@@ -4585,6 +4607,7 @@
                     <td>
                         <div class="actions-cell">
                             <button class="btn btn-secondary btn-sm" onclick="editCard(${card.id})">编辑</button>
+                            <button class="btn btn-secondary btn-sm" onclick="showDeviceManager('${card.key_value}', ${deviceCount})" ${deviceCount === 0 ? 'disabled title="无绑定设备"' : ''}>设备</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteCard(${card.id})">删除</button>
                         </div>
                     </td>
@@ -7412,6 +7435,126 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        // ==================== 设备管理功能 ====================
+        
+        let currentDeviceCardKey = '';
+        
+        // 显示设备管理弹窗
+        async function showDeviceManager(cardKey, deviceCount) {
+            currentDeviceCardKey = cardKey;
+            document.getElementById('deviceManagerCardKey').textContent = cardKey;
+            document.getElementById('deviceManagerCount').textContent = deviceCount;
+            document.getElementById('clearAllDevicesBtn').style.display = deviceCount > 0 ? 'inline-block' : 'none';
+            
+            // 获取卡密详情以获取设备列表
+            try {
+                const response = await fetch(`/api/admin/cards?key_value=${cardKey}`);
+                const result = await response.json();
+                
+                if (result.success && result.data && result.data.length > 0) {
+                    const card = result.data[0];
+                    const devices = JSON.parse(card.devices || '[]');
+                    renderDeviceList(devices);
+                } else {
+                    document.getElementById('deviceList').innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">暂无绑定设备</p>';
+                }
+            } catch (error) {
+                showToast('获取设备列表失败: ' + error.message, 'error');
+            }
+            
+            document.getElementById('deviceManagerModalOverlay').classList.add('active');
+        }
+        
+        // 关闭设备管理弹窗
+        function closeDeviceManager() {
+            document.getElementById('deviceManagerModalOverlay').classList.remove('active');
+            currentDeviceCardKey = '';
+        }
+        
+        // 渲染设备列表
+        function renderDeviceList(devices) {
+            const container = document.getElementById('deviceList');
+            
+            if (!devices || devices.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #999; padding: 20px;">暂无绑定设备</p>';
+                document.getElementById('deviceManagerCount').textContent = '0';
+                document.getElementById('clearAllDevicesBtn').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('deviceManagerCount').textContent = devices.length;
+            document.getElementById('clearAllDevicesBtn').style.display = 'inline-block';
+            
+            container.innerHTML = devices.map((device, index) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid #e5e5e5; border-radius: 6px; margin-bottom: 8px; background: #fafafa;">
+                    <div>
+                        <div style="font-weight: 500; color: #333;">${escapeHtml(device)}</div>
+                        <div style="font-size: 12px; color: #999;">设备 #${index + 1}</div>
+                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="unbindDevice('${escapeHtml(device)}')">解绑</button>
+                </div>
+            `).join('');
+        }
+        
+        // 解绑单个设备
+        async function unbindDevice(deviceId) {
+            if (!confirm(`确定要解绑设备 "${deviceId}" 吗？`)) return;
+            
+            try {
+                const response = await fetch('/api/unbind-device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        card_key: currentDeviceCardKey,
+                        device_id: deviceId
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('解绑成功', 'success');
+                    // 刷新设备列表
+                    const cardResponse = await fetch(`/api/admin/cards?key_value=${currentDeviceCardKey}`);
+                    const cardResult = await cardResponse.json();
+                    if (cardResult.success && cardResult.data && cardResult.data.length > 0) {
+                        const devices = JSON.parse(cardResult.data[0].devices || '[]');
+                        renderDeviceList(devices);
+                        // 刷新主列表
+                        loadCards();
+                    }
+                } else {
+                    showToast(getErrorMsg(result), 'error');
+                }
+            } catch (error) {
+                showToast('解绑失败: ' + error.message, 'error');
+            }
+        }
+        
+        // 清除所有设备
+        async function clearAllDevices() {
+            if (!confirm(`确定要清除卡密 "${currentDeviceCardKey}" 的所有设备绑定吗？\n此操作不可撤销！`)) return;
+            
+            try {
+                const response = await fetch(`/api/clear-all-devices?card_key=${encodeURIComponent(currentDeviceCardKey)}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.msg, 'success');
+                    renderDeviceList([]);
+                    // 刷新主列表
+                    loadCards();
+                } else {
+                    showToast(getErrorMsg(result), 'error');
+                }
+            } catch (error) {
+                showToast('清除失败: ' + error.message, 'error');
+            }
         }
         
         // 辅助函数：复制到剪贴板

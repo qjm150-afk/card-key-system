@@ -601,6 +601,190 @@ async def get_card_type_preview_by_link(link_name: str):
 
 # ==================== 验证 API ====================
 
+class LogoutRequest(BaseModel):
+    """退出登录请求"""
+    card_key: str
+    device_id: str = "unknown"
+
+
+@app.post("/api/logout")
+async def logout_card_key(request: LogoutRequest):
+    """
+    退出登录 API
+    - 解除设备绑定
+    - 记录退出日志
+    """
+    client = None
+    card_key = request.card_key.strip().upper()
+    device_id = request.device_id or "unknown"
+    
+    try:
+        if not card_key:
+            return {"success": False, "msg": "卡密不能为空"}
+        
+        logger.info(f"[Logout] 退出登录: {card_key}, 设备: {device_id}")
+        
+        # 获取数据库客户端
+        try:
+            client = get_supabase_client()
+        except Exception as db_err:
+            logger.error(f"[Logout] 数据库连接失败: {str(db_err)}")
+            return {"success": False, "msg": "数据库连接失败"}
+        
+        # 查询卡密
+        response = client.table('card_keys_table').select('id, devices').eq('key_value', card_key).execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡密不存在"}
+        
+        card_data = response.data[0]
+        card_id = card_data.get('id')
+        devices_json = card_data.get('devices', '[]')
+        
+        # 解析已绑定设备
+        try:
+            bound_devices = json.loads(devices_json) if devices_json else []
+        except:
+            bound_devices = []
+        
+        # 从绑定列表中移除当前设备
+        if device_id in bound_devices:
+            bound_devices.remove(device_id)
+            logger.info(f"[Logout] 移除设备绑定: {device_id}, 剩余设备: {bound_devices}")
+            
+            # 更新数据库
+            client.table('card_keys_table').update({
+                "devices": json.dumps(bound_devices)
+            }).eq('id', card_id).execute()
+            
+            # 记录退出日志
+            log_access(client, card_id, card_key, True, "用户主动退出登录", device_id, "", False)
+            
+            return {"success": True, "msg": "退出登录成功", "remaining_devices": len(bound_devices)}
+        else:
+            # 设备未绑定，无需处理
+            logger.info(f"[Logout] 设备未绑定: {device_id}")
+            return {"success": True, "msg": "退出登录成功", "remaining_devices": len(bound_devices)}
+        
+    except Exception as e:
+        logger.error(f"[Logout] 退出登录失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+class UnbindDeviceRequest(BaseModel):
+    """解绑设备请求"""
+    card_key: str
+    device_id: str
+
+
+@app.post("/api/unbind-device")
+async def unbind_device(request: UnbindDeviceRequest):
+    """
+    解绑设备 API
+    - 从卡密中移除指定设备绑定
+    """
+    client = None
+    card_key = request.card_key.strip().upper()
+    device_id = request.device_id
+    
+    try:
+        if not card_key or not device_id:
+            return {"success": False, "msg": "参数不完整"}
+        
+        logger.info(f"[Unbind] 解绑设备: {card_key}, 设备: {device_id}")
+        
+        client = get_supabase_client()
+        
+        # 查询卡密
+        response = client.table('card_keys_table').select('id, devices, max_devices').eq('key_value', card_key).execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡密不存在"}
+        
+        card_data = response.data[0]
+        card_id = card_data.get('id')
+        devices_json = card_data.get('devices', '[]')
+        max_devices = card_data.get('max_devices', 5)
+        
+        # 解析已绑定设备
+        try:
+            bound_devices = json.loads(devices_json) if devices_json else []
+        except:
+            bound_devices = []
+        
+        # 移除指定设备
+        if device_id in bound_devices:
+            bound_devices.remove(device_id)
+            client.table('card_keys_table').update({
+                "devices": json.dumps(bound_devices)
+            }).eq('id', card_id).execute()
+            
+            logger.info(f"[Unbind] 设备解绑成功: {device_id}")
+            return {
+                "success": True,
+                "msg": "解绑成功",
+                "remaining_devices": len(bound_devices),
+                "max_devices": max_devices
+            }
+        else:
+            return {"success": False, "msg": "设备未绑定"}
+        
+    except Exception as e:
+        logger.error(f"[Unbind] 解绑设备失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/clear-all-devices")
+async def clear_all_devices(card_key: str):
+    """
+    清除所有设备绑定 API
+    - 重置卡密的设备绑定列表
+    """
+    client = None
+    card_key = card_key.strip().upper()
+    
+    try:
+        if not card_key:
+            return {"success": False, "msg": "卡密不能为空"}
+        
+        logger.info(f"[ClearDevices] 清除所有设备绑定: {card_key}")
+        
+        client = get_supabase_client()
+        
+        # 查询卡密
+        response = client.table('card_keys_table').select('id, devices').eq('key_value', card_key).execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡密不存在"}
+        
+        card_data = response.data[0]
+        card_id = card_data.get('id')
+        devices_json = card_data.get('devices', '[]')
+        
+        # 解析已绑定设备数量
+        try:
+            bound_devices = json.loads(devices_json) if devices_json else []
+            removed_count = len(bound_devices)
+        except:
+            removed_count = 0
+        
+        # 清空设备绑定
+        client.table('card_keys_table').update({
+            "devices": "[]"
+        }).eq('id', card_id).execute()
+        
+        logger.info(f"[ClearDevices] 已清除 {removed_count} 个设备绑定")
+        return {
+            "success": True,
+            "msg": f"已清除 {removed_count} 个设备绑定",
+            "removed_count": removed_count
+        }
+        
+    except Exception as e:
+        logger.error(f"[ClearDevices] 清除设备绑定失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.post("/api/validate", response_model=ValidateResponse)
 async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     """
