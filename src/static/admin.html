@@ -4818,7 +4818,7 @@
         // 打开批量生成模态框
         function openBatchGenerateModal() {
             // 重置卡种来源标记
-            isBatchGenerateFromCardType = false;
+            window.isBatchGenerateFromCardType = false;
             
             document.getElementById('batchForm').reset();
             document.getElementById('batchModalOverlay').classList.add('active');
@@ -5311,8 +5311,8 @@
                     loadFilterOptions(null);
                     
                     // 如果是从卡种管理页面打开的批量生成，刷新卡种卡券列表
-                    if (isBatchGenerateFromCardType) {
-                        isBatchGenerateFromCardType = false;
+                    if (window.isBatchGenerateFromCardType) {
+                        window.isBatchGenerateFromCardType = false;
                         loadCardTypeCards();
                     }
                     
@@ -7452,13 +7452,10 @@
             }
         }
         
-        // 标记是否从卡种管理页面打开批量生成弹窗
-        let isBatchGenerateFromCardType = false;
-        
         // 为卡种批量生成卡券 - 复用主界面的批量生成弹窗
         async function showBatchGenerateForType() {
             // 设置标记
-            isBatchGenerateFromCardType = true;
+            window.isBatchGenerateFromCardType = true;
             
             // 打开主界面的批量生成弹窗
             document.getElementById('batchForm').reset();
