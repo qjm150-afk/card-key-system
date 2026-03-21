@@ -2944,6 +2944,66 @@
         </div>
     </div>
 
+    <!-- 卡种下批量生成卡券弹窗 -->
+    <div class="modal-overlay" id="typeBatchGenerateModalOverlay">
+        <div class="modal" style="max-width: 550px;">
+            <div class="modal-header">
+                <h2>批量生成卡券 - <span id="typeBatchGenerateTypeName"></span></h2>
+                <button class="modal-close" onclick="closeTypeBatchGenerateModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="typeBatchGenerateForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>生成数量 *</label>
+                            <input type="number" class="form-input" id="typeBatchGenerateCount" value="10" min="1" max="1000" required>
+                        </div>
+                        <div class="form-group">
+                            <label>卡密前缀</label>
+                            <input type="text" class="form-input" id="typeBatchGeneratePrefix" value="CSS" maxlength="10">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>过期方式</label>
+                        <select class="form-input" id="typeBatchGenerateExpireType" onchange="toggleTypeBatchExpireFields()">
+                            <option value="inherit">继承卡种设置</option>
+                            <option value="fixed">固定日期</option>
+                            <option value="relative">激活后有效天数</option>
+                            <option value="permanent">永久有效</option>
+                        </select>
+                        <small class="input-hint" style="color: #8B7355;" id="typeBatchExpireHint">选择"继承卡种设置"将使用卡种的默认过期配置</small>
+                    </div>
+                    
+                    <div class="form-group" id="typeBatchExpireDateGroup" style="display: none;">
+                        <label>过期时间</label>
+                        <input type="datetime-local" class="form-input" id="typeBatchGenerateExpireAt">
+                    </div>
+                    
+                    <div class="form-group" id="typeBatchExpireDaysGroup" style="display: none;">
+                        <label>有效天数</label>
+                        <input type="number" class="form-input" id="typeBatchGenerateExpireDays" value="30" min="1" max="3650" placeholder="输入天数">
+                        <small class="input-hint" style="color: #8B7355;">用户首次验证成功后开始计算有效期</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>最大设备数</label>
+                        <input type="number" class="form-input" id="typeBatchGenerateMaxDevices" value="5" min="1" max="100">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>备注</label>
+                        <input type="text" class="form-input" id="typeBatchGenerateNote" placeholder="可选">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" type="button" onclick="closeTypeBatchGenerateModal()">取消</button>
+                <button class="btn btn-success" type="button" onclick="executeTypeBatchGenerate()">生成</button>
+            </div>
+        </div>
+    </div>
+
     <!-- 修改密码模态框 -->
     <div class="modal-overlay" id="changePasswordModalOverlay">
         <div class="modal" style="max-width: 400px;">
@@ -7358,23 +7418,95 @@
             }
         }
         
-        // 为卡种批量生成卡券
-        async function showBatchGenerateForType() {
-            const count = prompt('请输入要生成的卡券数量:', '10');
-            if (!count || isNaN(count) || parseInt(count) <= 0) {
-                showToast('请输入有效的数量', 'error');
+        // 为卡种批量生成卡券 - 打开弹窗
+        function showBatchGenerateForType() {
+            // 获取卡种信息
+            const typeName = document.getElementById('cardTypeCardsModalTitle').textContent.replace('卡券管理 - ', '');
+            document.getElementById('typeBatchGenerateTypeName').textContent = typeName;
+            
+            // 重置表单
+            document.getElementById('typeBatchGenerateCount').value = 10;
+            document.getElementById('typeBatchGeneratePrefix').value = 'CSS';
+            document.getElementById('typeBatchGenerateExpireType').value = 'inherit';
+            document.getElementById('typeBatchGenerateMaxDevices').value = 5;
+            document.getElementById('typeBatchGenerateNote').value = '';
+            toggleTypeBatchExpireFields();
+            
+            document.getElementById('typeBatchGenerateModalOverlay').classList.add('active');
+        }
+        
+        // 关闭卡种批量生成弹窗
+        function closeTypeBatchGenerateModal() {
+            document.getElementById('typeBatchGenerateModalOverlay').classList.remove('active');
+        }
+        
+        // 切换过期字段显示
+        function toggleTypeBatchExpireFields() {
+            const expireType = document.getElementById('typeBatchGenerateExpireType').value;
+            const dateGroup = document.getElementById('typeBatchExpireDateGroup');
+            const daysGroup = document.getElementById('typeBatchExpireDaysGroup');
+            const hint = document.getElementById('typeBatchExpireHint');
+            
+            dateGroup.style.display = expireType === 'fixed' ? 'block' : 'none';
+            daysGroup.style.display = expireType === 'relative' ? 'block' : 'none';
+            hint.style.display = expireType === 'inherit' ? 'block' : 'none';
+        }
+        
+        // 执行批量生成
+        async function executeTypeBatchGenerate() {
+            const count = parseInt(document.getElementById('typeBatchGenerateCount').value);
+            const prefix = document.getElementById('typeBatchGeneratePrefix').value || 'CSS';
+            const expireType = document.getElementById('typeBatchGenerateExpireType').value;
+            const maxDevices = parseInt(document.getElementById('typeBatchGenerateMaxDevices').value) || 5;
+            const note = document.getElementById('typeBatchGenerateNote').value;
+            
+            if (!count || count < 1 || count > 1000) {
+                showToast('生成数量必须在 1-1000 之间', 'error');
                 return;
             }
             
+            // 构建请求数据
+            const data = {
+                count: count,
+                prefix: prefix,
+                max_devices: maxDevices,
+                user_note: note
+            };
+            
+            // 根据过期方式设置参数
+            if (expireType === 'fixed') {
+                const expireAt = document.getElementById('typeBatchGenerateExpireAt').value;
+                if (!expireAt) {
+                    showToast('请选择过期时间', 'error');
+                    return;
+                }
+                data.expire_type = 'fixed';
+                data.expire_at = new Date(expireAt).toISOString();
+            } else if (expireType === 'relative') {
+                const expireDays = parseInt(document.getElementById('typeBatchGenerateExpireDays').value);
+                if (!expireDays || expireDays < 1) {
+                    showToast('请输入有效的天数', 'error');
+                    return;
+                }
+                data.expire_type = 'relative';
+                data.expire_after_days = expireDays;
+            } else if (expireType === 'permanent') {
+                data.expire_type = 'permanent';
+            }
+            // inherit 类型不传 expire_type，由后端使用卡种默认值
+            
             try {
-                const response = await fetch(`/api/admin/card-types/${currentCardTypeId}/generate-cards`, {
+                const response = await fetch(`/api/admin/card-types/${currentCardTypeId}/cards/batch-generate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ count: parseInt(count) })
+                    body: JSON.stringify(data)
                 });
                 const result = await response.json();
+                
                 if (result.success) {
-                    showToast(`成功生成 ${result.data.created_count} 张卡券`, 'success');
+                    const generatedCount = result.data?.length || count;
+                    showToast(`成功生成 ${generatedCount} 张卡券`, 'success');
+                    closeTypeBatchGenerateModal();
                     loadCardTypeCards();
                 } else {
                     showToast(getErrorMsg(result), 'error');

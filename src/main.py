@@ -285,7 +285,7 @@ class BatchGenerateRequestV2(BaseModel):
     feishu_url: str = ""  # 飞书链接
     feishu_password: str = ""  # 飞书密码
     link_name: str = ""  # 链接名称
-    expire_type: str = "fixed"  # 过期类型：fixed=固定日期, relative=按激活天数, permanent=永久
+    expire_type: Optional[str] = None  # 过期类型：fixed=固定日期, relative=按激活天数, permanent=永久, None=继承卡种设置
     expire_at: Optional[str] = None  # 过期时间（expire_type=fixed时必填）
     expire_after_days: Optional[int] = None  # 激活后有效天数（expire_type=relative时必填）
     max_devices: int = 5  # 最大设备数
@@ -1702,20 +1702,45 @@ async def get_card_type_cards(
 async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV2):
     """在卡种下批量生成卡券"""
     try:
-        # 验证卡种存在
+        # 验证卡种存在并获取卡种信息
         client = get_supabase_client()
-        type_response = client.table('card_types').select('id').eq('id', type_id).is_('deleted_at', 'null').execute()
+        type_response = client.table('card_types').select('*').eq('id', type_id).is_('deleted_at', 'null').execute()
         if not type_response.data:
             return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = type_response.data[0]
         
         if req.count < 1 or req.count > 1000:
             return {"success": False, "msg": "生成数量必须在 1-1000 之间"}
         
+        # 确定过期方式
+        expire_type = req.expire_type
+        expire_at = req.expire_at
+        expire_after_days = req.expire_after_days
+        
+        # 如果未指定过期方式，从卡种继承
+        if not expire_type:
+            # 从卡种获取默认配置
+            expire_type = card_type.get('expire_type')
+            if expire_type == 'fixed':
+                expire_at = card_type.get('expire_at')
+            elif expire_type == 'relative':
+                expire_after_days = card_type.get('expire_after_days')
+            
+            # 如果卡种也没有设置过期方式，默认为永久有效
+            if not expire_type:
+                expire_type = 'permanent'
+        
         # 验证过期方式
-        if req.expire_type == 'fixed' and not req.expire_at:
+        if expire_type == 'fixed' and not expire_at:
             return {"success": False, "msg": "固定日期过期必须指定过期时间"}
-        if req.expire_type == 'relative' and not req.expire_after_days:
+        if expire_type == 'relative' and not expire_after_days:
             return {"success": False, "msg": "按激活天数过期必须指定有效天数"}
+        
+        # 获取飞书链接信息（优先使用请求参数，否则从卡种继承）
+        feishu_url = req.feishu_url or card_type.get('feishu_url') or ''
+        feishu_password = req.feishu_password or card_type.get('feishu_password') or ''
+        link_name = req.link_name or card_type.get('link_name') or ''
         
         # 批量生成卡密
         cards = []
@@ -1734,9 +1759,9 @@ async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV
                 "card_type_id": type_id,
                 "status": 1,
                 "user_note": req.user_note,
-                "feishu_url": req.feishu_url,
-                "feishu_password": req.feishu_password,
-                "link_name": req.link_name,
+                "feishu_url": feishu_url,
+                "feishu_password": feishu_password,
+                "link_name": link_name,
                 "sys_platform": "卡密系统",
                 "uuid": str(uuid.uuid4()),
                 "bstudio_create_time": datetime.now().isoformat(),
@@ -1748,10 +1773,10 @@ async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV
             }
             
             # 设置过期方式
-            if req.expire_type == 'fixed':
-                card_data["expire_at"] = req.expire_at
-            elif req.expire_type == 'relative':
-                card_data["expire_after_days"] = req.expire_after_days
+            if expire_type == 'fixed':
+                card_data["expire_at"] = expire_at
+            elif expire_type == 'relative':
+                card_data["expire_after_days"] = expire_after_days
             # permanent 类型不设置过期时间
             
             cards.append(card_data)
@@ -1768,7 +1793,7 @@ async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV
             "filter_conditions": {
                 "card_type_id": type_id,
                 "count": req.count,
-                "expire_type": req.expire_type
+                "expire_type": expire_type
             },
             "affected_count": generated_count,
             "affected_ids": generated_ids,

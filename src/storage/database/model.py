@@ -22,6 +22,19 @@ class CardType(Base):
     # 基础信息
     name: Mapped[str] = mapped_column(String(200), nullable=False, comment="卡种名称")
     
+    # 过期设置
+    expire_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, comment="过期类型: fixed=固定日期, relative=按激活天数, permanent=永久")
+    expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="过期时间(固定日期)")
+    expire_after_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, comment="激活后有效天数")
+    
+    # 飞书内容
+    feishu_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="飞书链接")
+    feishu_password: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="飞书访问密码")
+    link_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="链接名称")
+    
+    # 设备限制
+    max_devices: Mapped[int] = mapped_column(Integer, default=5, nullable=False, comment="最大设备数")
+    
     # 预览设置
     preview_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="预览截图URL")
     preview_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否启用预览")
