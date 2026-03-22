@@ -43,7 +43,7 @@ import re
 from datetime import datetime, timedelta
 from typing import Optional, List
 from urllib.parse import quote
-from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile
+from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -4691,27 +4691,32 @@ async def set_docs_url(request: DocsUrlRequest, req: Request):
         return {"success": False, "msg": str(e)}
 
 
-@app.get("/api/admin/settings/default-preview")
-async def get_default_preview(req: Request):
-    """获取默认预览图片"""
+# ==================== 预览图片管理 API ====================
+
+class PreviewImageRequest(BaseModel):
+    """预览图片请求"""
+    name: str
+
+
+@app.get("/api/admin/preview-images")
+async def get_preview_images(req: Request):
+    """获取预览图片列表"""
     token = get_token_from_request(req)
     if not verify_token(token):
         return {"success": False, "msg": "未登录或会话已过期"}
     
     try:
         client = get_supabase_client()
-        result = client.table('admin_settings').select('value').eq('key', 'default_preview_image').execute()
-        if result.data and len(result.data) > 0:
-            return {"success": True, "data": result.data[0]['value']}
-        return {"success": True, "data": ""}
+        result = client.table('preview_images').select('*').order('created_at', desc=True).execute()
+        return {"success": True, "data": result.data or []}
     except Exception as e:
-        logger.error(f"获取默认预览图片失败: {str(e)}")
+        logger.error(f"获取预览图片列表失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
-@app.post("/api/admin/settings/default-preview")
-async def upload_default_preview(req: Request, file: UploadFile = File(...)):
-    """上传默认预览图片"""
+@app.post("/api/admin/preview-images")
+async def upload_preview_image(req: Request, file: UploadFile = File(...), name: str = Form(...)):
+    """上传预览图片"""
     token = get_token_from_request(req)
     if not verify_token(token):
         return {"success": False, "msg": "未登录或会话已过期"}
@@ -4726,12 +4731,17 @@ async def upload_default_preview(req: Request, file: UploadFile = File(...)):
         if len(content) > 5 * 1024 * 1024:
             return {"success": False, "msg": "图片大小不能超过5MB"}
         
-        # 使用存储服务上传图片
+        # 验证图片名称
+        if not name or not name.strip():
+            return {"success": False, "msg": "请输入图片名称"}
+        
+        name = name.strip()[:100]  # 限制名称长度
+        
         client = get_supabase_client()
         
-        # 生成文件名
+        # 生成唯一文件名
         file_ext = file.filename.split('.')[-1] if file.filename else 'png'
-        file_name = f"default_preview_{datetime.now().strftime('%Y%m%d%H%M%S')}.{file_ext}"
+        file_name = f"preview_{datetime.now().strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}.{file_ext}"
         
         # 上传到 storage bucket
         try:
@@ -4744,17 +4754,18 @@ async def upload_default_preview(req: Request, file: UploadFile = File(...)):
             # 获取公开URL
             image_url = client.storage.from_('images').get_public_url(file_name)
             
-            # 保存URL到设置表
-            result = client.table('admin_settings').update({'value': image_url}).eq('key', 'default_preview_image').execute()
-            if not result.data:
-                client.table('admin_settings').insert({'key': 'default_preview_image', 'value': image_url}).execute()
+            # 保存到预览图片表
+            result = client.table('preview_images').insert({
+                'name': name,
+                'url': image_url
+            }).execute()
             
-            logger.info(f"默认预览图片上传成功: {image_url}")
-            return {"success": True, "url": image_url}
+            logger.info(f"预览图片上传成功: {name}")
+            return {"success": True, "data": result.data[0] if result.data else {"name": name, "url": image_url}}
             
         except Exception as storage_err:
             logger.error(f"存储上传失败: {str(storage_err)}")
-            # 如果存储失败，尝试使用 base64 存储（不推荐，仅作为备用）
+            # 如果存储失败，尝试使用 base64 存储
             import base64
             base64_data = base64.b64encode(content).decode('utf-8')
             data_url = f"data:{file.content_type};base64,{base64_data}"
@@ -4763,32 +4774,50 @@ async def upload_default_preview(req: Request, file: UploadFile = File(...)):
             if len(data_url) > 500000:
                 return {"success": False, "msg": "图片太大，请压缩后上传"}
             
-            result = client.table('admin_settings').update({'value': data_url}).eq('key', 'default_preview_image').execute()
-            if not result.data:
-                client.table('admin_settings').insert({'key': 'default_preview_image', 'value': data_url}).execute()
+            result = client.table('preview_images').insert({
+                'name': name,
+                'url': data_url
+            }).execute()
             
-            logger.info("默认预览图片已保存为 base64")
-            return {"success": True, "url": data_url}
+            logger.info(f"预览图片已保存为 base64: {name}")
+            return {"success": True, "data": result.data[0] if result.data else {"name": name, "url": data_url}}
             
     except Exception as e:
-        logger.error(f"上传默认预览图片失败: {str(e)}")
+        logger.error(f"上传预览图片失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
-@app.delete("/api/admin/settings/default-preview")
-async def delete_default_preview(req: Request):
-    """删除默认预览图片"""
+@app.delete("/api/admin/preview-images/{image_id}")
+async def delete_preview_image(image_id: int, req: Request):
+    """删除预览图片"""
     token = get_token_from_request(req)
     if not verify_token(token):
         return {"success": False, "msg": "未登录或会话已过期"}
     
     try:
         client = get_supabase_client()
-        client.table('admin_settings').update({'value': ''}).eq('key', 'default_preview_image').execute()
-        logger.info("默认预览图片已删除")
+        
+        # 先获取图片信息
+        result = client.table('preview_images').select('url').eq('id', image_id).execute()
+        if result.data:
+            image_url = result.data[0].get('url', '')
+            
+            # 尝试从存储中删除（如果是存储的URL）
+            if image_url and not image_url.startswith('data:'):
+                try:
+                    # 从URL提取文件名
+                    file_name = image_url.split('/')[-1].split('?')[0]
+                    client.storage.from_('images').remove([file_name])
+                except Exception as e:
+                    logger.warning(f"从存储删除文件失败: {str(e)}")
+            
+            # 从数据库删除记录
+            client.table('preview_images').delete().eq('id', image_id).execute()
+            
+        logger.info(f"预览图片已删除: {image_id}")
         return {"success": True, "msg": "删除成功"}
     except Exception as e:
-        logger.error(f"删除默认预览图片失败: {str(e)}")
+        logger.error(f"删除预览图片失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 

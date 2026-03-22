@@ -2091,6 +2091,97 @@
             opacity: 0.5;
         }
 
+        /* 预览图片上传样式 */
+        .upload-requirements {
+            background: #FFF7ED;
+            border: 1px solid #FED7AA;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 16px;
+        }
+
+        .upload-requirements ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #92400E;
+            font-size: 13px;
+            line-height: 1.8;
+        }
+
+        .preview-upload-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .preview-images-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .preview-images-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 40px 20px;
+            color: #A89070;
+            background: #FFF8F0;
+            border-radius: 8px;
+            border: 1px dashed #E8D5C4;
+        }
+
+        .preview-image-item {
+            background: white;
+            border: 1px solid #E8D5C4;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .preview-image-item:hover {
+            border-color: #D4A574;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .preview-image-item img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            background: #F5F5F5;
+        }
+
+        .preview-image-item-info {
+            padding: 8px 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .preview-image-item-name {
+            font-size: 13px;
+            color: #5D4E37;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            flex: 1;
+        }
+
+        .preview-image-item-delete {
+            background: none;
+            border: none;
+            color: #EF4444;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .preview-image-item-delete:hover {
+            background: #FEE2E2;
+        }
+
         /* 卡种管理页面样式 */
         .card-types-stats {
             display: grid;
@@ -2346,6 +2437,179 @@
             margin: 0;
         }
 
+        /* 设置页面样式 */
+        .settings-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .settings-section {
+            margin-bottom: 32px;
+        }
+
+        .settings-section .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #5D4E37;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E8D5C4;
+        }
+
+        .settings-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .settings-form {
+            max-width: 100%;
+        }
+
+        .settings-form .form-group {
+            margin-bottom: 20px;
+        }
+
+        .settings-form .form-group:last-child {
+            margin-bottom: 0;
+        }
+
+        .settings-form .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #5D4E37;
+            margin-bottom: 8px;
+        }
+
+        .settings-form .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #E8D5C4;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .settings-form .form-input:focus {
+            outline: none;
+            border-color: #D4A574;
+            box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
+        }
+
+        /* 上传要求样式 */
+        .upload-requirements {
+            background: #FFF8F0;
+            border: 1px solid #E8D5C4;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .upload-requirements ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .upload-requirements li {
+            font-size: 13px;
+            color: #5D4E37;
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        .upload-requirements li:last-child {
+            margin-bottom: 0;
+        }
+
+        /* 上传行样式 */
+        .preview-upload-row {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        /* 预览图片列表样式 */
+        .preview-images-list {
+            min-height: 100px;
+            border: 1px dashed #E8D5C4;
+            border-radius: 8px;
+            padding: 16px;
+            background: #FFFBF5;
+        }
+
+        .preview-images-loading,
+        .preview-images-empty {
+            text-align: center;
+            color: #A89070;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .preview-images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .preview-image-item {
+            background: white;
+            border: 1px solid #E8D5C4;
+            border-radius: 8px;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+
+        .preview-image-item:hover {
+            border-color: #D4A574;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .preview-image-thumb {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .preview-image-thumb:hover {
+            opacity: 0.8;
+        }
+
+        .preview-image-info {
+            padding: 12px;
+            border-top: 1px solid #E8D5C4;
+        }
+
+        .preview-image-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #5D4E37;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preview-image-meta {
+            font-size: 11px;
+            color: #A89070;
+        }
+
+        .preview-image-actions {
+            display: flex;
+            justify-content: flex-end;
+            padding: 8px 12px;
+            background: #FFF8F0;
+            border-top: 1px solid #E8D5C4;
+        }
+
+        .preview-image-actions .btn-sm {
+            padding: 4px 10px;
+            font-size: 12px;
+        }
+
         @media (max-width: 1200px) {
             .card-types-stats {
                 grid-template-columns: repeat(2, 1fr);
@@ -2363,6 +2627,14 @@
             
             .toolbar-search {
                 max-width: 100%;
+                width: 100%;
+            }
+
+            .preview-upload-row {
+                flex-direction: column;
+            }
+
+            .preview-upload-row .form-input {
                 width: 100%;
             }
         }
@@ -3090,29 +3362,45 @@
                     </div>
                 </div>
 
-                <!-- 预览图片上传 -->
+                <!-- 预览图片管理 -->
                 <div class="settings-section">
-                    <h3 class="section-title">🖼️ 默认预览图片</h3>
+                    <h3 class="section-title">🖼️ 预览图片管理</h3>
                     <div class="settings-card">
                         <div class="settings-form">
                             <div class="form-group">
-                                <label>默认预览图</label>
-                                <div class="preview-image-upload">
-                                    <div class="preview-image-preview" id="defaultPreviewImagePreview">
-                                        <div class="preview-placeholder">
-                                            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                                            </svg>
-                                            <span>点击上传预览图</span>
-                                        </div>
-                                    </div>
-                                    <input type="file" id="defaultPreviewImageInput" accept="image/*" style="display: none;" onchange="handleDefaultPreviewImageUpload(event)">
-                                    <button class="btn btn-secondary" onclick="document.getElementById('defaultPreviewImageInput').click()">选择图片</button>
-                                    <button class="btn btn-danger" id="removeDefaultPreviewBtn" style="display: none;" onclick="removeDefaultPreviewImage()">移除图片</button>
+                                <label>上传要求</label>
+                                <div class="upload-requirements">
+                                    <ul>
+                                        <li><strong>支持格式：</strong>JPG、PNG、GIF、WebP</li>
+                                        <li><strong>图片大小：</strong>不超过 5MB</li>
+                                        <li><strong>建议尺寸：</strong>宽度 800-1200px，高度自适应</li>
+                                        <li><strong>用途说明：</strong>上传的图片可在创建卡种时选择作为预览图，用于未验证用户查看模糊预览</li>
+                                        <li><strong>命名建议：</strong>使用有意义的名称，如"26届春招预览"、"秋招信息表"等</li>
+                                    </ul>
                                 </div>
-                                <small style="color: #999; font-size: 11px; margin-top: 8px; display: block;">
-                                    设置默认预览图片，当卡种没有单独设置预览图时使用此图片
-                                </small>
+                            </div>
+                            
+                            <!-- 上传区域 -->
+                            <div class="form-group">
+                                <label>上传新图片</label>
+                                <div class="preview-upload-row">
+                                    <input type="text" class="form-input" id="newPreviewImageName" placeholder="输入图片名称（必填）" style="flex: 1;">
+                                    <input type="file" id="newPreviewImageInput" accept="image/*" style="display: none;" onchange="handlePreviewImageUpload(event)">
+                                    <button class="btn btn-primary" onclick="document.getElementById('newPreviewImageInput').click()">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        选择并上传
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 已上传图片列表 -->
+                            <div class="form-group">
+                                <label>已上传的图片（点击图片可预览大图）</label>
+                                <div class="preview-images-list" id="previewImagesList">
+                                    <div class="preview-images-loading">加载中...</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -3319,7 +3607,7 @@
                         <div class="form-section-title">预览设置（可选）</div>
                         <div class="form-group">
                             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <input type="checkbox" id="cardTypePreviewEnabled" style="width: 18px; height: 18px;">
+                                <input type="checkbox" id="cardTypePreviewEnabled" style="width: 18px; height: 18px;" onchange="togglePreviewSettings()">
                                 启用预览转化模式
                             </label>
                             <p style="color: #999; font-size: 12px; margin-top: 4px;">
@@ -3328,8 +3616,13 @@
                         </div>
                         <div id="previewSettingsDetail" style="display: none; margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 8px;">
                             <div class="form-group">
-                                <label>预览截图URL</label>
-                                <input type="text" class="form-input" id="cardTypePreviewImage" placeholder="预览图片链接">
+                                <label>选择预览图片</label>
+                                <select class="form-select" id="cardTypePreviewImageSelect" style="width: 100%;">
+                                    <option value="">-- 请选择预览图片 --</option>
+                                </select>
+                                <p style="color: #999; font-size: 11px; margin-top: 4px;">
+                                    请先在"设置"页面上传预览图片
+                                </p>
                             </div>
                             <div class="form-group">
                                 <label>模糊程度</label>
@@ -4031,12 +4324,8 @@
                     document.getElementById('docsUrl').value = docsData.data || '';
                 }
 
-                // 加载默认预览图片
-                const previewResponse = await fetch('/api/admin/settings/default-preview');
-                const previewData = await previewResponse.json();
-                if (previewData.success && previewData.data) {
-                    updateDefaultPreviewImagePreview(previewData.data);
-                }
+                // 加载预览图片列表
+                loadPreviewImages();
             } catch (error) {
                 console.error('加载设置失败:', error);
             }
@@ -4126,8 +4415,46 @@
             }
         }
 
-        // 处理默认预览图片上传
-        async function handleDefaultPreviewImageUpload(event) {
+        // 加载预览图片列表
+        async function loadPreviewImages() {
+            try {
+                const response = await fetch('/api/admin/preview-images');
+                const data = await response.json();
+                if (data.success) {
+                    renderPreviewImagesList(data.data || []);
+                }
+            } catch (error) {
+                console.error('加载预览图片列表失败:', error);
+            }
+        }
+
+        // 渲染预览图片列表
+        function renderPreviewImagesList(images) {
+            const container = document.getElementById('previewImagesList');
+            
+            if (!images || images.length === 0) {
+                container.innerHTML = '<div class="preview-images-empty">暂无已上传的图片</div>';
+                return;
+            }
+            
+            container.innerHTML = `<div class="preview-images-grid">${
+                images.map(img => `
+                    <div class="preview-image-item" data-id="${img.id}">
+                        <img src="${img.url}" alt="${escapeHtml(img.name)}" class="preview-image-thumb" onclick="window.open('${img.url}', '_blank')" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22%3E加载失败%3C/text%3E%3C/svg%3E'">
+                        <div class="preview-image-info">
+                            <div class="preview-image-name" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}</div>
+                            <div class="preview-image-meta">${formatTime(img.created_at)}</div>
+                        </div>
+                        <div class="preview-image-actions">
+                            <button class="btn btn-danger btn-sm" onclick="deletePreviewImage(${img.id})">删除</button>
+                        </div>
+                    </div>
+                `).join('')
+            }</div>`;
+        }
+
+        // 处理预览图片上传
+        async function handlePreviewImageUpload(event) {
             const file = event.target.files[0];
             if (!file) return;
 
@@ -4143,11 +4470,20 @@
                 return;
             }
 
+            const nameInput = document.getElementById('newPreviewImageName');
+            const name = nameInput.value.trim();
+            
+            if (!name) {
+                showToast('请输入图片名称', 'error');
+                return;
+            }
+
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('name', name);
 
             try {
-                const response = await fetch('/api/admin/settings/default-preview', {
+                const response = await fetch('/api/admin/preview-images', {
                     method: 'POST',
                     body: formData
                 });
@@ -4155,7 +4491,9 @@
                 const data = await response.json();
                 if (data.success) {
                     showToast('预览图片上传成功', 'success');
-                    updateDefaultPreviewImagePreview(data.url);
+                    nameInput.value = '';
+                    document.getElementById('newPreviewImageInput').value = '';
+                    loadPreviewImages();
                 } else {
                     showToast(data.msg || '上传失败', 'error');
                 }
@@ -4164,44 +4502,24 @@
             }
         }
 
-        // 更新默认预览图片预览
-        function updateDefaultPreviewImagePreview(url) {
-            const preview = document.getElementById('defaultPreviewImagePreview');
-            const removeBtn = document.getElementById('removeDefaultPreviewBtn');
-
-            if (url) {
-                preview.innerHTML = `<img src="${url}" alt="预览图">`;
-                removeBtn.style.display = 'inline-flex';
-            } else {
-                preview.innerHTML = `
-                    <div class="preview-placeholder">
-                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        <span>点击上传预览图</span>
-                    </div>
-                `;
-                removeBtn.style.display = 'none';
-            }
-        }
-
-        // 移除默认预览图片
-        async function removeDefaultPreviewImage() {
+        // 删除预览图片
+        async function deletePreviewImage(imageId) {
+            if (!confirm('确定要删除这张预览图片吗？')) return;
+            
             try {
-                const response = await fetch('/api/admin/settings/default-preview', {
+                const response = await fetch(`/api/admin/preview-images/${imageId}`, {
                     method: 'DELETE'
                 });
 
                 const data = await response.json();
                 if (data.success) {
-                    showToast('预览图片已移除', 'success');
-                    updateDefaultPreviewImagePreview(null);
-                    document.getElementById('defaultPreviewImageInput').value = '';
+                    showToast('图片已删除', 'success');
+                    loadPreviewImages();
                 } else {
-                    showToast(data.msg || '移除失败', 'error');
+                    showToast(data.msg || '删除失败', 'error');
                 }
             } catch (error) {
-                showToast('移除失败，请稍后重试', 'error');
+                showToast('删除失败，请稍后重试', 'error');
             }
         }
 
@@ -7824,14 +8142,51 @@
             loadCardTypes();
         }
         
+        // 切换预览设置显示
+        function togglePreviewSettings() {
+            const enabled = document.getElementById('cardTypePreviewEnabled').checked;
+            document.getElementById('previewSettingsDetail').style.display = enabled ? 'block' : 'none';
+            
+            // 如果启用预览，加载预览图片列表
+            if (enabled) {
+                loadPreviewImagesForSelect();
+            }
+        }
+        
+        // 加载预览图片列表到下拉框
+        async function loadPreviewImagesForSelect() {
+            try {
+                const response = await fetch('/api/admin/preview-images');
+                const data = await response.json();
+                
+                const select = document.getElementById('cardTypePreviewImageSelect');
+                const currentValue = select.getAttribute('data-selected') || '';
+                
+                if (data.success && data.data && data.data.length > 0) {
+                    select.innerHTML = '<option value="">-- 请选择预览图片 --</option>' +
+                        data.data.map(img => `<option value="${img.url}">${escapeHtml(img.name)}</option>`).join('');
+                    
+                    // 恢复之前选中的值
+                    if (currentValue) {
+                        select.value = currentValue;
+                    }
+                } else {
+                    select.innerHTML = '<option value="">-- 暂无可选图片，请先上传 --</option>';
+                }
+            } catch (error) {
+                console.error('加载预览图片列表失败:', error);
+            }
+        }
+        
         // 显示创建卡种弹窗
-        function showCardTypeModal() {
+        async function showCardTypeModal() {
             document.getElementById('cardTypeModalTitle').textContent = '创建卡种';
             document.getElementById('cardTypeId').value = '';
             document.getElementById('cardTypeName').value = '';
             
             // 重置预览设置
-            document.getElementById('cardTypePreviewImage').value = '';
+            document.getElementById('cardTypePreviewImageSelect').setAttribute('data-selected', '');
+            document.getElementById('cardTypePreviewImageSelect').innerHTML = '<option value="">-- 请选择预览图片 --</option>';
             document.getElementById('cardTypePreviewEnabled').checked = false;
             document.getElementById('previewSettingsDetail').style.display = 'none';
             document.querySelector('input[name="blurLevel"][value="8"]').checked = true;
@@ -7857,9 +8212,17 @@
                     document.getElementById('cardTypeName').value = type.name;
                     
                     // 预览设置
-                    document.getElementById('cardTypePreviewImage').value = type.preview_image || '';
+                    document.getElementById('cardTypePreviewImageSelect').setAttribute('data-selected', type.preview_image || '');
                     document.getElementById('cardTypePreviewEnabled').checked = type.preview_enabled || false;
                     document.getElementById('previewSettingsDetail').style.display = type.preview_enabled ? 'block' : 'none';
+                    
+                    // 如果启用预览，加载图片列表并回显
+                    if (type.preview_enabled) {
+                        await loadPreviewImagesForSelect();
+                        if (type.preview_image) {
+                            document.getElementById('cardTypePreviewImageSelect').value = type.preview_image;
+                        }
+                    }
                     
                     const blurLevel = type.blur_level || 8;
                     document.querySelectorAll('input[name="blurLevel"]').forEach(r => {
@@ -7885,15 +8248,26 @@
             const blurLevelRadio = document.querySelector('input[name="blurLevel"]:checked');
             const blurLevel = blurLevelRadio ? parseInt(blurLevelRadio.value) : 8;
             
+            // 获取选择的预览图片URL
+            const previewEnabled = document.getElementById('cardTypePreviewEnabled').checked;
+            const previewImageSelect = document.getElementById('cardTypePreviewImageSelect');
+            const previewImage = previewEnabled ? (previewImageSelect.value || null) : null;
+            
             const data = {
                 name: document.getElementById('cardTypeName').value.trim(),
-                preview_image: document.getElementById('cardTypePreviewImage').value.trim() || null,
-                preview_enabled: document.getElementById('cardTypePreviewEnabled').checked,
+                preview_image: previewImage,
+                preview_enabled: previewEnabled,
                 blur_level: blurLevel
             };
             
             if (!data.name) {
                 showToast('请输入卡种名称', 'error');
+                return;
+            }
+            
+            // 如果启用预览但没有选择图片
+            if (previewEnabled && !previewImage) {
+                showToast('请选择预览图片，或关闭预览模式', 'error');
                 return;
             }
             

@@ -155,3 +155,21 @@ class LinkHealth(Base):
         Index("ix_link_health_status", "status"),
         Index("ix_link_health_next_check_time", "next_check_time"),
     )
+
+
+class PreviewImage(Base):
+    """预览图片表 - 用于卡种预览功能的图片管理"""
+    __tablename__ = "preview_images"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    
+    # 图片信息
+    name: Mapped[str] = mapped_column(String(100), nullable=False, comment="图片名称")
+    url: Mapped[str] = mapped_column(Text, nullable=False, comment="图片URL")
+    
+    # 时间戳
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
+    
+    __table_args__ = (
+        Index("ix_preview_images_name", "name"),
+    )
