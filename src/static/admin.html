@@ -2189,23 +2189,24 @@
             <!-- 卡种列表 -->
             <div class="table-container">
                 <div class="table-wrapper">
-                    <table style="min-width: 900px;">
+                    <table style="min-width: 1000px;">
                         <thead>
                             <tr>
                                 <th style="width: 60px;">ID</th>
                                 <th>卡种名称</th>
                                 <th style="width: 100px;">库存</th>
                                 <th style="width: 100px;">已用</th>
-                                <th style="width: 100px;">总数</th>
-                                <th style="width: 100px;">预览</th>
-                                <th style="width: 100px;">状态</th>
+                                <th style="width: 100px;">过期类型</th>
+                                <th style="width: 140px;">过期时间</th>
+                                <th style="width: 80px;">预览</th>
+                                <th style="width: 80px;">状态</th>
                                 <th style="width: 160px;">创建时间</th>
                                 <th style="width: 120px;">操作</th>
                             </tr>
                         </thead>
                         <tbody id="cardTypesTableBody">
                             <tr>
-                                <td colspan="9" style="text-align: center; padding: 40px; color: #A89070;">
+                                <td colspan="10" style="text-align: center; padding: 40px; color: #A89070;">
                                     暂无卡种数据，点击上方"创建卡种"按钮添加
                                 </td>
                             </tr>
@@ -2798,7 +2799,7 @@
 
     <!-- 卡种创建/编辑模态框 -->
     <div class="modal-overlay" id="cardTypeModalOverlay" style="z-index: 1100;">
-        <div class="modal" style="max-width: 500px;">
+        <div class="modal" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
             <div class="modal-header">
                 <h2 id="cardTypeModalTitle">创建卡种</h2>
                 <button class="modal-close" onclick="closeCardTypeModal()">&times;</button>
@@ -2806,23 +2807,118 @@
             <div class="modal-body">
                 <form id="cardTypeForm" onsubmit="handleCardTypeSubmit(event)">
                     <input type="hidden" id="cardTypeId">
-                    <div class="form-group">
-                        <label>卡种名称 *</label>
-                        <input type="text" class="form-input" id="cardTypeName" placeholder="如: 26届求职通" required>
+                    
+                    <!-- 基础信息 -->
+                    <div class="form-section">
+                        <div class="form-section-title">基础信息</div>
+                        <div class="form-group">
+                            <label>卡种名称 *</label>
+                            <input type="text" class="form-input" id="cardTypeName" placeholder="如: 26届求职通" required>
+                        </div>
+                        <div class="form-row" style="display: flex; gap: 12px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label>卡种分类</label>
+                                <select class="form-input" id="cardTypeCategory">
+                                    <option value="external">对外销售</option>
+                                    <option value="internal">内部使用</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>描述说明</label>
+                            <textarea class="form-input" id="cardTypeDescription" placeholder="卡种用途说明（可选）" rows="2" style="resize: vertical;"></textarea>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>预览截图URL</label>
-                        <input type="text" class="form-input" id="cardTypePreviewImage" placeholder="预览图片链接（可选）">
+                    
+                    <!-- 过期设置 -->
+                    <div class="form-section">
+                        <div class="form-section-title">过期设置</div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <input type="radio" name="expireType" value="" checked style="width: 16px; height: 16px;">
+                                <span>不设置（卡券单独管理）</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <input type="radio" name="expireType" value="fixed" style="width: 16px; height: 16px;">
+                                <span>固定日期</span>
+                                <input type="datetime-local" class="form-input" id="cardTypeExpireAt" style="flex: 1; margin-left: 8px;" disabled>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <input type="radio" name="expireType" value="relative" style="width: 16px; height: 16px;">
+                                <span>按激活天数</span>
+                                <input type="number" class="form-input" id="cardTypeExpireAfterDays" placeholder="天数" min="1" max="3650" style="width: 100px; margin-left: 8px;" disabled>
+                                <span>天</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="radio" name="expireType" value="permanent" style="width: 16px; height: 16px;">
+                                <span>永久有效</span>
+                            </label>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                            <input type="checkbox" id="cardTypePreviewEnabled" style="width: 18px; height: 18px;">
-                            启用预览转化模式
-                        </label>
-                        <p style="color: #999; font-size: 12px; margin-top: 4px;">
-                            启用后，未验证用户将看到模糊预览背景
-                        </p>
+                    
+                    <!-- 内容设置 -->
+                    <div class="form-section">
+                        <div class="form-section-title">内容设置</div>
+                        <div class="form-group">
+                            <label>飞书链接</label>
+                            <input type="text" class="form-input" id="cardTypeFeishuUrl" placeholder="验证成功后展示的飞书文档链接">
+                        </div>
+                        <div class="form-row" style="display: flex; gap: 12px;">
+                            <div class="form-group" style="flex: 1;">
+                                <label>链接名称</label>
+                                <input type="text" class="form-input" id="cardTypeLinkName" placeholder="如: 春招信息表">
+                            </div>
+                            <div class="form-group" style="flex: 1;">
+                                <label>访问密码</label>
+                                <input type="text" class="form-input" id="cardTypeFeishuPassword" placeholder="飞书文档访问密码">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>设备限制</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <input type="number" class="form-input" id="cardTypeMaxDevices" value="5" min="1" max="10" style="width: 80px;">
+                                <span style="color: #666;">台（单个卡密可绑定的设备数量）</span>
+                            </div>
+                        </div>
                     </div>
+                    
+                    <!-- 预览设置 -->
+                    <div class="form-section">
+                        <div class="form-section-title">预览设置（可选）</div>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <input type="checkbox" id="cardTypePreviewEnabled" style="width: 18px; height: 18px;">
+                                启用预览转化模式
+                            </label>
+                            <p style="color: #999; font-size: 12px; margin-top: 4px;">
+                                启用后，未验证用户将看到模糊预览背景，提高购买转化率
+                            </p>
+                        </div>
+                        <div id="previewSettingsDetail" style="display: none; margin-top: 12px; padding: 12px; background: #f9f9f9; border-radius: 8px;">
+                            <div class="form-group">
+                                <label>预览截图URL</label>
+                                <input type="text" class="form-input" id="cardTypePreviewImage" placeholder="预览图片链接">
+                            </div>
+                            <div class="form-group">
+                                <label>模糊程度</label>
+                                <div style="display: flex; gap: 16px; margin-top: 8px;">
+                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                        <input type="radio" name="blurLevel" value="4" style="width: 14px; height: 14px;">
+                                        <span>轻度(4px)</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                        <input type="radio" name="blurLevel" value="8" checked style="width: 14px; height: 14px;">
+                                        <span>中度(8px)</span>
+                                    </label>
+                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
+                                        <input type="radio" name="blurLevel" value="12" style="width: 14px; height: 14px;">
+                                        <span>重度(12px)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-actions" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
                         <button type="button" class="btn btn-secondary" onclick="closeCardTypeModal()">取消</button>
                         <button type="submit" class="btn btn-primary">保存</button>
@@ -2831,6 +2927,27 @@
             </div>
         </div>
     </div>
+    
+    <style>
+        .form-section {
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #E8D5C4;
+        }
+        .form-section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        .form-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #5D4E37;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #D4A574;
+            display: inline-block;
+        }
+    </style>
 
     <!-- 卡券管理全屏弹窗 -->
     <div class="modal-overlay" id="cardTypeCardsModalOverlay" style="background: rgba(0,0,0,0.5); z-index: 1000;">
@@ -3356,6 +3473,32 @@
             const linkHealthSearchInput = document.getElementById('linkHealthSearchInput');
             if (linkHealthSearchInput) {
                 linkHealthSearchInput.addEventListener('input', filterLinkHealth);
+            }
+            
+            // 卡种弹窗 - 过期类型单选框联动
+            document.querySelectorAll('input[name="expireType"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    const expireAtInput = document.getElementById('cardTypeExpireAt');
+                    const expireAfterDaysInput = document.getElementById('cardTypeExpireAfterDays');
+                    
+                    expireAtInput.disabled = this.value !== 'fixed';
+                    expireAfterDaysInput.disabled = this.value !== 'relative';
+                    
+                    if (this.value !== 'fixed') {
+                        expireAtInput.value = '';
+                    }
+                    if (this.value !== 'relative') {
+                        expireAfterDaysInput.value = '';
+                    }
+                });
+            });
+            
+            // 卡种弹窗 - 预览设置显示/隐藏
+            const previewEnabledCheckbox = document.getElementById('cardTypePreviewEnabled');
+            if (previewEnabledCheckbox) {
+                previewEnabledCheckbox.addEventListener('change', function() {
+                    document.getElementById('previewSettingsDetail').style.display = this.checked ? 'block' : 'none';
+                });
             }
             
             // 启动定时刷新（每30秒刷新一次）
@@ -6919,7 +7062,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" style="text-align: center; padding: 40px; color: #A89070;">
+                        <td colspan="10" style="text-align: center; padding: 40px; color: #A89070;">
                             暂无卡种数据，点击上方"创建卡种"按钮添加
                         </td>
                     </tr>
@@ -6927,11 +7070,28 @@
                 return;
             }
             
-            tbody.innerHTML = data.map(type => `
+            tbody.innerHTML = data.map(type => {
+                // 过期类型显示
+                let expireTypeText = '-';
+                let expireTimeText = '-';
+                
+                if (type.expire_type === 'fixed') {
+                    expireTypeText = '固定日期';
+                    expireTimeText = type.expire_at ? formatTime(type.expire_at) : '-';
+                } else if (type.expire_type === 'relative') {
+                    expireTypeText = '按天数';
+                    expireTimeText = type.expire_after_days ? `${type.expire_after_days}天` : '-';
+                } else if (type.expire_type === 'permanent') {
+                    expireTypeText = '永久';
+                    expireTimeText = '永久有效';
+                }
+                
+                return `
                 <tr>
                     <td style="text-align: center;">${type.id}</td>
                     <td>
                         <div style="font-weight: 500; color: #5D4E37;">${escapeHtml(type.name)}</div>
+                        ${type.category === 'internal' ? '<span style="font-size: 11px; color: #999;">内部使用</span>' : ''}
                     </td>
                     <td style="text-align: center;">
                         <span style="color: #059669; font-weight: bold;">${type.stock_count || 0}</span>
@@ -6939,9 +7099,14 @@
                     <td style="text-align: center;">
                         <span style="color: #D97706; font-weight: bold;">${type.used_count || 0}</span>
                     </td>
-                    <td style="text-align: center;">${type.total_count || 0}</td>
                     <td style="text-align: center;">
-                        ${type.preview_enabled ? '<span class="status-badge status-active">已启用</span>' : '<span style="color: #999;">未启用</span>'}
+                        <span style="color: #666;">${expireTypeText}</span>
+                    </td>
+                    <td style="text-align: center;">
+                        <span style="color: #666;">${expireTimeText}</span>
+                    </td>
+                    <td style="text-align: center;">
+                        ${type.preview_enabled ? '<span class="status-badge status-active" style="font-size: 11px;">已启用</span>' : '<span style="color: #999;">-</span>'}
                     </td>
                     <td style="text-align: center;">
                         <span class="${type.status === 1 ? 'status-active' : 'status-inactive'}">
@@ -6957,7 +7122,7 @@
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `}).join('');
         }
         
         // 渲染卡种分页
@@ -6994,8 +7159,28 @@
             document.getElementById('cardTypeModalTitle').textContent = '创建卡种';
             document.getElementById('cardTypeId').value = '';
             document.getElementById('cardTypeName').value = '';
+            document.getElementById('cardTypeCategory').value = 'external';
+            document.getElementById('cardTypeDescription').value = '';
+            
+            // 重置过期设置
+            document.querySelectorAll('input[name="expireType"]').forEach(r => r.checked = r.value === '');
+            document.getElementById('cardTypeExpireAt').value = '';
+            document.getElementById('cardTypeExpireAt').disabled = true;
+            document.getElementById('cardTypeExpireAfterDays').value = '';
+            document.getElementById('cardTypeExpireAfterDays').disabled = true;
+            
+            // 重置内容设置
+            document.getElementById('cardTypeFeishuUrl').value = '';
+            document.getElementById('cardTypeLinkName').value = '';
+            document.getElementById('cardTypeFeishuPassword').value = '';
+            document.getElementById('cardTypeMaxDevices').value = '5';
+            
+            // 重置预览设置
             document.getElementById('cardTypePreviewImage').value = '';
             document.getElementById('cardTypePreviewEnabled').checked = false;
+            document.getElementById('previewSettingsDetail').style.display = 'none';
+            document.querySelector('input[name="blurLevel"][value="8"]').checked = true;
+            
             document.getElementById('cardTypeModalOverlay').classList.add('active');
         }
         
@@ -7015,8 +7200,42 @@
                     document.getElementById('cardTypeModalTitle').textContent = '编辑卡种';
                     document.getElementById('cardTypeId').value = type.id;
                     document.getElementById('cardTypeName').value = type.name;
+                    document.getElementById('cardTypeCategory').value = type.category || 'external';
+                    document.getElementById('cardTypeDescription').value = type.description || '';
+                    
+                    // 过期设置
+                    const expireType = type.expire_type || '';
+                    document.querySelectorAll('input[name="expireType"]').forEach(r => {
+                        r.checked = r.value === expireType;
+                    });
+                    document.getElementById('cardTypeExpireAt').disabled = expireType !== 'fixed';
+                    document.getElementById('cardTypeExpireAfterDays').disabled = expireType !== 'relative';
+                    
+                    if (type.expire_at) {
+                        // 转换为 datetime-local 格式
+                        const dt = new Date(type.expire_at);
+                        document.getElementById('cardTypeExpireAt').value = dt.toISOString().slice(0, 16);
+                    } else {
+                        document.getElementById('cardTypeExpireAt').value = '';
+                    }
+                    document.getElementById('cardTypeExpireAfterDays').value = type.expire_after_days || '';
+                    
+                    // 内容设置
+                    document.getElementById('cardTypeFeishuUrl').value = type.feishu_url || '';
+                    document.getElementById('cardTypeLinkName').value = type.link_name || '';
+                    document.getElementById('cardTypeFeishuPassword').value = type.feishu_password || '';
+                    document.getElementById('cardTypeMaxDevices').value = type.max_devices || 5;
+                    
+                    // 预览设置
                     document.getElementById('cardTypePreviewImage').value = type.preview_image || '';
                     document.getElementById('cardTypePreviewEnabled').checked = type.preview_enabled || false;
+                    document.getElementById('previewSettingsDetail').style.display = type.preview_enabled ? 'block' : 'none';
+                    
+                    const blurLevel = type.blur_level || 8;
+                    document.querySelectorAll('input[name="blurLevel"]').forEach(r => {
+                        r.checked = r.value == blurLevel;
+                    });
+                    
                     document.getElementById('cardTypeModalOverlay').classList.add('active');
                 } else {
                     showToast(getErrorMsg(result), 'error');
@@ -7031,14 +7250,43 @@
             event.preventDefault();
             
             const id = document.getElementById('cardTypeId').value;
+            
+            // 获取过期类型
+            const expireTypeRadio = document.querySelector('input[name="expireType"]:checked');
+            const expireType = expireTypeRadio ? expireTypeRadio.value : null;
+            
+            // 获取模糊程度
+            const blurLevelRadio = document.querySelector('input[name="blurLevel"]:checked');
+            const blurLevel = blurLevelRadio ? parseInt(blurLevelRadio.value) : 8;
+            
             const data = {
                 name: document.getElementById('cardTypeName').value.trim(),
+                category: document.getElementById('cardTypeCategory').value,
+                description: document.getElementById('cardTypeDescription').value.trim() || null,
+                expire_type: expireType || null,
+                expire_at: expireType === 'fixed' ? document.getElementById('cardTypeExpireAt').value : null,
+                expire_after_days: expireType === 'relative' ? parseInt(document.getElementById('cardTypeExpireAfterDays').value) || null : null,
+                feishu_url: document.getElementById('cardTypeFeishuUrl').value.trim() || null,
+                link_name: document.getElementById('cardTypeLinkName').value.trim() || null,
+                feishu_password: document.getElementById('cardTypeFeishuPassword').value.trim() || null,
+                max_devices: parseInt(document.getElementById('cardTypeMaxDevices').value) || 5,
                 preview_image: document.getElementById('cardTypePreviewImage').value.trim() || null,
-                preview_enabled: document.getElementById('cardTypePreviewEnabled').checked
+                preview_enabled: document.getElementById('cardTypePreviewEnabled').checked,
+                blur_level: blurLevel
             };
             
             if (!data.name) {
                 showToast('请输入卡种名称', 'error');
+                return;
+            }
+            
+            // 验证过期设置
+            if (expireType === 'fixed' && !data.expire_at) {
+                showToast('请选择过期时间', 'error');
+                return;
+            }
+            if (expireType === 'relative' && !data.expire_after_days) {
+                showToast('请输入有效天数', 'error');
                 return;
             }
             

@@ -21,6 +21,8 @@ class CardType(Base):
     
     # 基础信息
     name: Mapped[str] = mapped_column(String(200), nullable=False, comment="卡种名称")
+    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="external", comment="卡种分类: external=对外销售, internal=内部使用")
+    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="描述说明")
     
     # 过期设置
     expire_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, comment="过期类型: fixed=固定日期, relative=按激活天数, permanent=永久")
@@ -38,6 +40,7 @@ class CardType(Base):
     # 预览设置
     preview_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="预览截图URL")
     preview_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否启用预览")
+    blur_level: Mapped[int] = mapped_column(Integer, default=8, nullable=False, comment="模糊程度(px): 4=轻度, 8=中度, 12=重度")
     
     # 状态
     status: Mapped[int] = mapped_column(Integer, default=1, nullable=False, comment="状态: 1=有效, 0=无效")
@@ -50,6 +53,7 @@ class CardType(Base):
     __table_args__ = (
         Index("ix_card_types_name", "name"),
         Index("ix_card_types_status", "status"),
+        Index("ix_card_types_category", "category"),
     )
 
 

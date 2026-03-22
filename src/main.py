@@ -247,16 +247,56 @@ class ChangePasswordRequest(BaseModel):
 
 class CardTypeCreate(BaseModel):
     """创建卡种"""
+    # 基础信息
     name: str
-    preview_image: Optional[str] = None
-    preview_enabled: bool = False
+    category: Optional[str] = "external"  # 卡种分类: external=对外销售, internal=内部使用
+    description: Optional[str] = None  # 描述说明
+    
+    # 过期设置
+    expire_type: Optional[str] = None  # 过期类型: fixed=固定日期, relative=按激活天数, permanent=永久
+    expire_at: Optional[str] = None  # 过期时间（expire_type=fixed时使用）
+    expire_after_days: Optional[int] = None  # 激活后有效天数（expire_type=relative时使用）
+    
+    # 飞书内容
+    feishu_url: Optional[str] = None  # 飞书链接
+    feishu_password: Optional[str] = None  # 飞书访问密码
+    link_name: Optional[str] = None  # 链接名称
+    
+    # 设备限制
+    max_devices: int = 5  # 最大设备数
+    
+    # 预览设置
+    preview_image: Optional[str] = None  # 预览截图URL
+    preview_enabled: bool = False  # 是否启用预览
+    blur_level: Optional[int] = 8  # 模糊程度(px): 4=轻度, 8=中度, 12=重度
 
 
 class CardTypeUpdate(BaseModel):
     """更新卡种"""
+    # 基础信息
     name: Optional[str] = None
-    preview_image: Optional[str] = None
-    preview_enabled: Optional[bool] = None
+    category: Optional[str] = None  # 卡种分类
+    description: Optional[str] = None  # 描述说明
+    
+    # 过期设置
+    expire_type: Optional[str] = None  # 过期类型
+    expire_at: Optional[str] = None  # 过期时间
+    expire_after_days: Optional[int] = None  # 激活后有效天数
+    
+    # 飞书内容
+    feishu_url: Optional[str] = None  # 飞书链接
+    feishu_password: Optional[str] = None  # 飞书访问密码
+    link_name: Optional[str] = None  # 链接名称
+    
+    # 设备限制
+    max_devices: Optional[int] = None  # 最大设备数
+    
+    # 预览设置
+    preview_image: Optional[str] = None  # 预览截图URL
+    preview_enabled: Optional[bool] = None  # 是否启用预览
+    blur_level: Optional[int] = None  # 模糊程度
+    
+    # 状态
     status: Optional[int] = None
 
 
@@ -1377,14 +1417,43 @@ async def create_card_type(card_type: CardTypeCreate):
         if existing.data:
             return {"success": False, "msg": "卡种名称已存在"}
         
-        # 创建卡种
+        # 创建卡种 - 支持所有字段
         data = {
             "name": card_type.name,
-            "preview_image": card_type.preview_image,
-            "preview_enabled": card_type.preview_enabled,
             "status": 1,
             "created_at": datetime.now().isoformat()
         }
+        
+        # 基础信息
+        if card_type.category:
+            data["category"] = card_type.category
+        if card_type.description:
+            data["description"] = card_type.description
+        
+        # 过期设置
+        if card_type.expire_type:
+            data["expire_type"] = card_type.expire_type
+        if card_type.expire_at:
+            data["expire_at"] = card_type.expire_at
+        if card_type.expire_after_days:
+            data["expire_after_days"] = card_type.expire_after_days
+        
+        # 飞书内容
+        if card_type.feishu_url:
+            data["feishu_url"] = card_type.feishu_url
+        if card_type.feishu_password:
+            data["feishu_password"] = card_type.feishu_password
+        if card_type.link_name:
+            data["link_name"] = card_type.link_name
+        
+        # 设备限制
+        data["max_devices"] = card_type.max_devices
+        
+        # 预览设置
+        if card_type.preview_image:
+            data["preview_image"] = card_type.preview_image
+        data["preview_enabled"] = card_type.preview_enabled
+        data["blur_level"] = card_type.blur_level or 8
         
         response = client.table('card_types').insert(data).execute()
         
@@ -1493,6 +1562,8 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
         
         # 构建更新数据
         update_data = {}
+        
+        # 基础信息
         if card_type.name is not None:
             # 检查名称是否与其他卡种重复
             name_check = client.table('card_types').select('id').eq('name', card_type.name).neq('id', type_id).is_('deleted_at', 'null').execute()
@@ -1500,12 +1571,47 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
                 return {"success": False, "msg": "卡种名称已存在"}
             update_data['name'] = card_type.name
         
+        if card_type.category is not None:
+            update_data['category'] = card_type.category
+        
+        if card_type.description is not None:
+            update_data['description'] = card_type.description
+        
+        # 过期设置
+        if card_type.expire_type is not None:
+            update_data['expire_type'] = card_type.expire_type
+        
+        if card_type.expire_at is not None:
+            update_data['expire_at'] = card_type.expire_at
+        
+        if card_type.expire_after_days is not None:
+            update_data['expire_after_days'] = card_type.expire_after_days
+        
+        # 飞书内容
+        if card_type.feishu_url is not None:
+            update_data['feishu_url'] = card_type.feishu_url
+        
+        if card_type.feishu_password is not None:
+            update_data['feishu_password'] = card_type.feishu_password
+        
+        if card_type.link_name is not None:
+            update_data['link_name'] = card_type.link_name
+        
+        # 设备限制
+        if card_type.max_devices is not None:
+            update_data['max_devices'] = card_type.max_devices
+        
+        # 预览设置
         if card_type.preview_image is not None:
             update_data['preview_image'] = card_type.preview_image
         
         if card_type.preview_enabled is not None:
             update_data['preview_enabled'] = card_type.preview_enabled
         
+        if card_type.blur_level is not None:
+            update_data['blur_level'] = card_type.blur_level
+        
+        # 状态
         if card_type.status is not None:
             update_data['status'] = card_type.status
         
