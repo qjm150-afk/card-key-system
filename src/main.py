@@ -4642,6 +4642,156 @@ async def change_password(request: ChangePasswordRequest, req: Request):
         return {"success": False, "msg": "密码保存失败，请稍后重试"}
 
 
+# ==================== 系统设置 API ====================
+
+class DocsUrlRequest(BaseModel):
+    """文档链接请求"""
+    url: str
+
+
+@app.get("/api/admin/settings/docs-url")
+async def get_docs_url(req: Request):
+    """获取文档中心链接"""
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    try:
+        client = get_supabase_client()
+        result = client.table('admin_settings').select('value').eq('key', 'docs_url').execute()
+        if result.data and len(result.data) > 0:
+            return {"success": True, "data": result.data[0]['value']}
+        return {"success": True, "data": ""}
+    except Exception as e:
+        logger.error(f"获取文档链接失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/settings/docs-url")
+async def set_docs_url(request: DocsUrlRequest, req: Request):
+    """设置文档中心链接"""
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    try:
+        client = get_supabase_client()
+        url = request.url.strip() if request.url else ""
+        
+        # 先尝试更新
+        result = client.table('admin_settings').update({'value': url}).eq('key', 'docs_url').execute()
+        if not result.data:
+            # 如果没有更新到，说明记录不存在，尝试插入
+            client.table('admin_settings').insert({'key': 'docs_url', 'value': url}).execute()
+        
+        logger.info(f"文档链接设置成功: {url}")
+        return {"success": True, "msg": "保存成功"}
+    except Exception as e:
+        logger.error(f"设置文档链接失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/settings/default-preview")
+async def get_default_preview(req: Request):
+    """获取默认预览图片"""
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    try:
+        client = get_supabase_client()
+        result = client.table('admin_settings').select('value').eq('key', 'default_preview_image').execute()
+        if result.data and len(result.data) > 0:
+            return {"success": True, "data": result.data[0]['value']}
+        return {"success": True, "data": ""}
+    except Exception as e:
+        logger.error(f"获取默认预览图片失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/settings/default-preview")
+async def upload_default_preview(req: Request, file: UploadFile = File(...)):
+    """上传默认预览图片"""
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    try:
+        # 验证文件类型
+        if not file.content_type or not file.content_type.startswith('image/'):
+            return {"success": False, "msg": "请上传图片文件"}
+        
+        # 验证文件大小（5MB）
+        content = await file.read()
+        if len(content) > 5 * 1024 * 1024:
+            return {"success": False, "msg": "图片大小不能超过5MB"}
+        
+        # 使用存储服务上传图片
+        client = get_supabase_client()
+        
+        # 生成文件名
+        file_ext = file.filename.split('.')[-1] if file.filename else 'png'
+        file_name = f"default_preview_{datetime.now().strftime('%Y%m%d%H%M%S')}.{file_ext}"
+        
+        # 上传到 storage bucket
+        try:
+            storage_result = client.storage.from_('images').upload(
+                file_name,
+                content,
+                {"content-type": file.content_type}
+            )
+            
+            # 获取公开URL
+            image_url = client.storage.from_('images').get_public_url(file_name)
+            
+            # 保存URL到设置表
+            result = client.table('admin_settings').update({'value': image_url}).eq('key', 'default_preview_image').execute()
+            if not result.data:
+                client.table('admin_settings').insert({'key': 'default_preview_image', 'value': image_url}).execute()
+            
+            logger.info(f"默认预览图片上传成功: {image_url}")
+            return {"success": True, "url": image_url}
+            
+        except Exception as storage_err:
+            logger.error(f"存储上传失败: {str(storage_err)}")
+            # 如果存储失败，尝试使用 base64 存储（不推荐，仅作为备用）
+            import base64
+            base64_data = base64.b64encode(content).decode('utf-8')
+            data_url = f"data:{file.content_type};base64,{base64_data}"
+            
+            # 限制 base64 大小
+            if len(data_url) > 500000:
+                return {"success": False, "msg": "图片太大，请压缩后上传"}
+            
+            result = client.table('admin_settings').update({'value': data_url}).eq('key', 'default_preview_image').execute()
+            if not result.data:
+                client.table('admin_settings').insert({'key': 'default_preview_image', 'value': data_url}).execute()
+            
+            logger.info("默认预览图片已保存为 base64")
+            return {"success": True, "url": data_url}
+            
+    except Exception as e:
+        logger.error(f"上传默认预览图片失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.delete("/api/admin/settings/default-preview")
+async def delete_default_preview(req: Request):
+    """删除默认预览图片"""
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    try:
+        client = get_supabase_client()
+        client.table('admin_settings').update({'value': ''}).eq('key', 'default_preview_image').execute()
+        logger.info("默认预览图片已删除")
+        return {"success": True, "msg": "删除成功"}
+    except Exception as e:
+        logger.error(f"删除默认预览图片失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 # ==================== 行为数据上报 API ====================
 
 class SessionReport(BaseModel):

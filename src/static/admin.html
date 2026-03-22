@@ -1987,6 +1987,109 @@
             margin-top: 2px;
             margin-left: 0;
         }
+
+        /* 设置页面样式 */
+        .settings-container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .settings-section {
+            margin-bottom: 32px;
+        }
+
+        .settings-section .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #5D4E37;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #E8D5C4;
+        }
+
+        .settings-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .settings-form {
+            max-width: 500px;
+        }
+
+        .settings-form .form-group {
+            margin-bottom: 16px;
+        }
+
+        .settings-form .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #5D4E37;
+            margin-bottom: 8px;
+        }
+
+        .settings-form .form-input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #E8D5C4;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .settings-form .form-input:focus {
+            outline: none;
+            border-color: #D4A574;
+            box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
+        }
+
+        /* 预览图片上传 */
+        .preview-image-upload {
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .preview-image-preview {
+            width: 160px;
+            height: 120px;
+            border: 2px dashed #E8D5C4;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #FFF8F0;
+            cursor: pointer;
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+
+        .preview-image-preview:hover {
+            border-color: #D4A574;
+            background: #FFF5EB;
+        }
+
+        .preview-image-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .preview-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            color: #A89070;
+            font-size: 12px;
+        }
+
+        .preview-placeholder svg {
+            opacity: 0.5;
+        }
     </style>
 </head>
 <body>
@@ -2039,6 +2142,7 @@
             <button class="tab" onclick="switchTab('operation-logs')">操作日志</button>
             <button class="tab" onclick="switchTab('link-health')">链接健康</button>
             <button class="tab" onclick="switchTab('analytics')">数据分析</button>
+            <button class="tab" onclick="switchTab('settings')">设置</button>
         </div>
 
         <!-- 卡密管理 -->
@@ -2618,6 +2722,78 @@
                     </div>
                     <div class="expire-chart-empty" id="expireChartEmpty" style="display: none;">
                         暂无过期状态数据
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置 -->
+        <div id="settings-tab" class="tab-content">
+            <div class="settings-container">
+                <!-- 修改密码 -->
+                <div class="settings-section">
+                    <h3 class="section-title">🔐 修改密码</h3>
+                    <div class="settings-card">
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label>当前密码</label>
+                                <input type="password" class="form-input" id="currentPassword" placeholder="请输入当前密码">
+                            </div>
+                            <div class="form-group">
+                                <label>新密码</label>
+                                <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码（4-50位）">
+                            </div>
+                            <div class="form-group">
+                                <label>确认新密码</label>
+                                <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码">
+                            </div>
+                            <button class="btn btn-primary" onclick="handleChangePassword()">确认修改</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 文档中心 -->
+                <div class="settings-section">
+                    <h3 class="section-title">📚 文档中心</h3>
+                    <div class="settings-card">
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label>文档链接</label>
+                                <input type="text" class="form-input" id="docsUrl" placeholder="请输入飞书文档链接，如: https://xxx.feishu.cn/docx/xxx">
+                                <small style="color: #999; font-size: 11px; margin-top: 4px; display: block;">
+                                    设置后，管理后台头部会显示"文档中心"按钮，点击可跳转
+                                </small>
+                            </div>
+                            <button class="btn btn-primary" onclick="saveDocsUrl()">保存链接</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 预览图片上传 -->
+                <div class="settings-section">
+                    <h3 class="section-title">🖼️ 默认预览图片</h3>
+                    <div class="settings-card">
+                        <div class="settings-form">
+                            <div class="form-group">
+                                <label>默认预览图</label>
+                                <div class="preview-image-upload">
+                                    <div class="preview-image-preview" id="defaultPreviewImagePreview">
+                                        <div class="preview-placeholder">
+                                            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            </svg>
+                                            <span>点击上传预览图</span>
+                                        </div>
+                                    </div>
+                                    <input type="file" id="defaultPreviewImageInput" accept="image/*" style="display: none;" onchange="handleDefaultPreviewImageUpload(event)">
+                                    <button class="btn btn-secondary" onclick="document.getElementById('defaultPreviewImageInput').click()">选择图片</button>
+                                    <button class="btn btn-danger" id="removeDefaultPreviewBtn" style="display: none;" onclick="removeDefaultPreviewImage()">移除图片</button>
+                                </div>
+                                <small style="color: #999; font-size: 11px; margin-top: 8px; display: block;">
+                                    设置默认预览图片，当卡种没有单独设置预览图时使用此图片
+                                </small>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -3490,6 +3666,8 @@
                 loadAnalytics();
             } else if (tab === 'card-types') {
                 loadCardTypes();
+            } else if (tab === 'settings') {
+                loadSettings();
             }
         }
         
@@ -3501,9 +3679,209 @@
                 'logs': '访问日志',
                 'operation-logs': '操作日志',
                 'link-health': '链接健康',
-                'analytics': '数据分析'
+                'analytics': '数据分析',
+                'settings': '设置'
             };
             return tabNames[tab] || tab;
+        }
+
+        // ==================== 设置页面功能 ====================
+        
+        // 加载文档链接到头部
+        async function loadDocsLink() {
+            try {
+                const response = await fetch('/api/admin/settings/docs-url');
+                const data = await response.json();
+                if (data.success) {
+                    updateDocsLink(data.data || '');
+                }
+            } catch (error) {
+                console.error('加载文档链接失败:', error);
+            }
+        }
+
+        // 加载设置
+        async function loadSettings() {
+            try {
+                // 加载文档中心链接
+                const docsResponse = await fetch('/api/admin/settings/docs-url');
+                const docsData = await docsResponse.json();
+                if (docsData.success && docsData.data) {
+                    document.getElementById('docsUrl').value = docsData.data || '';
+                }
+
+                // 加载默认预览图片
+                const previewResponse = await fetch('/api/admin/settings/default-preview');
+                const previewData = await previewResponse.json();
+                if (previewData.success && previewData.data) {
+                    updateDefaultPreviewImagePreview(previewData.data);
+                }
+            } catch (error) {
+                console.error('加载设置失败:', error);
+            }
+        }
+
+        // 修改密码
+        async function handleChangePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // 验证
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showToast('请填写所有密码字段', 'error');
+                return;
+            }
+
+            if (newPassword.length < 4 || newPassword.length > 50) {
+                showToast('新密码长度必须在4-50位之间', 'error');
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                showToast('两次输入的新密码不一致', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/admin/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        old_password: currentPassword,
+                        new_password: newPassword
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('密码修改成功', 'success');
+                    // 清空表单
+                    document.getElementById('currentPassword').value = '';
+                    document.getElementById('newPassword').value = '';
+                    document.getElementById('confirmPassword').value = '';
+                } else {
+                    showToast(data.msg || '密码修改失败', 'error');
+                }
+            } catch (error) {
+                showToast('密码修改失败，请稍后重试', 'error');
+            }
+        }
+
+        // 保存文档链接
+        async function saveDocsUrl() {
+            const docsUrl = document.getElementById('docsUrl').value.trim();
+            
+            try {
+                const response = await fetch('/api/admin/settings/docs-url', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: docsUrl })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('文档链接保存成功', 'success');
+                    // 更新头部链接
+                    updateDocsLink(docsUrl);
+                } else {
+                    showToast(data.msg || '保存失败', 'error');
+                }
+            } catch (error) {
+                showToast('保存失败，请稍后重试', 'error');
+            }
+        }
+
+        // 更新头部文档链接
+        function updateDocsLink(url) {
+            const docsLink = document.getElementById('docsLink');
+            if (docsLink) {
+                if (url) {
+                    docsLink.href = url;
+                    docsLink.style.display = 'inline-flex';
+                } else {
+                    docsLink.style.display = 'none';
+                }
+            }
+        }
+
+        // 处理默认预览图片上传
+        async function handleDefaultPreviewImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            // 验证文件类型
+            if (!file.type.startsWith('image/')) {
+                showToast('请选择图片文件', 'error');
+                return;
+            }
+
+            // 验证文件大小（最大 5MB）
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('图片大小不能超过5MB', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/admin/settings/default-preview', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('预览图片上传成功', 'success');
+                    updateDefaultPreviewImagePreview(data.url);
+                } else {
+                    showToast(data.msg || '上传失败', 'error');
+                }
+            } catch (error) {
+                showToast('上传失败，请稍后重试', 'error');
+            }
+        }
+
+        // 更新默认预览图片预览
+        function updateDefaultPreviewImagePreview(url) {
+            const preview = document.getElementById('defaultPreviewImagePreview');
+            const removeBtn = document.getElementById('removeDefaultPreviewBtn');
+
+            if (url) {
+                preview.innerHTML = `<img src="${url}" alt="预览图">`;
+                removeBtn.style.display = 'inline-flex';
+            } else {
+                preview.innerHTML = `
+                    <div class="preview-placeholder">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                        </svg>
+                        <span>点击上传预览图</span>
+                    </div>
+                `;
+                removeBtn.style.display = 'none';
+            }
+        }
+
+        // 移除默认预览图片
+        async function removeDefaultPreviewImage() {
+            try {
+                const response = await fetch('/api/admin/settings/default-preview', {
+                    method: 'DELETE'
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    showToast('预览图片已移除', 'success');
+                    updateDefaultPreviewImagePreview(null);
+                    document.getElementById('defaultPreviewImageInput').value = '';
+                } else {
+                    showToast(data.msg || '移除失败', 'error');
+                }
+            } catch (error) {
+                showToast('移除失败，请稍后重试', 'error');
+            }
         }
 
         // ==================== 数据分析功能 ====================
@@ -6206,6 +6584,8 @@
                 // 然后加载卡密列表和统计数据
                 loadCards();
                 loadStats();
+                // 加载文档中心链接
+                loadDocsLink();
             } finally {
                 // 无论成功失败，都清除登录流程标志
                 isLoggingIn = false;
