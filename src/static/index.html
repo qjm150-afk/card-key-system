@@ -1268,7 +1268,7 @@
                     if (session && session.cardKey) {
                         try {
                             const deviceId = getDeviceId();
-                            await fetch('/api/logout', {
+                            const response = await fetch('/api/logout', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
@@ -1276,11 +1276,16 @@
                                     device_id: deviceId
                                 })
                             });
-                            console.log('退出登录成功，已解除设备绑定');
+                            const result = await response.json();
+                            if (result.success) {
+                                console.log('退出登录成功，已解除设备绑定');
+                            } else {
+                                console.warn('退出登录API返回失败:', result.msg);
+                            }
                         } catch (err) {
                             console.error('退出登录API调用失败:', err);
-                            // 即使API调用失败，也继续清除本地状态
                         }
+                        // 无论API调用是否成功，都继续清除本地状态
                     }
                     
                     // 清除协作者更新定时器

@@ -2189,16 +2189,15 @@
             <!-- 卡种列表 -->
             <div class="table-container">
                 <div class="table-wrapper">
-                    <table style="min-width: 1100px;">
+                    <table style="min-width: 1300px;">
                         <thead>
                             <tr>
                                 <th style="width: 60px;">ID</th>
                                 <th>卡种名称</th>
                                 <th style="width: 80px;">总数</th>
-                                <th style="width: 80px;">未售</th>
+                                <th style="width: 80px;">已激活</th>
+                                <th style="width: 80px;">已停用</th>
                                 <th style="width: 80px;">已售</th>
-                                <th style="width: 80px;">已退</th>
-                                <th style="width: 80px;">纠纷</th>
                                 <th style="width: 80px;">预览</th>
                                 <th style="width: 80px;">状态</th>
                                 <th style="width: 160px;">创建时间</th>
@@ -2207,7 +2206,7 @@
                         </thead>
                         <tbody id="cardTypesTableBody">
                             <tr>
-                                <td colspan="11" style="text-align: center; padding: 40px; color: #A89070;">
+                                <td colspan="10" style="text-align: center; padding: 40px; color: #A89070;">
                                     暂无卡种数据，点击上方"创建卡种"按钮添加
                                 </td>
                             </tr>
@@ -7016,7 +7015,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="11" style="text-align: center; padding: 40px; color: #A89070;">
+                        <td colspan="10" style="text-align: center; padding: 40px; color: #A89070;">
                             暂无卡种数据，点击上方"创建卡种"按钮添加
                         </td>
                     </tr>
@@ -7030,22 +7029,18 @@
                     <td style="text-align: center;">${type.id}</td>
                     <td>
                         <div style="font-weight: 500; color: #5D4E37;">${escapeHtml(type.name)}</div>
-                        ${type.description ? `<div style="font-size: 11px; color: #999; margin-top: 2px;">${escapeHtml(type.description.substring(0, 30))}${type.description.length > 30 ? '...' : ''}</div>` : ''}
                     </td>
                     <td style="text-align: center;">
                         <span style="color: #5D4E37; font-weight: bold;">${type.total_count || 0}</span>
                     </td>
                     <td style="text-align: center;">
-                        <span style="color: #059669; font-weight: bold;">${type.unsold_count || 0}</span>
+                        <span style="color: #3B82F6; font-weight: bold;">${type.activated_count || 0}</span>
                     </td>
                     <td style="text-align: center;">
-                        <span style="color: #3B82F6; font-weight: bold;">${type.sold_count || 0}</span>
+                        <span style="color: #EF4444; font-weight: bold;">${type.deactivated_count || 0}</span>
                     </td>
                     <td style="text-align: center;">
-                        <span style="color: #F59E0B; font-weight: bold;">${type.refunded_count || 0}</span>
-                    </td>
-                    <td style="text-align: center;">
-                        <span style="color: #EF4444; font-weight: bold;">${type.disputed_count || 0}</span>
+                        <span style="color: #059669; font-weight: bold;">${type.sold_count || 0}</span>
                     </td>
                     <td style="text-align: center;">
                         ${type.preview_enabled ? '<span class="status-badge status-active" style="font-size: 11px;">已启用</span>' : '<span style="color: #999;">-</span>'}
