@@ -2110,7 +2110,6 @@
                         id: null,  // 全局预览没有卡种ID
                         name: '内容已加密',
                         preview_image: result.data.preview_image,
-                        blur_level: result.data.blur_level || 8,
                         preview_enabled: true,
                         isGlobal: true  // 标记为全局预览
                     };
@@ -2126,18 +2125,15 @@
         function showPreview(previewData) {
             currentPreviewCardTypeId = previewData.id;
             
-            // 设置预览背景图
+            // 设置预览背景图（无模糊）
             const previewBackground = document.getElementById('previewBackground');
             if (previewData.preview_image) {
                 previewBackground.style.backgroundImage = `url(${previewData.preview_image})`;
+                previewBackground.style.filter = 'none';  // 移除模糊
             } else {
                 // 默认渐变背景
                 previewBackground.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
             }
-            
-            // 设置模糊程度
-            const blurLevel = previewData.blur_level || 8;
-            previewBackground.style.filter = `blur(${blurLevel}px)`;
             
             // 设置标题和提示
             const previewTitle = document.getElementById('previewTitle');

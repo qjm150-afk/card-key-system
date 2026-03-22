@@ -627,18 +627,17 @@ async def get_global_preview_public():
             import json
             try:
                 data = json.loads(result.data[0]['value'])
-                if data.get('preview_image'):
+                if data.get('preview_image') and data.get('enabled'):
                     return {
                         "success": True,
                         "data": {
                             "preview_image": data.get('preview_image'),
-                            "blur_level": data.get('blur_level', 8),
                             "enabled": True
                         }
                     }
             except:
                 pass
-        return {"success": True, "data": {"preview_image": None, "blur_level": 8, "enabled": False}}
+        return {"success": True, "data": {"preview_image": None, "enabled": False}}
     except Exception as e:
         logger.error(f"获取全局预览图失败: {str(e)}")
         return {"success": False, "msg": str(e)}
@@ -4726,7 +4725,7 @@ async def set_docs_url(request: DocsUrlRequest, req: Request):
 class GlobalPreviewRequest(BaseModel):
     """全局预览图请求"""
     preview_image: Optional[str] = None
-    blur_level: int = 8
+    enabled: bool = False
 
 
 @app.get("/api/admin/settings/global-preview")
@@ -4743,10 +4742,13 @@ async def get_global_preview(req: Request):
             import json
             try:
                 data = json.loads(result.data[0]['value'])
-                return {"success": True, "data": data}
+                return {"success": True, "data": {
+                    "preview_image": data.get('preview_image', ''),
+                    "enabled": data.get('enabled', False)
+                }}
             except:
-                return {"success": True, "data": {"preview_image": "", "blur_level": 8}}
-        return {"success": True, "data": {"preview_image": "", "blur_level": 8}}
+                return {"success": True, "data": {"preview_image": "", "enabled": False}}
+        return {"success": True, "data": {"preview_image": "", "enabled": False}}
     except Exception as e:
         logger.error(f"获取全局预览图设置失败: {str(e)}")
         return {"success": False, "msg": str(e)}
@@ -4764,7 +4766,7 @@ async def set_global_preview(request: GlobalPreviewRequest, req: Request):
         import json
         value = json.dumps({
             "preview_image": request.preview_image or "",
-            "blur_level": request.blur_level or 8
+            "enabled": request.enabled
         })
         
         # 先尝试更新
@@ -4773,7 +4775,7 @@ async def set_global_preview(request: GlobalPreviewRequest, req: Request):
             # 如果没有更新到，说明记录不存在，尝试插入
             client.table('admin_settings').insert({'key': 'global_preview', 'value': value}).execute()
         
-        logger.info(f"全局预览图设置成功")
+        logger.info(f"全局预览图设置成功, enabled={request.enabled}")
         return {"success": True, "msg": "保存成功"}
     except Exception as e:
         logger.error(f"设置全局预览图失败: {str(e)}")

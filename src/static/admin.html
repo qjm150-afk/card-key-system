@@ -2114,6 +2114,30 @@
             align-items: center;
         }
 
+        /* 开关按钮样式 */
+        .switch input:checked + span {
+            background-color: #4CAF50;
+        }
+
+        .switch input:checked + span:before {
+            -webkit-transform: translateX(24px);
+            -ms-transform: translateX(24px);
+            transform: translateX(24px);
+        }
+
+        .switch span:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            -webkit-transition: .3s;
+            transition: .3s;
+            border-radius: 50%;
+        }
+
         .preview-images-list {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -3362,68 +3386,39 @@
                     </div>
                 </div>
 
-                <!-- 全局预览图设置 -->
+                <!-- 预览图设置 -->
                 <div class="settings-section">
-                    <h3 class="section-title">🌐 全局预览图设置</h3>
+                    <h3 class="section-title">🖼️ 预览图设置</h3>
                     <div class="settings-card">
                         <div class="settings-form">
+                            <!-- 功能说明 + 开关 -->
                             <div class="form-group">
-                                <label>功能说明</label>
-                                <div class="upload-requirements">
-                                    <ul>
-                                        <li><strong>作用：</strong>用户访问首页时，在输入卡密前展示的模糊预览图</li>
-                                        <li><strong>场景：</strong>用户直接访问首页（无 ?preview= 参数）时显示</li>
-                                        <li><strong>转化：</strong>吸引用户输入卡密验证后查看完整内容</li>
-                                    </ul>
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+                                    <div>
+                                        <label style="margin-bottom: 4px;">预览模式</label>
+                                        <p style="color: #666; font-size: 13px; margin: 0;">开启后，用户访问首页时会先看到预览图，输入卡密验证后才能查看完整内容</p>
+                                    </div>
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span id="previewModeStatus" style="font-size: 13px; color: #999;">已关闭</span>
+                                        <label class="switch" style="position: relative; display: inline-block; width: 50px; height: 26px;">
+                                            <input type="checkbox" id="previewModeSwitch" onchange="togglePreviewMode()" style="opacity: 0; width: 0; height: 0;">
+                                            <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .3s; border-radius: 26px;"></span>
+                                        </label>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="form-group">
-                                <label>选择预览图</label>
-                                <select class="form-select" id="globalPreviewImageSelect" style="max-width: 400px;">
-                                    <option value="">-- 请先在下方上传图片 --</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label>模糊程度</label>
-                                <div style="display: flex; gap: 20px; align-items: center;">
-                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                        <input type="radio" name="globalBlurLevel" value="4" style="width: 16px; height: 16px;"> 轻度 (4px)
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                        <input type="radio" name="globalBlurLevel" value="8" checked style="width: 16px; height: 16px;"> 中度 (8px)
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                                        <input type="radio" name="globalBlurLevel" value="12" style="width: 16px; height: 16px;"> 重度 (12px)
-                                    </label>
-                                </div>
-                            </div>
-                            <div class="form-group" id="globalPreviewPreviewContainer" style="display: none;">
-                                <label>效果预览</label>
-                                <div style="position: relative; width: 300px; height: 200px; border-radius: 8px; overflow: hidden; background: #f5f5f5;">
-                                    <img id="globalPreviewImg" src="" alt="预览" style="width: 100%; height: 100%; object-fit: cover;">
-                                    <div style="position: absolute; inset: 0; backdrop-filter: blur(8px); pointer-events: none;" id="globalPreviewOverlay"></div>
-                                </div>
-                            </div>
-                            <button type="button" class="btn btn-primary" onclick="saveGlobalPreview()">保存设置</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 预览图片管理 -->
-                <div class="settings-section">
-                    <h3 class="section-title">🖼️ 预览图片管理</h3>
-                    <div class="settings-card">
-                        <div class="settings-form">
-                            <div class="form-group">
-                                <label>上传要求</label>
-                                <div class="upload-requirements">
-                                    <ul>
-                                        <li><strong>支持格式：</strong>JPG、PNG、GIF、WebP</li>
-                                        <li><strong>图片大小：</strong>不超过 5MB</li>
-                                        <li><strong>建议尺寸：</strong>宽度 800-1200px，高度自适应</li>
-                                        <li><strong>用途说明：</strong>上传的图片可在创建卡种时选择作为预览图，用于未验证用户查看模糊预览</li>
-                                        <li><strong>命名建议：</strong>使用有意义的名称，如"26届春招预览"、"秋招信息表"等</li>
-                                    </ul>
+                            
+                            <hr style="border: none; border-top: 1px solid #eee; margin: 16px 0;">
+                            
+                            <!-- 当前预览图 -->
+                            <div class="form-group" id="currentPreviewSection" style="display: none;">
+                                <label>当前预览图</label>
+                                <div id="currentPreviewDisplay" style="display: flex; align-items: center; gap: 12px; padding: 12px; background: #f9f9f9; border-radius: 8px;">
+                                    <img id="currentPreviewImg" src="" alt="当前预览图" style="width: 120px; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #eee;">
+                                    <div>
+                                        <div id="currentPreviewName" style="font-weight: 500; margin-bottom: 4px;">-</div>
+                                        <button class="btn btn-sm" onclick="clearPreviewImage()" style="padding: 4px 12px; font-size: 12px;">清除预览图</button>
+                                    </div>
                                 </div>
                             </div>
                             
@@ -3435,16 +3430,19 @@
                                     <input type="file" id="newPreviewImageInput" accept="image/*" style="display: none;" onchange="handlePreviewImageUpload(event)">
                                     <label for="newPreviewImageInput" class="btn btn-primary" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                         </svg>
-                                        选择并上传
+                                        上传图片
                                     </label>
                                 </div>
+                                <small style="color: #999; font-size: 11px; margin-top: 4px; display: block;">
+                                    支持格式：JPG、PNG、GIF、WebP，大小不超过 5MB，建议宽度 800-1200px
+                                </small>
                             </div>
                             
                             <!-- 已上传图片列表 -->
                             <div class="form-group">
-                                <label>已上传的图片（点击图片可预览大图）</label>
+                                <label>已上传的图片</label>
                                 <div class="preview-images-list" id="previewImagesList">
                                     <div class="preview-images-loading">加载中...</div>
                                 </div>
@@ -4371,11 +4369,8 @@
                     document.getElementById('docsUrl').value = docsData.data || '';
                 }
 
-                // 加载全局预览图设置
-                loadGlobalPreview();
-
-                // 加载预览图片列表
-                loadPreviewImages();
+                // 加载预览图设置
+                loadPreviewSettings();
             } catch (error) {
                 console.error('加载设置失败:', error);
             }
@@ -4465,10 +4460,13 @@
             }
         }
 
-        // ==================== 全局预览图设置 ====================
+        // ==================== 预览图设置 ====================
+        
+        let currentPreviewImage = null;  // 当前预览图URL
+        let currentPreviewEnabled = false;  // 当前预览模式开关状态
 
-        // 加载全局预览图设置
-        async function loadGlobalPreview() {
+        // 加载预览图设置
+        async function loadPreviewSettings() {
             try {
                 // 并行加载设置和图片列表
                 const [settingsRes, imagesRes] = await Promise.all([
@@ -4479,92 +4477,144 @@
                 const settingsData = await settingsRes.json();
                 const imagesData = await imagesRes.json();
                 
-                // 填充图片下拉列表
-                const select = document.getElementById('globalPreviewImageSelect');
-                if (imagesData.success && imagesData.data && imagesData.data.length > 0) {
-                    select.innerHTML = '<option value="">-- 不启用全局预览 --</option>' +
-                        imagesData.data.map(img => `<option value="${img.url}">${escapeHtml(img.name)}</option>`).join('');
-                } else {
-                    select.innerHTML = '<option value="">-- 请先在下方上传图片 --</option>';
-                }
-                
                 // 回显设置
                 if (settingsData.success && settingsData.data) {
-                    const settings = settingsData.data;
-                    if (settings.preview_image) {
-                        select.value = settings.preview_image;
-                        showGlobalPreviewImage(settings.preview_image);
-                    }
-                    if (settings.blur_level) {
-                        const radio = document.querySelector(`input[name="globalBlurLevel"][value="${settings.blur_level}"]`);
-                        if (radio) radio.checked = true;
-                        updateGlobalPreviewBlur(settings.blur_level);
-                    }
+                    currentPreviewImage = settingsData.data.preview_image || null;
+                    currentPreviewEnabled = settingsData.data.enabled || false;
+                    
+                    // 更新开关状态
+                    const switchEl = document.getElementById('previewModeSwitch');
+                    const statusEl = document.getElementById('previewModeStatus');
+                    switchEl.checked = currentPreviewEnabled;
+                    statusEl.textContent = currentPreviewEnabled ? '已开启' : '已关闭';
+                    statusEl.style.color = currentPreviewEnabled ? '#4CAF50' : '#999';
+                    
+                    // 更新当前预览图显示
+                    updateCurrentPreviewDisplay();
+                }
+                
+                // 渲染图片列表
+                if (imagesData.success) {
+                    renderPreviewImagesList(imagesData.data || []);
                 }
             } catch (error) {
-                console.error('加载全局预览图设置失败:', error);
+                console.error('加载预览设置失败:', error);
             }
         }
 
-        // 显示全局预览图预览
-        function showGlobalPreviewImage(url) {
-            const container = document.getElementById('globalPreviewPreviewContainer');
-            const img = document.getElementById('globalPreviewImg');
+        // 更新当前预览图显示
+        function updateCurrentPreviewDisplay() {
+            const section = document.getElementById('currentPreviewSection');
+            const img = document.getElementById('currentPreviewImg');
+            const name = document.getElementById('currentPreviewName');
             
-            if (url) {
-                img.src = url;
-                container.style.display = 'block';
+            if (currentPreviewImage) {
+                img.src = currentPreviewImage;
+                name.textContent = '当前预览图';
+                section.style.display = 'block';
             } else {
-                container.style.display = 'none';
+                section.style.display = 'none';
             }
         }
 
-        // 更新全局预览图模糊程度
-        function updateGlobalPreviewBlur(level) {
-            const overlay = document.getElementById('globalPreviewOverlay');
-            if (overlay) {
-                overlay.style.backdropFilter = `blur(${level}px)`;
+        // 切换预览模式
+        async function togglePreviewMode() {
+            const switchEl = document.getElementById('previewModeSwitch');
+            const statusEl = document.getElementById('previewModeStatus');
+            const newEnabled = switchEl.checked;
+            
+            // 如果要开启但没有设置预览图
+            if (newEnabled && !currentPreviewImage) {
+                showToast('请先设置一张预览图', 'error');
+                switchEl.checked = false;
+                return;
             }
-        }
-
-        // 保存全局预览图设置
-        async function saveGlobalPreview() {
-            const previewImage = document.getElementById('globalPreviewImageSelect').value;
-            const blurLevelRadio = document.querySelector('input[name="globalBlurLevel"]:checked');
-            const blurLevel = blurLevelRadio ? parseInt(blurLevelRadio.value) : 8;
             
             try {
                 const response = await fetch('/api/admin/settings/global-preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        preview_image: previewImage || null,
-                        blur_level: blurLevel
+                        preview_image: currentPreviewImage,
+                        enabled: newEnabled
                     })
                 });
 
                 const data = await response.json();
                 if (data.success) {
-                    showToast('全局预览图设置保存成功', 'success');
+                    currentPreviewEnabled = newEnabled;
+                    statusEl.textContent = newEnabled ? '已开启' : '已关闭';
+                    statusEl.style.color = newEnabled ? '#4CAF50' : '#999';
+                    showToast(newEnabled ? '预览模式已开启' : '预览模式已关闭', 'success');
                 } else {
-                    showToast(data.msg || '保存失败', 'error');
+                    switchEl.checked = currentPreviewEnabled;  // 恢复原状态
+                    showToast(data.msg || '设置失败', 'error');
                 }
             } catch (error) {
-                showToast('保存失败，请稍后重试', 'error');
+                switchEl.checked = currentPreviewEnabled;  // 恢复原状态
+                showToast('设置失败，请稍后重试', 'error');
             }
         }
 
-        // 监听全局预览图选择变化
-        document.getElementById('globalPreviewImageSelect')?.addEventListener('change', function() {
-            showGlobalPreviewImage(this.value);
-        });
+        // 设置预览图
+        async function setPreviewImage(imageUrl) {
+            try {
+                const response = await fetch('/api/admin/settings/global-preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        preview_image: imageUrl,
+                        enabled: currentPreviewEnabled
+                    })
+                });
 
-        // 监听模糊程度变化
-        document.querySelectorAll('input[name="globalBlurLevel"]').forEach(radio => {
-            radio.addEventListener('change', function() {
-                updateGlobalPreviewBlur(this.value);
-            });
-        });
+                const data = await response.json();
+                if (data.success) {
+                    currentPreviewImage = imageUrl;
+                    updateCurrentPreviewDisplay();
+                    showToast('预览图设置成功', 'success');
+                    // 刷新图片列表以更新选中状态
+                    loadPreviewImages();
+                } else {
+                    showToast(data.msg || '设置失败', 'error');
+                }
+            } catch (error) {
+                showToast('设置失败，请稍后重试', 'error');
+            }
+        }
+
+        // 清除预览图
+        async function clearPreviewImage() {
+            try {
+                const response = await fetch('/api/admin/settings/global-preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        preview_image: null,
+                        enabled: false
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    currentPreviewImage = null;
+                    currentPreviewEnabled = false;
+                    
+                    // 更新UI
+                    document.getElementById('previewModeSwitch').checked = false;
+                    document.getElementById('previewModeStatus').textContent = '已关闭';
+                    document.getElementById('previewModeStatus').style.color = '#999';
+                    updateCurrentPreviewDisplay();
+                    
+                    showToast('预览图已清除', 'success');
+                    loadPreviewImages();
+                } else {
+                    showToast(data.msg || '清除失败', 'error');
+                }
+            } catch (error) {
+                showToast('清除失败，请稍后重试', 'error');
+            }
+        }
 
         // 加载预览图片列表
         async function loadPreviewImages() {
@@ -4584,19 +4634,20 @@
             const container = document.getElementById('previewImagesList');
             
             if (!images || images.length === 0) {
-                container.innerHTML = '<div class="preview-images-empty">暂无已上传的图片</div>';
+                container.innerHTML = '<div class="preview-images-empty">暂无已上传的图片，请先上传</div>';
                 return;
             }
             
             container.innerHTML = `<div class="preview-images-grid">${
                 images.map(img => `
-                    <div class="preview-image-item" data-id="${img.id}">
+                    <div class="preview-image-item ${currentPreviewImage === img.url ? 'selected' : ''}" data-id="${img.id}" style="${currentPreviewImage === img.url ? 'border-color: #4CAF50; box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);' : ''}">
                         <img src="${img.url}" alt="${escapeHtml(img.name)}" class="preview-image-thumb" onclick="window.open('${img.url}', '_blank')" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22%3E加载失败%3C/text%3E%3C/svg%3E'">
                         <div class="preview-image-info">
                             <div class="preview-image-name" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}</div>
                             <div class="preview-image-meta">${formatTime(img.created_at)}</div>
                         </div>
-                        <div class="preview-image-actions">
+                        <div class="preview-image-actions" style="display: flex; gap: 8px;">
+                            <button class="btn btn-sm ${currentPreviewImage === img.url ? 'btn-success' : ''}" onclick="setPreviewImage('${img.url}')" style="${currentPreviewImage === img.url ? 'background: #4CAF50; color: white;' : ''}">${currentPreviewImage === img.url ? '当前预览图' : '设为预览图'}</button>
                             <button class="btn btn-danger btn-sm" onclick="deletePreviewImage(${img.id})">删除</button>
                         </div>
                     </div>
