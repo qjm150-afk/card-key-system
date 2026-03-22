@@ -1652,15 +1652,15 @@ async def get_card_type_cards(
                 # 已停用：status=0 或 退款或有纠纷
                 query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
-                # 有效：status=1 且 未使用过且销售状态正常
+                # 有效：status=1 且 未使用过（devices为空）且销售状态正常
                 query = query.eq('status', 1)
-                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.eq('devices', '[]')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
-                # 已激活：status=1 且 已使用过且销售状态正常
+                # 已激活：status=1 且 已使用过（devices不为空）且销售状态正常
                 query = query.eq('status', 1)
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                query = query.or_("devices.neq.[],used_count.gt.0")
+                query = query.neq('devices', '[]')
         
         # 状态筛选（兼容旧参数）
         if status is not None:
@@ -1959,12 +1959,12 @@ async def export_card_type_cards(
                 query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
                 query = query.eq('status', 1)
-                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.eq('devices', '[]')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
                 query = query.eq('status', 1)
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                query = query.or_("devices.neq.[],used_count.gt.0")
+                query = query.neq('devices', '[]')
         
         # 销售状态筛选
         if sale_status:
@@ -2109,15 +2109,15 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     # 已停用：status=0 或 退款或有纠纷
                     query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
                 elif activate_status == 'valid':
-                    # 有效：status=1 且 未使用过且销售状态正常
+                    # 有效：status=1 且 未使用过（devices为空）且销售状态正常
                     query = query.eq('status', 1)
-                    query = query.eq('devices', '[]').eq('used_count', 0)
+                    query = query.eq('devices', '[]')
                     query = query.not_().in_('sale_status', ['refunded', 'disputed'])
                 elif activate_status == 'activated':
-                    # 已激活：status=1 且 已使用过且销售状态正常
+                    # 已激活：status=1 且 已使用过（devices不为空）且销售状态正常
                     query = query.eq('status', 1)
                     query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                    query = query.or_("devices.neq.[],used_count.gt.0")
+                    query = query.neq('devices', '[]')
             
             if filters.get('sale_status') and filters.get('sale_status') != '':
                 sale_status_value = filters['sale_status']
@@ -2321,15 +2321,15 @@ async def count_by_filters(
                 # 已停用：status=0 或 退款或有纠纷
                 query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
-                # 有效：status=1 且 未使用过且销售状态正常
+                # 有效：status=1 且 未使用过（devices为空）且销售状态正常
                 query = query.eq('status', 1)
-                query = query.eq('devices', '[]').eq('used_count', 0)
+                query = query.eq('devices', '[]')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
-                # 已激活：status=1 且 已使用过且销售状态正常
+                # 已激活：status=1 且 已使用过（devices不为空）且销售状态正常
                 query = query.eq('status', 1)
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                query = query.or_("devices.neq.[],used_count.gt.0")
+                query = query.neq('devices', '[]')
         
         if sale_status and sale_status != '':
             if sale_status == '__none__':
@@ -2554,9 +2554,9 @@ async def get_filter_options(
             # 应用筛选条件（排除指定字段）
             if status is not None and status != '' and exclude != 'status':
                 if status == 'valid':
-                    query = query.eq('status', 1).eq('used_count', 0)
+                    query = query.eq('status', 1).eq('devices', '[]')
                 elif status == 'activated':
-                    query = query.eq('status', 1).gt('used_count', 0)
+                    query = query.eq('status', 1).neq('devices', '[]')
                 elif status == 'disabled':
                     query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
                 else:
@@ -2825,25 +2825,24 @@ async def get_card_stats():
             # 如果查询失败，使用简化计算
             disabled = disabled_from_status + refunded_count + disputed_count
         
-        # 已激活：status=1 且有设备绑定或已使用过
-        # 由于需要检查 devices 和 used_count，这需要在应用层处理
+        # 已激活：status=1 且有设备绑定
+        # 由于需要检查 devices，这需要在应用层处理
         # 先获取所有 status=1 的记录
         activated = 0
         try:
             # 获取 status=1 的记录
-            valid_response = client.table('card_keys_table').select('devices, used_count, sale_status').eq('status', 1).execute()
+            valid_response = client.table('card_keys_table').select('devices, sale_status').eq('status', 1).execute()
             for card in (valid_response.data or []):
                 # 排除销售状态为退款/纠纷的
                 if card.get('sale_status') in ['refunded', 'disputed']:
                     continue
-                # 检查是否已激活（有设备绑定或已使用过）
+                # 检查是否已激活（有设备绑定）
                 try:
                     devices = json.loads(card.get('devices', '[]'))
-                    if len(devices) > 0 or (card.get('used_count') and card.get('used_count') > 0):
+                    if len(devices) > 0:
                         activated += 1
                 except:
-                    if card.get('used_count') and card.get('used_count') > 0:
-                        activated += 1
+                    pass
         except Exception as e:
             logger.warning(f"计算已激活数量失败: {str(e)}")
         
