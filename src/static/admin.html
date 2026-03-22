@@ -4698,6 +4698,24 @@
                     deviceCount = devices.length;
                 } catch (e) {}
                 
+                // 过期时间显示逻辑（与卡种卡券表格一致）
+                let expireDisplay = '永久';
+                if (card.expire_at) {
+                    // 固定日期过期
+                    expireDisplay = formatDate(card.expire_at);
+                } else if (card.expire_after_days) {
+                    // 按激活天数过期
+                    if (card.activated_at) {
+                        // 已激活，计算过期日期
+                        const activated = new Date(card.activated_at);
+                        const expireDate = new Date(activated.getTime() + card.expire_after_days * 24 * 60 * 60 * 1000);
+                        expireDisplay = `${card.expire_after_days}天后(${expireDate.toLocaleDateString()})`;
+                    } else {
+                        // 未激活
+                        expireDisplay = `激活后${card.expire_after_days}天`;
+                    }
+                }
+                
                 // 显示链接名称
                 const linkName = card.link_name || '';
                 const feishuUrl = card.feishu_url || '';
@@ -4743,7 +4761,7 @@
                         <span class="status-badge ${statusClass}">${statusText}</span>
                     </td>
                     <td>${deviceCount} / ${card.max_devices || 5} 台</td>
-                    <td>${card.expire_at ? formatDate(card.expire_at) : '永久'}</td>
+                    <td>${expireDisplay}</td>
                     <td title="${card.user_note || ''}">${card.user_note || '-'}</td>
                     <td style="text-align: center;">${linkNameDisplay}</td>
                     <td class="text-small">${formatDate(card.bstudio_create_time)}</td>
