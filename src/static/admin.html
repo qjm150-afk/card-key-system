@@ -2239,6 +2239,28 @@
             font-weight: 600;
             color: #5D4E37;
             font-size: 15px;
+            display: inline-block;
+            max-width: 280px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+        .card-types-table .card-type-name:hover {
+            cursor: help;
+        }
+
+        .card-types-table .row-number {
+            display: inline-block;
+            min-width: 24px;
+            height: 24px;
+            line-height: 24px;
+            background: #F5E6D3;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #5D4E37;
         }
 
         .card-types-table .stat-number {
@@ -2588,7 +2610,7 @@
                 <table class="card-types-table">
                     <thead>
                         <tr>
-                            <th style="width: 60px;">ID</th>
+                            <th style="width: 60px;">序号</th>
                             <th>卡种名称</th>
                             <th style="width: 80px;">总数</th>
                             <th style="width: 80px;">已激活</th>
@@ -7732,14 +7754,19 @@
                 return;
             }
             
-            tbody.innerHTML = data.map(type => {
+            // 计算起始序号
+            const startNum = (cardTypesPage - 1) * cardTypesPageSize;
+            
+            tbody.innerHTML = data.map((type, index) => {
                 const statusClass = type.status === 1 ? 'active' : 'inactive';
                 const statusText = type.status === 1 ? '有效' : '已停用';
+                const rowNum = startNum + index + 1;
+                const displayName = escapeHtml(type.name);
                 
                 return `
                 <tr>
-                    <td style="text-align: center; color: #A89070; font-size: 13px;">${type.id}</td>
-                    <td><span class="card-type-name">${escapeHtml(type.name)}</span></td>
+                    <td style="text-align: center;"><span class="row-number">${rowNum}</span></td>
+                    <td><span class="card-type-name" title="${displayName}">${displayName}</span></td>
                     <td style="text-align: center;"><span class="stat-number total">${type.total_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number activated">${type.activated_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number deactivated">${type.deactivated_count || 0}</span></td>
@@ -7759,7 +7786,7 @@
                     <td style="text-align: center; color: #A89070; font-size: 13px;">${formatTime(type.created_at)}</td>
                     <td>
                         <div class="actions-cell">
-                            <button class="btn btn-primary btn-sm" onclick="openCardTypeCardsModal(${type.id}, '${escapeHtml(type.name)}')">管理</button>
+                            <button class="btn btn-primary btn-sm" onclick="openCardTypeCardsModal(${type.id}, '${displayName}')">管理</button>
                             <button class="btn btn-secondary btn-sm" onclick="editCardType(${type.id})">编辑</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteCardType(${type.id})">删除</button>
                         </div>
