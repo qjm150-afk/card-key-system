@@ -249,7 +249,6 @@ class CardTypeCreate(BaseModel):
     """创建卡种（简化版：仅分组统计容器 + 预览配置）"""
     # 基础信息
     name: str
-    description: Optional[str] = None  # 描述说明
     
     # 预览设置
     preview_image: Optional[str] = None  # 预览截图URL
@@ -261,7 +260,6 @@ class CardTypeUpdate(BaseModel):
     """更新卡种（简化版：仅分组统计容器 + 预览配置）"""
     # 基础信息
     name: Optional[str] = None
-    description: Optional[str] = None  # 描述说明
     
     # 预览设置
     preview_image: Optional[str] = None  # 预览截图URL

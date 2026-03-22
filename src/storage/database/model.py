@@ -28,7 +28,6 @@ class CardType(Base):
     
     # ========== 基础信息 ==========
     name: Mapped[str] = mapped_column(String(200), nullable=False, comment="卡种名称")
-    description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="描述说明")
     
     # ========== 预览设置（核心功能）==========
     preview_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="预览截图URL")

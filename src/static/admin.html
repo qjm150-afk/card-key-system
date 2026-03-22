@@ -2816,10 +2816,6 @@
                             <label>卡种名称 *</label>
                             <input type="text" class="form-input" id="cardTypeName" placeholder="如: 26届求职通" required>
                         </div>
-                        <div class="form-group">
-                            <label>描述说明</label>
-                            <textarea class="form-input" id="cardTypeDescription" placeholder="卡种用途说明（可选）" rows="2" style="resize: vertical;"></textarea>
-                        </div>
                     </div>
                     
                     <!-- 预览设置 -->
@@ -7105,7 +7101,6 @@
             document.getElementById('cardTypeModalTitle').textContent = '创建卡种';
             document.getElementById('cardTypeId').value = '';
             document.getElementById('cardTypeName').value = '';
-            document.getElementById('cardTypeDescription').value = '';
             
             // 重置预览设置
             document.getElementById('cardTypePreviewImage').value = '';
@@ -7132,7 +7127,6 @@
                     document.getElementById('cardTypeModalTitle').textContent = '编辑卡种';
                     document.getElementById('cardTypeId').value = type.id;
                     document.getElementById('cardTypeName').value = type.name;
-                    document.getElementById('cardTypeDescription').value = type.description || '';
                     
                     // 预览设置
                     document.getElementById('cardTypePreviewImage').value = type.preview_image || '';
@@ -7165,7 +7159,6 @@
             
             const data = {
                 name: document.getElementById('cardTypeName').value.trim(),
-                description: document.getElementById('cardTypeDescription').value.trim() || null,
                 preview_image: document.getElementById('cardTypePreviewImage').value.trim() || null,
                 preview_enabled: document.getElementById('cardTypePreviewEnabled').checked,
                 blur_level: blurLevel
