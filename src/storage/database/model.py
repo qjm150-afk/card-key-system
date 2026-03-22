@@ -14,46 +14,38 @@ class HealthCheck(Base):
 
 
 class CardType(Base):
-    """卡种表 - 卡密分组管理"""
+    """卡种表 - 卡密分组管理（简化版：仅分组统计容器 + 预览配置）
+    
+    架构修正（2026-03-22）：
+    - 卡种仅作为"分组统计容器 + 预览配置"
+    - 过期设置、飞书链接、设备限制等由卡券独立管理
+    - 不再支持属性继承
+    - 统计数据实时计算，不存储在表中
+    """
     __tablename__ = "card_types"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     
-    # 基础信息
+    # ========== 基础信息 ==========
     name: Mapped[str] = mapped_column(String(200), nullable=False, comment="卡种名称")
-    category: Mapped[Optional[str]] = mapped_column(String(50), nullable=True, default="external", comment="卡种分类: external=对外销售, internal=内部使用")
     description: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, comment="描述说明")
     
-    # 过期设置
-    expire_type: Mapped[Optional[str]] = mapped_column(String(20), nullable=True, comment="过期类型: fixed=固定日期, relative=按激活天数, permanent=永久")
-    expire_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="过期时间(固定日期)")
-    expire_after_days: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, comment="激活后有效天数")
-    
-    # 飞书内容
-    feishu_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="飞书链接")
-    feishu_password: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="飞书访问密码")
-    link_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True, comment="链接名称")
-    
-    # 设备限制
-    max_devices: Mapped[int] = mapped_column(Integer, default=5, nullable=False, comment="最大设备数")
-    
-    # 预览设置
+    # ========== 预览设置（核心功能）==========
     preview_image: Mapped[Optional[str]] = mapped_column(Text, nullable=True, comment="预览截图URL")
     preview_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, comment="是否启用预览")
     blur_level: Mapped[int] = mapped_column(Integer, default=8, nullable=False, comment="模糊程度(px): 4=轻度, 8=中度, 12=重度")
     
-    # 状态
+    # ========== 状态 ==========
     status: Mapped[int] = mapped_column(Integer, default=1, nullable=False, comment="状态: 1=有效, 0=无效")
     deleted_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, comment="软删除时间")
     
-    # 时间戳
+    # ========== 时间戳 ==========
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False, comment="创建时间")
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), onupdate=func.now(), nullable=True, comment="更新时间")
     
     __table_args__ = (
         Index("ix_card_types_name", "name"),
         Index("ix_card_types_status", "status"),
-        Index("ix_card_types_category", "category"),
     )
 
 

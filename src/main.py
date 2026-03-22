@@ -246,24 +246,10 @@ class ChangePasswordRequest(BaseModel):
 # ==================== 卡种管理 API 模型 ====================
 
 class CardTypeCreate(BaseModel):
-    """创建卡种"""
+    """创建卡种（简化版：仅分组统计容器 + 预览配置）"""
     # 基础信息
     name: str
-    category: Optional[str] = "external"  # 卡种分类: external=对外销售, internal=内部使用
     description: Optional[str] = None  # 描述说明
-    
-    # 过期设置
-    expire_type: Optional[str] = None  # 过期类型: fixed=固定日期, relative=按激活天数, permanent=永久
-    expire_at: Optional[str] = None  # 过期时间（expire_type=fixed时使用）
-    expire_after_days: Optional[int] = None  # 激活后有效天数（expire_type=relative时使用）
-    
-    # 飞书内容
-    feishu_url: Optional[str] = None  # 飞书链接
-    feishu_password: Optional[str] = None  # 飞书访问密码
-    link_name: Optional[str] = None  # 链接名称
-    
-    # 设备限制
-    max_devices: int = 5  # 最大设备数
     
     # 预览设置
     preview_image: Optional[str] = None  # 预览截图URL
@@ -272,24 +258,10 @@ class CardTypeCreate(BaseModel):
 
 
 class CardTypeUpdate(BaseModel):
-    """更新卡种"""
+    """更新卡种（简化版：仅分组统计容器 + 预览配置）"""
     # 基础信息
     name: Optional[str] = None
-    category: Optional[str] = None  # 卡种分类
     description: Optional[str] = None  # 描述说明
-    
-    # 过期设置
-    expire_type: Optional[str] = None  # 过期类型
-    expire_at: Optional[str] = None  # 过期时间
-    expire_after_days: Optional[int] = None  # 激活后有效天数
-    
-    # 飞书内容
-    feishu_url: Optional[str] = None  # 飞书链接
-    feishu_password: Optional[str] = None  # 飞书访问密码
-    link_name: Optional[str] = None  # 链接名称
-    
-    # 设备限制
-    max_devices: Optional[int] = None  # 最大设备数
     
     # 预览设置
     preview_image: Optional[str] = None  # 预览截图URL
@@ -1286,7 +1258,7 @@ async def get_card_types(
     search: Optional[str] = None,
     status: Optional[int] = None
 ):
-    """获取卡种列表（包含统计信息）"""
+    """获取卡种列表（包含销售统计信息）"""
     try:
         client = get_supabase_client()
         
@@ -1312,23 +1284,38 @@ async def get_card_types(
         
         response = query.range(start, end).order('id', desc=True).execute()
         
-        # 获取每个卡种的统计信息
+        # 获取每个卡种的销售统计信息
         card_types = response.data or []
         
         for card_type in card_types:
             type_id = card_type['id']
             
-            # 统计该卡种下的卡券数量
-            stats_response = client.table('card_keys_table').select('id, status, devices, expire_at, expire_after_days, activated_at', count='exact').eq('card_type_id', type_id).execute()
+            # 统计该卡种下的卡券数量和销售状态
+            stats_response = client.table('card_keys_table').select('id, sale_status, devices, expire_at, expire_after_days, activated_at', count='exact').eq('card_type_id', type_id).execute()
             
             total_count = stats_response.count or 0
             
-            # 计算已用数（有设备绑定的）
+            # 计算各销售状态数量
+            unsold_count = 0
+            sold_count = 0
+            refunded_count = 0
+            disputed_count = 0
             used_count = 0
             expired_count = 0
             now = datetime.now()
             
             for card in (stats_response.data or []):
+                # 统计销售状态
+                sale_status = card.get('sale_status', 'unsold')
+                if sale_status == 'unsold':
+                    unsold_count += 1
+                elif sale_status == 'sold':
+                    sold_count += 1
+                elif sale_status == 'refunded':
+                    refunded_count += 1
+                elif sale_status == 'disputed':
+                    disputed_count += 1
+                
                 # 统计已使用（有设备绑定）
                 devices = card.get('devices', '[]')
                 try:
@@ -1344,7 +1331,6 @@ async def get_card_types(
                 activated_at = card.get('activated_at')
                 
                 if expire_at:
-                    # 固定日期过期
                     try:
                         if isinstance(expire_at, str):
                             expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
@@ -1357,7 +1343,6 @@ async def get_card_types(
                     except:
                         pass
                 elif expire_after_days and activated_at:
-                    # 按激活天数过期
                     try:
                         if isinstance(activated_at, str):
                             activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
@@ -1371,7 +1356,12 @@ async def get_card_types(
                     except:
                         pass
             
+            # 更新卡种统计数据
             card_type['total_count'] = total_count
+            card_type['unsold_count'] = unsold_count
+            card_type['sold_count'] = sold_count
+            card_type['refunded_count'] = refunded_count
+            card_type['disputed_count'] = disputed_count
             card_type['used_count'] = used_count
             card_type['stock_count'] = total_count - used_count  # 库存 = 总数 - 已用
             card_type['expired_count'] = expired_count
@@ -1408,7 +1398,7 @@ async def get_card_types_options():
 
 @app.post("/api/admin/card-types")
 async def create_card_type(card_type: CardTypeCreate):
-    """创建卡种"""
+    """创建卡种（简化版）"""
     try:
         client = get_supabase_client()
         
@@ -1417,43 +1407,17 @@ async def create_card_type(card_type: CardTypeCreate):
         if existing.data:
             return {"success": False, "msg": "卡种名称已存在"}
         
-        # 创建卡种 - 支持所有字段
+        # 创建卡种 - 只包含数据库中确定存在的字段
         data = {
             "name": card_type.name,
+            "preview_enabled": card_type.preview_enabled,
             "status": 1,
             "created_at": datetime.now().isoformat()
         }
         
-        # 基础信息
-        if card_type.category:
-            data["category"] = card_type.category
-        if card_type.description:
-            data["description"] = card_type.description
-        
-        # 过期设置
-        if card_type.expire_type:
-            data["expire_type"] = card_type.expire_type
-        if card_type.expire_at:
-            data["expire_at"] = card_type.expire_at
-        if card_type.expire_after_days:
-            data["expire_after_days"] = card_type.expire_after_days
-        
-        # 飞书内容
-        if card_type.feishu_url:
-            data["feishu_url"] = card_type.feishu_url
-        if card_type.feishu_password:
-            data["feishu_password"] = card_type.feishu_password
-        if card_type.link_name:
-            data["link_name"] = card_type.link_name
-        
-        # 设备限制
-        data["max_devices"] = card_type.max_devices
-        
-        # 预览设置
+        # 可选字段
         if card_type.preview_image:
             data["preview_image"] = card_type.preview_image
-        data["preview_enabled"] = card_type.preview_enabled
-        data["blur_level"] = card_type.blur_level or 8
         
         response = client.table('card_types').insert(data).execute()
         
@@ -1551,7 +1515,7 @@ async def get_card_type(type_id: int):
 
 @app.put("/api/admin/card-types/{type_id}")
 async def update_card_type(type_id: int, card_type: CardTypeUpdate):
-    """更新卡种"""
+    """更新卡种（简化版）"""
     try:
         client = get_supabase_client()
         
@@ -1560,10 +1524,9 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
         if not existing.data:
             return {"success": False, "msg": "卡种不存在"}
         
-        # 构建更新数据
+        # 构建更新数据 - 只包含数据库中存在的字段
         update_data = {}
         
-        # 基础信息
         if card_type.name is not None:
             # 检查名称是否与其他卡种重复
             name_check = client.table('card_types').select('id').eq('name', card_type.name).neq('id', type_id).is_('deleted_at', 'null').execute()
@@ -1571,45 +1534,12 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
                 return {"success": False, "msg": "卡种名称已存在"}
             update_data['name'] = card_type.name
         
-        if card_type.category is not None:
-            update_data['category'] = card_type.category
-        
-        if card_type.description is not None:
-            update_data['description'] = card_type.description
-        
-        # 过期设置
-        if card_type.expire_type is not None:
-            update_data['expire_type'] = card_type.expire_type
-        
-        if card_type.expire_at is not None:
-            update_data['expire_at'] = card_type.expire_at
-        
-        if card_type.expire_after_days is not None:
-            update_data['expire_after_days'] = card_type.expire_after_days
-        
-        # 飞书内容
-        if card_type.feishu_url is not None:
-            update_data['feishu_url'] = card_type.feishu_url
-        
-        if card_type.feishu_password is not None:
-            update_data['feishu_password'] = card_type.feishu_password
-        
-        if card_type.link_name is not None:
-            update_data['link_name'] = card_type.link_name
-        
-        # 设备限制
-        if card_type.max_devices is not None:
-            update_data['max_devices'] = card_type.max_devices
-        
         # 预览设置
         if card_type.preview_image is not None:
             update_data['preview_image'] = card_type.preview_image
         
         if card_type.preview_enabled is not None:
             update_data['preview_enabled'] = card_type.preview_enabled
-        
-        if card_type.blur_level is not None:
-            update_data['blur_level'] = card_type.blur_level
         
         # 状态
         if card_type.status is not None:
