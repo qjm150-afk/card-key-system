@@ -2185,6 +2185,7 @@
             border-radius: 16px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
             overflow: hidden;
+            border: 1px solid #E8D5C4;
         }
 
         .card-types-table {
@@ -2202,14 +2203,24 @@
             font-weight: 600;
             font-size: 13px;
             color: #5D4E37;
-            border-bottom: 2px solid #E8D5C4;
+            border-bottom: 2px solid #D4A574;
+            border-right: 1px solid #E8D5C4;
             white-space: nowrap;
+        }
+
+        .card-types-table th:last-child {
+            border-right: none;
         }
 
         .card-types-table td {
             padding: 16px 12px;
-            border-bottom: 1px solid #F5E6D3;
+            border-bottom: 1px solid #E8D5C4;
+            border-right: 1px solid #F0E6D8;
             vertical-align: middle;
+        }
+
+        .card-types-table td:last-child {
+            border-right: none;
         }
 
         .card-types-table tbody tr {
