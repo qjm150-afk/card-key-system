@@ -7043,7 +7043,10 @@
                         <span style="color: #059669; font-weight: bold;">${type.sold_count || 0}</span>
                     </td>
                     <td style="text-align: center;">
-                        ${type.preview_enabled ? '<span class="status-badge status-active" style="font-size: 11px;">已启用</span>' : '<span style="color: #999;">-</span>'}
+                        ${type.preview_enabled ? 
+                            `<span class="status-badge status-active" style="font-size: 11px;">已启用</span>
+                             <button class="btn btn-link btn-sm" onclick="copyPreviewLink(${type.id})" title="复制预览链接" style="margin-left: 4px; padding: 2px 6px; font-size: 11px;">🔗</button>` 
+                            : '<span style="color: #999;">-</span>'}
                     </td>
                     <td style="text-align: center;">
                         <span class="${type.status === 1 ? 'status-active' : 'status-inactive'}">
@@ -7207,6 +7210,27 @@
             } catch (error) {
                 showToast('删除失败: ' + error.message, 'error');
             }
+        }
+        
+        // 复制预览链接
+        function copyPreviewLink(cardTypeId) {
+            // 获取当前域名
+            const domain = window.location.origin;
+            const previewUrl = `${domain}/?preview=${cardTypeId}`;
+            
+            // 复制到剪贴板
+            navigator.clipboard.writeText(previewUrl).then(() => {
+                showToast('预览链接已复制: ' + previewUrl, 'success');
+            }).catch(err => {
+                // 降级方案：使用传统方式复制
+                const textArea = document.createElement('textarea');
+                textArea.value = previewUrl;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('预览链接已复制', 'success');
+            });
         }
         
         // 打开卡券管理弹窗

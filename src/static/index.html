@@ -2075,6 +2075,125 @@
             }
         }
 
+        // ==================== 预览转化模式 ====================
+        
+        let currentPreviewCardTypeId = null;  // 当前预览的卡种ID
+        
+        // 检查是否进入预览模式
+        async function checkPreviewMode() {
+            // 检查URL参数: ?preview=card_type_id
+            const urlParams = new URLSearchParams(window.location.search);
+            const previewId = urlParams.get('preview');
+            
+            if (!previewId) {
+                return null;
+            }
+            
+            try {
+                const response = await fetch(`/api/preview/${previewId}`);
+                const result = await response.json();
+                
+                if (result.success && result.data.preview_enabled) {
+                    return result.data;
+                }
+            } catch (err) {
+                console.error('获取预览信息失败:', err);
+            }
+            
+            return null;
+        }
+        
+        // 显示预览页面
+        function showPreview(previewData) {
+            currentPreviewCardTypeId = previewData.id;
+            
+            // 设置预览背景图
+            const previewBackground = document.getElementById('previewBackground');
+            if (previewData.preview_image) {
+                previewBackground.style.backgroundImage = `url(${previewData.preview_image})`;
+            } else {
+                // 默认渐变背景
+                previewBackground.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+            }
+            
+            // 设置模糊程度
+            const blurLevel = previewData.blur_level || 8;
+            previewBackground.style.filter = `blur(${blurLevel}px)`;
+            
+            // 设置标题和提示
+            const previewTitle = document.getElementById('previewTitle');
+            const previewHint = document.getElementById('previewHint');
+            if (previewData.name) {
+                previewTitle.textContent = previewData.name;
+                previewHint.textContent = '此内容需要卡密验证后才能查看完整版本';
+            }
+            
+            // 切换到预览模式
+            document.body.classList.remove('loading-mode', 'validate-mode', 'success-mode');
+            document.body.classList.add('preview-mode');
+            document.getElementById('loadingSpinner').style.display = 'none';
+            validatePage.style.display = 'none';
+            successPage.style.display = 'none';
+            previewPage.style.display = 'block';
+        }
+        
+        // 预览页面提交验证
+        async function submitPreviewKey() {
+            const cardKeyInput = document.getElementById('previewCardKey');
+            const errorDiv = document.getElementById('previewError');
+            const submitBtn = document.getElementById('previewSubmitBtn');
+            
+            const cardKey = cardKeyInput.value.trim();
+            
+            if (!cardKey) {
+                errorDiv.textContent = '请输入卡密';
+                errorDiv.style.display = 'block';
+                return;
+            }
+            
+            // 禁用按钮
+            submitBtn.disabled = true;
+            submitBtn.textContent = '验证中...';
+            errorDiv.style.display = 'none';
+            
+            try {
+                const deviceId = getDeviceId();
+                const response = await fetch('/api/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        card_key: cardKey,
+                        device_id: deviceId 
+                    }),
+                });
+                
+                const data = await response.json();
+                
+                if (data.can_access) {
+                    // 验证成功，保存会话并跳转
+                    saveSession(cardKey, data.url, data.password);
+                    showSuccess(data.url, data.password);
+                } else {
+                    // 验证失败
+                    errorDiv.textContent = data.msg || '验证失败';
+                    errorDiv.style.display = 'block';
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = '验证并查看';
+                }
+            } catch (err) {
+                errorDiv.textContent = '网络错误，请稍后重试';
+                errorDiv.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '验证并查看';
+            }
+        }
+        
+        // 预览页面回车提交
+        document.getElementById('previewForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            submitPreviewKey();
+        });
+
         // 验证卡密
         async function validateCardKey(cardKey, saveSessionFlag = true) {
             const deviceId = getDeviceId();

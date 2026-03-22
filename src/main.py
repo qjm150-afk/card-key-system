@@ -587,12 +587,16 @@ async def get_card_type_preview_by_link(link_name: str):
         card_type_id = card_with_type['card_type_id']
         
         # 获取卡种信息
-        response = client.table('card_types').select('id, name, preview_image, preview_enabled, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
+        response = client.table('card_types').select('id, name, preview_image, preview_enabled, blur_level, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
         
         if not response.data:
             return {"success": False, "msg": "卡种不存在"}
         
         card_type = response.data[0]
+        
+        # 检查是否启用预览
+        if not card_type.get('preview_enabled'):
+            return {"success": False, "msg": "该卡种未启用预览"}
         
         return {
             "success": True,
@@ -600,12 +604,55 @@ async def get_card_type_preview_by_link(link_name: str):
                 "id": card_type['id'],
                 "name": card_type['name'],
                 "preview_image": card_type.get('preview_image'),
-                "preview_enabled": card_type.get('preview_enabled', False)
+                "preview_enabled": card_type.get('preview_enabled', False),
+                "blur_level": card_type.get('blur_level', 8)
             }
         }
         
     except Exception as e:
         logger.error(f"根据链接名称获取卡种预览信息失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/preview/{card_type_id}")
+async def get_card_type_preview(card_type_id: int):
+    """
+    根据卡种ID获取预览信息
+    - 用于预览转化模式
+    - 无需验证即可访问
+    """
+    try:
+        client = get_supabase_client()
+        
+        # 获取卡种信息
+        response = client.table('card_types').select('id, name, preview_image, preview_enabled, blur_level, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
+        
+        if not response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        card_type = response.data[0]
+        
+        # 检查卡种状态
+        if card_type.get('status') != 1:
+            return {"success": False, "msg": "该卡种已停用"}
+        
+        # 检查是否启用预览
+        if not card_type.get('preview_enabled'):
+            return {"success": False, "msg": "该卡种未启用预览"}
+        
+        return {
+            "success": True,
+            "data": {
+                "id": card_type['id'],
+                "name": card_type['name'],
+                "preview_image": card_type.get('preview_image'),
+                "preview_enabled": card_type.get('preview_enabled', False),
+                "blur_level": card_type.get('blur_level', 8)
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取卡种预览信息失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
