@@ -2179,120 +2179,86 @@
             box-shadow: 0 0 0 3px rgba(212, 165, 116, 0.1);
         }
 
-        .card-types-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-            gap: 16px;
-        }
-
-        .card-type-item {
+        /* 卡种表格样式 */
+        .card-types-table-container {
             background: white;
             border-radius: 16px;
-            padding: 20px;
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-            transition: all 0.2s;
-            border: 1px solid transparent;
+            overflow: hidden;
         }
 
-        .card-type-item:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
-            border-color: #E8D5C4;
+        .card-types-table {
+            width: 100%;
+            border-collapse: collapse;
         }
 
-        .card-type-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 16px;
+        .card-types-table thead {
+            background: linear-gradient(135deg, #FFFAF5 0%, #FFF8F0 100%);
         }
 
-        .card-type-name {
-            font-size: 18px;
+        .card-types-table th {
+            padding: 16px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: #5D4E37;
+            border-bottom: 2px solid #E8D5C4;
+            white-space: nowrap;
+        }
+
+        .card-types-table td {
+            padding: 16px 12px;
+            border-bottom: 1px solid #F5E6D3;
+            vertical-align: middle;
+        }
+
+        .card-types-table tbody tr {
+            transition: background 0.2s;
+        }
+
+        .card-types-table tbody tr:hover {
+            background: #FFFBF5;
+        }
+
+        .card-types-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .card-types-table .card-type-name {
             font-weight: 600;
             color: #5D4E37;
-            margin: 0;
-            word-break: break-word;
+            font-size: 15px;
         }
 
-        .card-type-status {
-            padding: 4px 10px;
+        .card-types-table .stat-number {
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .card-types-table .stat-number.total { color: #5D4E37; }
+        .card-types-table .stat-number.activated { color: #3B82F6; }
+        .card-types-table .stat-number.deactivated { color: #EF4444; }
+        .card-types-table .stat-number.sold { color: #059669; }
+
+        .card-types-table .status-tag {
+            display: inline-block;
+            padding: 4px 12px;
             border-radius: 20px;
             font-size: 12px;
             font-weight: 500;
-            flex-shrink: 0;
-            margin-left: 12px;
         }
 
-        .card-type-status.active {
+        .card-types-table .status-tag.active {
             background: #ECFDF5;
             color: #059669;
         }
 
-        .card-type-status.inactive {
+        .card-types-table .status-tag.inactive {
             background: #FEF2F2;
             color: #DC2626;
         }
 
-        .card-type-stats-row {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 8px;
-            margin-bottom: 16px;
-            padding-bottom: 16px;
-            border-bottom: 1px solid #F5E6D3;
-        }
-
-        .card-type-stat {
-            text-align: center;
-        }
-
-        .card-type-stat-value {
-            font-size: 20px;
-            font-weight: 700;
-            color: #5D4E37;
-        }
-
-        .card-type-stat-label {
-            font-size: 11px;
-            color: #A89070;
-            margin-top: 2px;
-        }
-
-        .card-type-stat.activated .card-type-stat-value {
-            color: #3B82F6;
-        }
-
-        .card-type-stat.deactivated .card-type-stat-value {
-            color: #EF4444;
-        }
-
-        .card-type-stat.sold .card-type-stat-value {
-            color: #059669;
-        }
-
-        .card-type-footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .card-type-meta {
-            font-size: 12px;
-            color: #A89070;
-        }
-
-        .card-type-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .card-type-actions .btn-sm {
-            padding: 6px 12px;
-            font-size: 12px;
-        }
-
-        .card-type-preview-badge {
+        .card-types-table .preview-badge {
             display: inline-flex;
             align-items: center;
             gap: 4px;
@@ -2301,25 +2267,50 @@
             color: #D97706;
             border-radius: 20px;
             font-size: 12px;
-            margin-top: 12px;
+            font-weight: 500;
         }
 
-        .card-types-empty {
-            text-align: center;
+        .card-types-table .preview-badge .copy-btn {
+            background: none;
+            border: none;
+            color: #D97706;
+            cursor: pointer;
+            padding: 0 4px;
+            font-size: 12px;
+            text-decoration: underline;
+        }
+
+        .card-types-table .preview-badge .copy-btn:hover {
+            color: #B45309;
+        }
+
+        .card-types-table .actions-cell {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .card-types-table .actions-cell .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .card-types-table .empty-row {
             padding: 60px 20px;
-            background: white;
-            border-radius: 16px;
-            margin-top: 20px;
+            text-align: center;
         }
 
-        .card-types-empty svg {
-            margin-bottom: 16px;
+        .card-types-table .empty-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
         }
 
-        .card-types-empty p {
+        .card-types-table .empty-content p {
             color: #A89070;
-            font-size: 16px;
-            margin-bottom: 20px;
+            font-size: 15px;
+            margin: 0;
         }
 
         @media (max-width: 1200px) {
@@ -2340,10 +2331,6 @@
             .toolbar-search {
                 max-width: 100%;
                 width: 100%;
-            }
-            
-            .card-types-grid {
-                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -2585,22 +2572,41 @@
                 </button>
             </div>
 
-            <!-- 卡种卡片列表 -->
-            <div class="card-types-grid" id="cardTypesGrid">
-                <!-- 卡片将通过JS动态渲染 -->
+            <!-- 卡种列表 -->
+            <div class="card-types-table-container">
+                <table class="card-types-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">ID</th>
+                            <th>卡种名称</th>
+                            <th style="width: 80px;">总数</th>
+                            <th style="width: 80px;">已激活</th>
+                            <th style="width: 80px;">已停用</th>
+                            <th style="width: 80px;">已售</th>
+                            <th style="width: 100px;">预览</th>
+                            <th style="width: 80px;">状态</th>
+                            <th style="width: 150px;">创建时间</th>
+                            <th style="width: 180px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="cardTypesTableBody">
+                        <tr>
+                            <td colspan="10" class="empty-row">
+                                <div class="empty-content">
+                                    <svg width="48" height="48" fill="none" stroke="#D4C4A8" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                    </svg>
+                                    <p>暂无卡种数据</p>
+                                    <button class="btn btn-primary btn-sm" onclick="showCardTypeModal()">创建第一个卡种</button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
             <!-- 分页 -->
             <div class="pagination" id="cardTypesPagination"></div>
-
-            <!-- 空状态 -->
-            <div class="card-types-empty" id="cardTypesEmpty" style="display: none;">
-                <svg width="64" height="64" fill="none" stroke="#D4C4A8" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
-                </svg>
-                <p>暂无卡种数据</p>
-                <button class="btn btn-primary" onclick="showCardTypeModal()">创建第一个卡种</button>
-            </div>
         </div>
 
         <!-- 访问日志 -->
@@ -7655,7 +7661,7 @@
                 const result = await response.json();
                 
                 if (result.success) {
-                    renderCardTypesGrid(result.data);
+                    renderCardTypesTable(result.data);
                     renderCardTypesPagination(result.total, result.total_pages);
                     updateCardTypesStats(result.data, result.total);
                 } else {
@@ -7695,67 +7701,59 @@
             loadCardTypes();
         }
         
-        // 渲染卡种卡片
-        function renderCardTypesGrid(data) {
-            const grid = document.getElementById('cardTypesGrid');
-            const empty = document.getElementById('cardTypesEmpty');
-            
+        // 渲染卡种表格
+        function renderCardTypesTable(data) {
+            const tbody = document.getElementById('cardTypesTableBody');
             if (!data || data.length === 0) {
-                grid.style.display = 'none';
-                empty.style.display = 'block';
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="10" class="empty-row">
+                            <div class="empty-content">
+                                <svg width="48" height="48" fill="none" stroke="#D4C4A8" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                </svg>
+                                <p>暂无卡种数据</p>
+                                <button class="btn btn-primary btn-sm" onclick="showCardTypeModal()">创建第一个卡种</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
                 return;
             }
             
-            grid.style.display = 'grid';
-            empty.style.display = 'none';
-            
-            grid.innerHTML = data.map(type => {
+            tbody.innerHTML = data.map(type => {
                 const statusClass = type.status === 1 ? 'active' : 'inactive';
                 const statusText = type.status === 1 ? '有效' : '已停用';
                 
                 return `
-                <div class="card-type-item">
-                    <div class="card-type-header">
-                        <h3 class="card-type-name">${escapeHtml(type.name)}</h3>
-                        <span class="card-type-status ${statusClass}">${statusText}</span>
-                    </div>
-                    
-                    <div class="card-type-stats-row">
-                        <div class="card-type-stat">
-                            <div class="card-type-stat-value">${type.total_count || 0}</div>
-                            <div class="card-type-stat-label">总数</div>
-                        </div>
-                        <div class="card-type-stat activated">
-                            <div class="card-type-stat-value">${type.activated_count || 0}</div>
-                            <div class="card-type-stat-label">已激活</div>
-                        </div>
-                        <div class="card-type-stat deactivated">
-                            <div class="card-type-stat-value">${type.deactivated_count || 0}</div>
-                            <div class="card-type-stat-label">已停用</div>
-                        </div>
-                        <div class="card-type-stat sold">
-                            <div class="card-type-stat-value">${type.sold_count || 0}</div>
-                            <div class="card-type-stat-label">已售</div>
-                        </div>
-                    </div>
-                    
-                    ${type.preview_enabled ? `
-                        <div class="card-type-preview-badge">
-                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
-                            预览已开启
-                            <button class="btn btn-link" onclick="copyPreviewLink(${type.id})" title="复制预览链接" style="padding: 0 4px; font-size: 12px; color: #D97706;">复制链接</button>
-                        </div>
-                    ` : ''}
-                    
-                    <div class="card-type-footer">
-                        <span class="card-type-meta">ID: ${type.id} · ${formatTime(type.created_at)}</span>
-                        <div class="card-type-actions">
+                <tr>
+                    <td style="text-align: center; color: #A89070; font-size: 13px;">${type.id}</td>
+                    <td><span class="card-type-name">${escapeHtml(type.name)}</span></td>
+                    <td style="text-align: center;"><span class="stat-number total">${type.total_count || 0}</span></td>
+                    <td style="text-align: center;"><span class="stat-number activated">${type.activated_count || 0}</span></td>
+                    <td style="text-align: center;"><span class="stat-number deactivated">${type.deactivated_count || 0}</span></td>
+                    <td style="text-align: center;"><span class="stat-number sold">${type.sold_count || 0}</span></td>
+                    <td style="text-align: center;">
+                        ${type.preview_enabled ? `
+                            <span class="preview-badge">
+                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+                                已开启
+                                <button class="copy-btn" onclick="copyPreviewLink(${type.id})">复制</button>
+                            </span>
+                        ` : `<span style="color: #C4B8A8;">-</span>`}
+                    </td>
+                    <td style="text-align: center;">
+                        <span class="status-tag ${statusClass}">${statusText}</span>
+                    </td>
+                    <td style="text-align: center; color: #A89070; font-size: 13px;">${formatTime(type.created_at)}</td>
+                    <td>
+                        <div class="actions-cell">
                             <button class="btn btn-primary btn-sm" onclick="openCardTypeCardsModal(${type.id}, '${escapeHtml(type.name)}')">管理</button>
                             <button class="btn btn-secondary btn-sm" onclick="editCardType(${type.id})">编辑</button>
                             <button class="btn btn-danger btn-sm" onclick="deleteCardType(${type.id})">删除</button>
                         </div>
-                    </div>
-                </div>
+                    </td>
+                </tr>
             `}).join('');
         }
         
