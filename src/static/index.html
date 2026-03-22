@@ -2085,19 +2085,38 @@
             const urlParams = new URLSearchParams(window.location.search);
             const previewId = urlParams.get('preview');
             
-            if (!previewId) {
+            // 如果有指定卡种ID，优先使用卡种预览
+            if (previewId) {
+                try {
+                    const response = await fetch(`/api/preview/${previewId}`);
+                    const result = await response.json();
+                    
+                    if (result.success && result.data.preview_enabled) {
+                        return result.data;
+                    }
+                } catch (err) {
+                    console.error('获取卡种预览信息失败:', err);
+                }
                 return null;
             }
             
+            // 没有指定卡种ID，检查全局预览图设置
             try {
-                const response = await fetch(`/api/preview/${previewId}`);
+                const response = await fetch('/api/global-preview');
                 const result = await response.json();
                 
-                if (result.success && result.data.preview_enabled) {
-                    return result.data;
+                if (result.success && result.data && result.data.enabled && result.data.preview_image) {
+                    return {
+                        id: null,  // 全局预览没有卡种ID
+                        name: '内容已加密',
+                        preview_image: result.data.preview_image,
+                        blur_level: result.data.blur_level || 8,
+                        preview_enabled: true,
+                        isGlobal: true  // 标记为全局预览
+                    };
                 }
             } catch (err) {
-                console.error('获取预览信息失败:', err);
+                console.error('获取全局预览设置失败:', err);
             }
             
             return null;

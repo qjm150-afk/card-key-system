@@ -614,6 +614,36 @@ async def get_card_type_preview_by_link(link_name: str):
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/global-preview")
+async def get_global_preview_public():
+    """
+    获取全局预览图设置（公开接口，无需登录）
+    - 用于首页默认预览展示
+    """
+    try:
+        client = get_supabase_client()
+        result = client.table('admin_settings').select('value').eq('key', 'global_preview').execute()
+        if result.data and len(result.data) > 0:
+            import json
+            try:
+                data = json.loads(result.data[0]['value'])
+                if data.get('preview_image'):
+                    return {
+                        "success": True,
+                        "data": {
+                            "preview_image": data.get('preview_image'),
+                            "blur_level": data.get('blur_level', 8),
+                            "enabled": True
+                        }
+                    }
+            except:
+                pass
+        return {"success": True, "data": {"preview_image": None, "blur_level": 8, "enabled": False}}
+    except Exception as e:
+        logger.error(f"获取全局预览图失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/preview/{card_type_id}")
 async def get_card_type_preview(card_type_id: int):
     """
@@ -4688,6 +4718,65 @@ async def set_docs_url(request: DocsUrlRequest, req: Request):
         return {"success": True, "msg": "保存成功"}
     except Exception as e:
         logger.error(f"设置文档链接失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+# ==================== 全局预览图设置 API ====================
+
+class GlobalPreviewRequest(BaseModel):
+    """全局预览图请求"""
+    preview_image: Optional[str] = None
+    blur_level: int = 8
+
+
+@app.get("/api/admin/settings/global-preview")
+async def get_global_preview(req: Request):
+    """获取全局预览图设置"""
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    try:
+        client = get_supabase_client()
+        result = client.table('admin_settings').select('value').eq('key', 'global_preview').execute()
+        if result.data and len(result.data) > 0:
+            import json
+            try:
+                data = json.loads(result.data[0]['value'])
+                return {"success": True, "data": data}
+            except:
+                return {"success": True, "data": {"preview_image": "", "blur_level": 8}}
+        return {"success": True, "data": {"preview_image": "", "blur_level": 8}}
+    except Exception as e:
+        logger.error(f"获取全局预览图设置失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/admin/settings/global-preview")
+async def set_global_preview(request: GlobalPreviewRequest, req: Request):
+    """设置全局预览图"""
+    token = get_token_from_request(req)
+    if not verify_token(token):
+        return {"success": False, "msg": "未登录或会话已过期"}
+    
+    try:
+        client = get_supabase_client()
+        import json
+        value = json.dumps({
+            "preview_image": request.preview_image or "",
+            "blur_level": request.blur_level or 8
+        })
+        
+        # 先尝试更新
+        result = client.table('admin_settings').update({'value': value}).eq('key', 'global_preview').execute()
+        if not result.data:
+            # 如果没有更新到，说明记录不存在，尝试插入
+            client.table('admin_settings').insert({'key': 'global_preview', 'value': value}).execute()
+        
+        logger.info(f"全局预览图设置成功")
+        return {"success": True, "msg": "保存成功"}
+    except Exception as e:
+        logger.error(f"设置全局预览图失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
