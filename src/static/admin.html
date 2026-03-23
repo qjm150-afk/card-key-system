@@ -6223,7 +6223,7 @@
 
         // 获取激活状态样式
         function getStatusClass(card) {
-            // status是最终控制字段：status=0表示手动停用
+            // status是最终控制字段：status=0表示手动停用（管理员手动控制）
             if (card.status === 0) {
                 return 'status-inactive';
             }
@@ -6233,7 +6233,12 @@
                 return 'status-inactive';
             }
             
-            // status=1时，检查是否已激活（有绑定设备）
+            // status=1时，检查是否已过期（实时计算）
+            if (card.is_expired === true) {
+                return 'status-expired';  // 新增过期状态样式
+            }
+            
+            // status=1且未过期，检查是否已激活（有绑定设备）
             let hasDevices = false;
             try {
                 const devices = JSON.parse(card.devices || '[]');
@@ -6253,7 +6258,7 @@
 
         // 获取激活状态文本
         function getStatusText(card) {
-            // status是最终控制字段：status=0表示手动停用
+            // status是最终控制字段：status=0表示手动停用（管理员手动控制）
             if (card.status === 0) {
                 return '已停用';
             }
@@ -6263,7 +6268,12 @@
                 return '已停用';
             }
             
-            // status=1时，检查是否已激活（有绑定设备）
+            // status=1时，检查是否已过期（实时计算）
+            if (card.is_expired === true) {
+                return '已过期';
+            }
+            
+            // status=1且未过期，检查是否已激活（有绑定设备）
             let hasDevices = false;
             try {
                 const devices = JSON.parse(card.devices || '[]');

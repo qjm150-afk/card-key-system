@@ -446,6 +446,54 @@ def get_db_mode():
     return _get_db_mode()
 
 
+def calculate_is_expired(card: dict) -> bool:
+    """
+    计算卡密是否已过期（实时计算）
+    
+    过期判断逻辑：
+    1. 如果 expire_at 存在：expire_at < 当前时间 → 已过期
+    2. 如果 expire_after_days 存在且 activated_at 存在：
+       activated_at + expire_after_days 天 < 当前时间 → 已过期
+    3. 其他情况：未过期（永久有效或未激活）
+    
+    Args:
+        card: 卡密记录字典
+        
+    Returns:
+        bool: True=已过期，False=未过期
+    """
+    now = datetime.now()
+    
+    # 情况1：固定日期过期
+    if card.get('expire_at'):
+        try:
+            expire_at = datetime.fromisoformat(str(card['expire_at']).replace('Z', '+00:00'))
+            # 移除时区信息进行比较
+            if expire_at.tzinfo:
+                expire_at = expire_at.replace(tzinfo=None)
+            if expire_at < now:
+                return True
+        except Exception as e:
+            logger.warning(f"解析expire_at失败: {card.get('expire_at')}, 错误: {e}")
+    
+    # 情况2：激活后N天过期
+    if card.get('expire_after_days') and card.get('activated_at'):
+        try:
+            activated_at = datetime.fromisoformat(str(card['activated_at']).replace('Z', '+00:00'))
+            # 移除时区信息
+            if activated_at.tzinfo:
+                activated_at = activated_at.replace(tzinfo=None)
+            # 计算过期时间
+            expire_date = activated_at + timedelta(days=card['expire_after_days'])
+            if expire_date < now:
+                return True
+        except Exception as e:
+            logger.warning(f"解析activated_at失败: {card.get('activated_at')}, 错误: {e}")
+    
+    # 未过期
+    return False
+
+
 def generate_card_key(prefix: str = "CSS") -> str:
     """
     生成卡密
@@ -1322,6 +1370,10 @@ async def get_card_keys(
             end = start + page_size
             paginated_data = filtered_data[start:end]
             
+            # 为每条记录添加 is_expired 字段（实时计算）
+            for card in paginated_data:
+                card['is_expired'] = calculate_is_expired(card)
+            
             return {
                 "success": True,
                 "data": paginated_data,
@@ -1335,6 +1387,10 @@ async def get_card_keys(
         end = start + page_size - 1
         
         response = query.range(start, end).order('id', desc=True).execute()
+        
+        # 为每条记录添加 is_expired 字段（实时计算）
+        for card in response.data:
+            card['is_expired'] = calculate_is_expired(card)
         
         logger.info(f"[搜索结果] 返回数据条数: {len(response.data)}, 总数: {response.count}")
         
