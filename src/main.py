@@ -5285,12 +5285,28 @@ async def delete_preview_image(image_id: int, req: Request):
         if result.data:
             image_url = result.data[0].get('url', '')
             
-            # 尝试从存储中删除（如果是存储的URL）
+            # 尝试从存储中删除（如果是对象存储的URL）
             if image_url and not image_url.startswith('data:'):
                 try:
-                    # 从URL提取文件名
-                    file_name = image_url.split('/')[-1].split('?')[0]
-                    client.storage.from_('images').remove([file_name])
+                    import os
+                    from coze_coding_dev_sdk.s3 import S3SyncStorage
+                    
+                    storage = S3SyncStorage(
+                        endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                        access_key="",
+                        secret_key="",
+                        bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                        region="cn-beijing",
+                    )
+                    
+                    # 从 URL 提取 key（URL 格式: endpoint/bucket/key?签名参数）
+                    # 例如: https://xxx.com/bucket/preview_images/xxx.png?X-Amz-...
+                    if 'preview_images/' in image_url:
+                        # 提取 preview_images/xxx.png 部分
+                        key_part = image_url.split('preview_images/')[-1].split('?')[0]
+                        file_key = f"preview_images/{key_part}"
+                        storage.delete_file(file_key)
+                        logger.info(f"已从对象存储删除文件: {file_key}")
                 except Exception as e:
                     logger.warning(f"从存储删除文件失败: {str(e)}")
             
