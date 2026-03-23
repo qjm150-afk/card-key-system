@@ -2445,7 +2445,7 @@
 
         .card-types-table th {
             padding: 16px 12px;
-            text-align: left;
+            text-align: center;
             font-weight: 600;
             font-size: 13px;
             color: #5D4E37;
@@ -8720,7 +8720,7 @@
                 return `
                 <tr>
                     <td style="text-align: center;"><span class="row-number">${rowNum}</span></td>
-                    <td><span class="card-type-name" title="${displayName}">${displayName}</span></td>
+                    <td style="text-align: left;"><span class="card-type-name" title="${displayName}">${displayName}</span></td>
                     <td style="text-align: center;"><span class="stat-number total">${type.total_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number activated">${type.activated_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number deactivated">${type.deactivated_count || 0}</span></td>
