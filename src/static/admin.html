@@ -2864,11 +2864,11 @@
                 </div>
                 <div class="card-type-stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                        <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                        <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v2h-2v-2zm0-10h2v8h-2V7z"/></svg>
                     </div>
                     <div class="stat-info">
-                        <div class="stat-value" id="cardTypesPreviewEnabled">0</div>
-                        <div class="stat-label">预览已开启</div>
+                        <div class="stat-value" id="cardTypesDeactivatedTotal">0</div>
+                        <div class="stat-label">已停用</div>
                     </div>
                 </div>
             </div>
@@ -8240,19 +8240,19 @@
             // 计算汇总数据
             let cardsTotal = 0;
             let activatedTotal = 0;
-            let previewEnabled = 0;
+            let deactivatedTotal = 0;
             
             if (data && data.length > 0) {
                 data.forEach(type => {
                     cardsTotal += type.total_count || 0;
                     activatedTotal += type.activated_count || 0;
-                    if (type.preview_enabled) previewEnabled++;
+                    deactivatedTotal += type.deactivated_count || 0;
                 });
             }
             
             document.getElementById('cardTypesCardsTotal').textContent = cardsTotal;
             document.getElementById('cardTypesActivatedTotal').textContent = activatedTotal;
-            document.getElementById('cardTypesPreviewEnabled').textContent = previewEnabled;
+            document.getElementById('cardTypesDeactivatedTotal').textContent = deactivatedTotal;
         }
         
         // 搜索卡种
