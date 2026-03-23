@@ -5408,19 +5408,59 @@
             const values = Object.values(hourData);
             const maxValue = Math.max(...values, 1);
             
-            // 计算合适的Y轴刻度（向上取整到最近的50的倍数）
-            const niceMax = Math.ceil(maxValue / 50) * 50;
-            const chartHeight = 160; // 柱状图区域高度
-            
-            // 生成Y轴刻度
-            const yTickCount = 4;
-            const yTicks = [];
-            for (let i = 0; i <= yTickCount; i++) {
-                yTicks.push(Math.round(niceMax * i / yTickCount));
+            // 智能计算Y轴刻度，让柱状图在不同数据下都能清晰显示
+            function calculateNiceMax(maxVal) {
+                if (maxVal <= 5) return 5;
+                if (maxVal <= 10) return 10;
+                if (maxVal <= 20) return 20;
+                if (maxVal <= 30) return 30;
+                if (maxVal <= 50) return 50;
+                if (maxVal <= 100) return Math.ceil(maxVal / 20) * 20;
+                if (maxVal <= 200) return Math.ceil(maxVal / 50) * 50;
+                if (maxVal <= 500) return Math.ceil(maxVal / 100) * 100;
+                return Math.ceil(maxVal / 200) * 200;
             }
+            
+            // 根据最大值确定刻度数量和间隔
+            function calculateYTicks(niceMax) {
+                let tickCount = 4;
+                let tickStep = niceMax / tickCount;
+                
+                // 根据最大值调整刻度间隔，确保显示合理
+                if (niceMax <= 10) {
+                    tickCount = 5;
+                    tickStep = 2; // 0, 2, 4, 6, 8, 10
+                } else if (niceMax <= 20) {
+                    tickCount = 4;
+                    tickStep = 5; // 0, 5, 10, 15, 20
+                } else if (niceMax <= 50) {
+                    tickCount = 5;
+                    tickStep = 10; // 0, 10, 20, 30, 40, 50
+                } else if (niceMax <= 100) {
+                    tickCount = 5;
+                    tickStep = 20; // 0, 20, 40, 60, 80, 100
+                } else if (niceMax <= 200) {
+                    tickCount = 4;
+                    tickStep = 50; // 0, 50, 100, 150, 200
+                } else {
+                    tickCount = 5;
+                    tickStep = niceMax / tickCount;
+                }
+                
+                const ticks = [];
+                for (let i = 0; i <= tickCount; i++) {
+                    ticks.push(Math.round(i * tickStep));
+                }
+                return ticks;
+            }
+            
+            const niceMax = calculateNiceMax(maxValue);
+            const yTicks = calculateYTicks(niceMax);
+            const chartHeight = 160; // 柱状图区域高度
             
             // 生成X轴标签（每3小时显示一个）
             const xLabels = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+            const tickCount = yTicks.length - 1; // 刻度间隔数
             
             // 构建HTML
             let html = `
@@ -5430,13 +5470,13 @@
                 </div>
                 <!-- Y轴 -->
                 <div class="hour-y-axis">
-                    ${yTicks.reverse().map(v => `<span class="hour-y-label">${v}</span>`).join('')}
+                    ${[...yTicks].reverse().map(v => `<span class="hour-y-label">${v}</span>`).join('')}
                 </div>
                 <!-- 柱状图区域 -->
                 <div class="hour-bars-container">
-                    <!-- 网格线 -->
-                    ${yTicks.reverse().map((v, i) => {
-                        const top = i === 0 ? 0 : (chartHeight * i / yTickCount);
+                    <!-- 网格线 - 从下到上排列 -->
+                    ${yTicks.map((v, i) => {
+                        const top = i === 0 ? 0 : (chartHeight * i / tickCount);
                         return `<div class="hour-grid-line" style="top: ${top}px;"></div>`;
                     }).join('')}
                     <!-- 柱子 -->
