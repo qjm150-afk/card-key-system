@@ -3341,6 +3341,7 @@ async def get_card_stats():
     - sold: 已售出数量
     - activated: 已激活数量
     - disabled: 已停用数量
+    - expired: 已过期数量（实时计算）
     """
     try:
         client = get_supabase_client()
@@ -3388,13 +3389,20 @@ async def get_card_stats():
         # 由于需要检查 devices，这需要在应用层处理
         # 先获取所有 status=1 的记录
         activated = 0
+        expired = 0  # 已过期数量
         try:
-            # 获取 status=1 的记录
-            valid_response = client.table('card_keys_table').select('devices, sale_status').eq('status', 1).execute()
+            # 获取 status=1 的记录（包含过期判断所需字段）
+            valid_response = client.table('card_keys_table').select('devices, sale_status, expire_at, expire_after_days, activated_at').eq('status', 1).execute()
             for card in (valid_response.data or []):
                 # 排除销售状态为退款/纠纷的
                 if card.get('sale_status') in ['refunded', 'disputed']:
                     continue
+                
+                # 检查是否已过期
+                if calculate_is_expired(card):
+                    expired += 1
+                    continue  # 已过期的不计入已激活
+                
                 # 检查是否已激活（有设备绑定）
                 try:
                     devices = json.loads(card.get('devices', '[]'))
@@ -3403,7 +3411,7 @@ async def get_card_stats():
                 except:
                     pass
         except Exception as e:
-            logger.warning(f"计算已激活数量失败: {str(e)}")
+            logger.warning(f"计算已激活/已过期数量失败: {str(e)}")
         
         return {
             "success": True,
@@ -3411,7 +3419,8 @@ async def get_card_stats():
                 "total": total,
                 "sold": sold,
                 "activated": activated,
-                "disabled": disabled
+                "disabled": disabled,
+                "expired": expired
             }
         }
         

@@ -2851,6 +2851,10 @@
                     <h3>已激活</h3>
                     <div class="value" id="statActivated">0</div>
                 </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #F59E0B, #D97706); color: white;">
+                    <h3>已过期</h3>
+                    <div class="value" id="statExpired">0</div>
+                </div>
                 <div class="stat-card">
                     <h3>已停用</h3>
                     <div class="value" id="statDisabled">0</div>
@@ -3000,6 +3004,15 @@
                     </div>
                 </div>
                 <div class="card-type-stat-card">
+                    <div class="stat-icon" style="background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);">
+                        <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="cardTypesExpiredTotal">0</div>
+                        <div class="stat-label">已过期</div>
+                    </div>
+                </div>
+                <div class="card-type-stat-card">
                     <div class="stat-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
                         <svg width="24" height="24" fill="white" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h2v2h-2v-2zm0-10h2v8h-2V7z"/></svg>
                     </div>
@@ -3035,6 +3048,7 @@
                             <th>卡种名称</th>
                             <th style="width: 80px;">总数</th>
                             <th style="width: 80px;">已激活</th>
+                            <th style="width: 80px;">已过期</th>
                             <th style="width: 80px;">已停用</th>
                             <th style="width: 80px;">已售</th>
                             <th style="width: 150px;">创建时间</th>
@@ -5681,6 +5695,7 @@
                     document.getElementById('statTotal').textContent = stats.total || 0;
                     document.getElementById('statSold').textContent = stats.sold || 0;
                     document.getElementById('statActivated').textContent = stats.activated || 0;
+                    document.getElementById('statExpired').textContent = stats.expired || 0;
                     document.getElementById('statDisabled').textContent = stats.disabled || 0;
                 }
             } catch (error) {
@@ -8693,18 +8708,21 @@
             // 计算汇总数据
             let cardsTotal = 0;
             let activatedTotal = 0;
+            let expiredTotal = 0;
             let deactivatedTotal = 0;
             
             if (data && data.length > 0) {
                 data.forEach(type => {
                     cardsTotal += type.total_count || 0;
                     activatedTotal += type.activated_count || 0;
+                    expiredTotal += type.expired_count || 0;
                     deactivatedTotal += type.deactivated_count || 0;
                 });
             }
             
             document.getElementById('cardTypesCardsTotal').textContent = cardsTotal;
             document.getElementById('cardTypesActivatedTotal').textContent = activatedTotal;
+            document.getElementById('cardTypesExpiredTotal').textContent = expiredTotal;
             document.getElementById('cardTypesDeactivatedTotal').textContent = deactivatedTotal;
         }
         
@@ -8720,7 +8738,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" class="empty-row">
+                        <td colspan="9" class="empty-row">
                             <div class="empty-content">
                                 <svg width="48" height="48" fill="none" stroke="#D4C4A8" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -8740,6 +8758,7 @@
             tbody.innerHTML = data.map((type, index) => {
                 const rowNum = startNum + index + 1;
                 const displayName = escapeHtml(type.name);
+                const expiredCount = type.expired_count || 0;
                 
                 return `
                 <tr>
@@ -8747,6 +8766,7 @@
                     <td style="text-align: left;"><span class="card-type-name" title="${displayName}">${displayName}</span></td>
                     <td style="text-align: center;"><span class="stat-number total">${type.total_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number activated">${type.activated_count || 0}</span></td>
+                    <td style="text-align: center;"><span class="stat-number expired" style="color: ${expiredCount > 0 ? '#D97706' : '#9CA3AF'};">${expiredCount}</span></td>
                     <td style="text-align: center;"><span class="stat-number deactivated">${type.deactivated_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number sold">${type.sold_count || 0}</span></td>
                     <td style="text-align: center; color: #A89070; font-size: 13px;">${formatTime(type.created_at)}</td>
