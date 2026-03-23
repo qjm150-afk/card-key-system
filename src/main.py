@@ -5225,20 +5225,32 @@ async def upload_preview_image(req: Request, file: UploadFile = File(...), name:
         
         client = get_supabase_client()
         
-        # 生成唯一文件名
-        file_ext = file.filename.split('.')[-1] if file.filename else 'png'
-        file_name = f"preview_{datetime.now().strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}.{file_ext}"
-        
-        # 上传到 storage bucket
+        # 使用 S3SyncStorage 上传图片
         try:
-            storage_result = client.storage.from_('images').upload(
-                file_name,
-                content,
-                {"content-type": file.content_type}
+            import os
+            from coze_coding_dev_sdk.s3 import S3SyncStorage
+            
+            storage = S3SyncStorage(
+                endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                access_key="",
+                secret_key="",
+                bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                region="cn-beijing",
             )
             
-            # 获取公开URL
-            image_url = client.storage.from_('images').get_public_url(file_name)
+            # 生成文件名
+            file_ext = file.filename.split('.')[-1] if file.filename else 'png'
+            file_name = f"preview_images/{datetime.now().strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}.{file_ext}"
+            
+            # 上传文件
+            actual_key = storage.upload_file(
+                file_content=content,
+                file_name=file_name,
+                content_type=file.content_type,
+            )
+            
+            # 生成访问URL（有效期30天）
+            image_url = storage.generate_presigned_url(key=actual_key, expire_time=2592000)
             
             # 保存到预览图片表
             result = client.table('preview_images').insert({
@@ -5246,27 +5258,12 @@ async def upload_preview_image(req: Request, file: UploadFile = File(...), name:
                 'url': image_url
             }).execute()
             
-            logger.info(f"预览图片上传成功: {name}")
+            logger.info(f"预览图片上传成功: {name}, key={actual_key}")
             return {"success": True, "data": result.data[0] if result.data else {"name": name, "url": image_url}}
             
         except Exception as storage_err:
             logger.error(f"存储上传失败: {str(storage_err)}")
-            # 如果存储失败，尝试使用 base64 存储
-            import base64
-            base64_data = base64.b64encode(content).decode('utf-8')
-            data_url = f"data:{file.content_type};base64,{base64_data}"
-            
-            # 限制 base64 大小
-            if len(data_url) > 500000:
-                return {"success": False, "msg": "图片太大，请压缩后上传"}
-            
-            result = client.table('preview_images').insert({
-                'name': name,
-                'url': data_url
-            }).execute()
-            
-            logger.info(f"预览图片已保存为 base64: {name}")
-            return {"success": True, "data": result.data[0] if result.data else {"name": name, "url": data_url}}
+            return {"success": False, "msg": f"图片上传失败: {str(storage_err)}"}
             
     except Exception as e:
         logger.error(f"上传预览图片失败: {str(e)}")
