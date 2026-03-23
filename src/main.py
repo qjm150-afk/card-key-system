@@ -1367,7 +1367,7 @@ async def get_card_types(
         for card_type in card_types:
             type_id = card_type['id']
             
-            # 统计该卡种下的卡券数量和销售状态
+            # 统计该卡种下的卡密数量和销售状态
             stats_response = client.table('card_keys_table').select('id, status, sale_status, devices, expire_at, expire_after_days, activated_at', count='exact').eq('card_type_id', type_id).execute()
             
             total_count = stats_response.count or 0
@@ -1387,7 +1387,7 @@ async def get_card_types(
             now = datetime.now()
             
             for card in (stats_response.data or []):
-                # 统计卡券状态（激活/停用）
+                # 统计卡密状态（激活/停用）
                 card_status = card.get('status', 1)
                 devices = card.get('devices', '[]')
                 sale_status = card.get('sale_status', 'unsold')
@@ -1543,7 +1543,7 @@ async def get_card_type(type_id: int):
         
         card_type = response.data[0]
         
-        # 获取该卡种下的卡券统计
+        # 获取该卡种下的卡密统计
         stats_response = client.table('card_keys_table').select('id, status, devices, expire_at, expire_after_days, activated_at, sale_status', count='exact').eq('card_type_id', type_id).execute()
         
         total_count = stats_response.count or 0
@@ -1677,7 +1677,7 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
 
 @app.delete("/api/admin/card-types/{type_id}")
 async def delete_card_type(type_id: int):
-    """删除卡种（软删除，同时删除关联卡券）"""
+    """删除卡种（软删除，同时删除关联卡密）"""
     try:
         client = get_supabase_client()
         
@@ -1688,14 +1688,14 @@ async def delete_card_type(type_id: int):
         
         type_name = existing.data[0]['name']
         
-        # 获取该卡种下的卡券ID列表
+        # 获取该卡种下的卡密ID列表
         cards_response = client.table('card_keys_table').select('id').eq('card_type_id', type_id).execute()
         card_ids = [card['id'] for card in (cards_response.data or [])]
         
         # 删除关联的访问日志
         if card_ids:
             client.table('access_logs').delete().in_('card_key_id', card_ids).execute()
-            # 删除卡券
+            # 删除卡密
             client.table('card_keys_table').delete().eq('card_type_id', type_id).execute()
         
         # 软删除卡种
@@ -1704,9 +1704,9 @@ async def delete_card_type(type_id: int):
             'status': 0
         }).eq('id', type_id).execute()
         
-        logger.info(f"删除卡种成功: {type_name}, 删除卡券数量: {len(card_ids)}")
+        logger.info(f"删除卡种成功: {type_name}, 删除卡密数量: {len(card_ids)}")
         
-        return {"success": True, "msg": f"已删除卡种及其关联的 {len(card_ids)} 张卡券"}
+        return {"success": True, "msg": f"已删除卡种及其关联的 {len(card_ids)} 张卡密"}
         
     except Exception as e:
         logger.error(f"删除卡种失败: {str(e)}")
@@ -1724,7 +1724,7 @@ async def get_card_type_stats(type_id: int):
         if not type_response.data:
             return {"success": False, "msg": "卡种不存在"}
         
-        # 获取该卡种下所有卡券的统计
+        # 获取该卡种下所有卡密的统计
         # 只需要统计关键字段
         response = client.table('card_keys_table').select('status, devices, sale_status').eq('card_type_id', type_id).execute()
         
@@ -1773,7 +1773,7 @@ async def get_card_type_cards(
     activate_status: Optional[str] = None,  # valid, activated, disabled
     expire_filter: Optional[str] = None  # expired, valid, permanent
 ):
-    """获取卡种下的卡券列表"""
+    """获取卡种下的卡密列表"""
     try:
         client = get_supabase_client()
         
@@ -1893,13 +1893,13 @@ async def get_card_type_cards(
         }
         
     except Exception as e:
-        logger.error(f"获取卡种卡券列表失败: {str(e)}")
+        logger.error(f"获取卡种卡密列表失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
 @app.post("/api/admin/card-types/{type_id}/cards/batch-generate")
 async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV2):
-    """在卡种下批量生成卡券"""
+    """在卡种下批量生成卡密"""
     try:
         # 验证卡种存在并获取卡种信息
         client = get_supabase_client()
@@ -2012,13 +2012,13 @@ async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV
 
 
 class SimpleGenerateRequest(BaseModel):
-    """简单生成卡券请求"""
+    """简单生成卡密请求"""
     count: int = 10
 
 
 @app.post("/api/admin/card-types/{type_id}/generate-cards")
 async def simple_generate_cards_for_type(type_id: int, req: SimpleGenerateRequest):
-    """在卡种下简单生成卡券（使用卡种默认配置）"""
+    """在卡种下简单生成卡密（使用卡种默认配置）"""
     try:
         client = get_supabase_client()
         
@@ -2064,11 +2064,11 @@ async def simple_generate_cards_for_type(type_id: int, req: SimpleGenerateReques
         return {
             "success": True,
             "data": {"created_count": generated_count},
-            "msg": f"成功生成 {generated_count} 张卡券"
+            "msg": f"成功生成 {generated_count} 张卡密"
         }
         
     except Exception as e:
-        logger.error(f"生成卡券失败: {str(e)}")
+        logger.error(f"生成卡密失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
@@ -2080,7 +2080,7 @@ async def export_card_type_cards(
     activate_status: Optional[str] = None,
     sale_status: Optional[str] = None
 ):
-    """导出卡种下的卡券"""
+    """导出卡种下的卡密"""
     try:
         client = get_supabase_client()
         
@@ -2128,7 +2128,7 @@ async def export_card_type_cards(
         
         wb = Workbook()
         ws = wb.active
-        ws.title = "卡券列表"
+        ws.title = "卡密列表"
         
         # 表头
         headers = ["卡密", "状态", "销售状态", "过期时间", "设备数", "创建时间"]
@@ -2182,7 +2182,7 @@ async def export_card_type_cards(
         )
         
     except Exception as e:
-        logger.error(f"导出卡券失败: {str(e)}")
+        logger.error(f"导出卡密失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 
@@ -2193,12 +2193,12 @@ class BatchDeleteRequest(BaseModel):
 
 @app.post("/api/admin/cards/batch-delete")
 async def batch_delete_cards(request: BatchDeleteRequest):
-    """批量删除卡券"""
+    """批量删除卡密"""
     try:
         client = get_supabase_client()
         
         if not request.ids or len(request.ids) == 0:
-            return {"success": False, "msg": "请选择要删除的卡券"}
+            return {"success": False, "msg": "请选择要删除的卡密"}
         
         # 先删除相关的访问日志
         try:
@@ -2206,7 +2206,7 @@ async def batch_delete_cards(request: BatchDeleteRequest):
         except Exception as e:
             logger.warning(f"删除关联日志失败（不影响主操作）: {str(e)}")
         
-        # 删除卡券
+        # 删除卡密
         response = client.table('card_keys_table').delete().in_('id', request.ids).execute()
         deleted_count = len(response.data) if response.data else len(request.ids)
         
@@ -2218,13 +2218,13 @@ async def batch_delete_cards(request: BatchDeleteRequest):
             "affected_count": deleted_count,
             "affected_ids": request.ids[:100],
             "update_fields": {},
-            "remark": f"批量删除 {deleted_count} 张卡券"
+            "remark": f"批量删除 {deleted_count} 张卡密"
         })
         
         return {
             "success": True,
             "data": {"deleted_count": deleted_count},
-            "msg": f"成功删除 {deleted_count} 张卡券"
+            "msg": f"成功删除 {deleted_count} 张卡密"
         }
         
     except Exception as e:
