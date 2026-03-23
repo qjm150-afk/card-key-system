@@ -2054,8 +2054,71 @@
             margin: 0 auto;
         }
 
+        /* 可折叠设置区块 */
         .settings-section {
-            margin-bottom: 32px;
+            margin-bottom: 16px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .settings-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+
+        .settings-section-header:hover {
+            background-color: #faf8f5;
+        }
+
+        .settings-section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #5D4E37;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .settings-section-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #A89070;
+            transition: transform 0.3s ease;
+        }
+
+        .settings-section.expanded .settings-section-icon {
+            transform: rotate(180deg);
+        }
+
+        .settings-section-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .settings-section.expanded .settings-section-content {
+            max-height: 1000px;
+            transition: max-height 0.5s ease-in;
+        }
+
+        .settings-section-inner {
+            padding: 0 20px 20px 20px;
+            border-top: 1px solid #f0ebe5;
+        }
+
+        /* 兼容旧样式 */
+        .settings-section .section-title {
+            display: none;
         }
 
         .settings-section .section-title {
@@ -3389,10 +3452,17 @@
         <div id="settings-tab" class="tab-content">
             <div class="settings-container">
                 <!-- 修改密码 -->
-                <div class="settings-section">
-                    <h3 class="section-title">🔐 修改密码</h3>
-                    <div class="settings-card">
-                        <div class="settings-form">
+                <div class="settings-section" id="settings-password">
+                    <div class="settings-section-header" onclick="toggleSettingsSection('settings-password')">
+                        <div class="settings-section-title">🔐 修改密码</div>
+                        <div class="settings-section-icon">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="settings-section-content">
+                        <div class="settings-section-inner">
                             <div class="form-group">
                                 <label>当前密码</label>
                                 <input type="password" class="form-input" id="currentPassword" placeholder="请输入当前密码">
@@ -3411,10 +3481,17 @@
                 </div>
 
                 <!-- 文档中心 -->
-                <div class="settings-section">
-                    <h3 class="section-title">📚 文档中心</h3>
-                    <div class="settings-card">
-                        <div class="settings-form">
+                <div class="settings-section" id="settings-docs">
+                    <div class="settings-section-header" onclick="toggleSettingsSection('settings-docs')">
+                        <div class="settings-section-title">📚 文档中心</div>
+                        <div class="settings-section-icon">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="settings-section-content">
+                        <div class="settings-section-inner">
                             <div class="form-group">
                                 <label>文档链接</label>
                                 <input type="text" class="form-input" id="docsUrl" placeholder="请输入飞书文档链接，如: https://xxx.feishu.cn/docx/xxx">
@@ -3428,10 +3505,17 @@
                 </div>
 
                 <!-- 预览图设置 -->
-                <div class="settings-section">
-                    <h3 class="section-title">🖼️ 预览图设置</h3>
-                    <div class="settings-card">
-                        <div class="settings-form">
+                <div class="settings-section" id="settings-preview">
+                    <div class="settings-section-header" onclick="toggleSettingsSection('settings-preview')">
+                        <div class="settings-section-title">🖼️ 预览图设置</div>
+                        <div class="settings-section-icon">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="settings-section-content">
+                        <div class="settings-section-inner">
                             <!-- 功能说明 + 开关 -->
                             <div class="form-group">
                                 <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
@@ -3467,7 +3551,6 @@
                             <div class="form-group">
                                 <label>上传新图片</label>
                                 <div class="preview-upload-row">
-                                    <input type="text" class="form-input" id="newPreviewImageName" placeholder="输入图片名称（必填）" style="flex: 1;">
                                     <input type="file" id="newPreviewImageInput" accept="image/*" style="display: none;" onchange="handlePreviewImageUpload(event)">
                                     <label for="newPreviewImageInput" class="btn btn-primary" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4402,6 +4485,20 @@
             return tabNames[tab] || tab;
         }
 
+        // 切换设置区块展开/折叠
+        function toggleSettingsSection(sectionId) {
+            const section = document.getElementById(sectionId);
+            if (!section) return;
+            
+            const isExpanded = section.classList.contains('expanded');
+            
+            if (isExpanded) {
+                section.classList.remove('expanded');
+            } else {
+                section.classList.add('expanded');
+            }
+        }
+
         // ==================== 设置页面功能 ====================
         
         // 加载文档链接到头部
@@ -4730,17 +4827,12 @@
                 return;
             }
 
-            const nameInput = document.getElementById('newPreviewImageName');
-            const name = nameInput.value.trim();
-            
-            if (!name) {
-                showToast('请输入图片名称', 'error');
-                return;
-            }
+            // 使用文件名作为图片名称（去掉扩展名）
+            const fileName = file.name.replace(/\.[^/.]+$/, '');
 
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('name', name);
+            formData.append('name', fileName);
 
             try {
                 const response = await fetch('/api/admin/preview-images', {
@@ -4751,7 +4843,6 @@
                 const data = await response.json();
                 if (data.success) {
                     showToast('预览图片上传成功', 'success');
-                    nameInput.value = '';
                     document.getElementById('newPreviewImageInput').value = '';
                     loadPreviewImages();
                 } else {
