@@ -2055,23 +2055,58 @@
         }
 
         .settings-section {
-            margin-bottom: 32px;
+            margin-bottom: 16px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
         .settings-section .section-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
             color: #5D4E37;
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #E8D5C4;
+            padding: 16px 20px;
+            margin: 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background-color 0.2s;
         }
 
-        .settings-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        .settings-section .section-title:hover {
+            background-color: #faf7f2;
+        }
+
+        .settings-section .section-title .toggle-icon {
+            width: 20px;
+            height: 20px;
+            transition: transform 0.3s ease;
+            color: #A89070;
+        }
+
+        .settings-section.collapsed .section-title .toggle-icon {
+            transform: rotate(-90deg);
+        }
+
+        .settings-section .settings-card {
+            border-radius: 0;
+            padding: 20px;
+            border-top: 1px solid #f0e8df;
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+            opacity: 1;
+        }
+
+        .settings-section.collapsed .settings-card {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            opacity: 0;
+            border-top: none;
         }
 
         .settings-form {
@@ -2525,26 +2560,6 @@
         .settings-container {
             max-width: 900px;
             margin: 0 auto;
-        }
-
-        .settings-section {
-            margin-bottom: 32px;
-        }
-
-        .settings-section .section-title {
-            font-size: 18px;
-            font-weight: 600;
-            color: #5D4E37;
-            margin-bottom: 16px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid #E8D5C4;
-        }
-
-        .settings-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
         }
 
         .settings-form {
@@ -3389,8 +3404,13 @@
         <div id="settings-tab" class="tab-content">
             <div class="settings-container">
                 <!-- 修改密码 -->
-                <div class="settings-section">
-                    <h3 class="section-title">🔐 修改密码</h3>
+                <div class="settings-section collapsed" data-section="password">
+                    <h3 class="section-title" onclick="toggleSettingsSection('password')">
+                        🔐 修改密码
+                        <svg class="toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </h3>
                     <div class="settings-card">
                         <div class="settings-form">
                             <div class="form-group">
@@ -3411,8 +3431,13 @@
                 </div>
 
                 <!-- 文档中心 -->
-                <div class="settings-section">
-                    <h3 class="section-title">📚 文档中心</h3>
+                <div class="settings-section collapsed" data-section="docs">
+                    <h3 class="section-title" onclick="toggleSettingsSection('docs')">
+                        📚 文档中心
+                        <svg class="toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </h3>
                     <div class="settings-card">
                         <div class="settings-form">
                             <div class="form-group">
@@ -3428,8 +3453,13 @@
                 </div>
 
                 <!-- 预览图设置 -->
-                <div class="settings-section">
-                    <h3 class="section-title">🖼️ 预览图设置</h3>
+                <div class="settings-section collapsed" data-section="preview">
+                    <h3 class="section-title" onclick="toggleSettingsSection('preview')">
+                        🖼️ 预览图设置
+                        <svg class="toggle-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </h3>
                     <div class="settings-card">
                         <div class="settings-form">
                             <!-- 功能说明 + 开关 -->
@@ -3467,7 +3497,6 @@
                             <div class="form-group">
                                 <label>上传新图片</label>
                                 <div class="preview-upload-row">
-                                    <input type="text" class="form-input" id="newPreviewImageName" placeholder="输入图片名称（必填）" style="flex: 1;">
                                     <input type="file" id="newPreviewImageInput" accept="image/*" style="display: none;" onchange="handlePreviewImageUpload(event)">
                                     <label for="newPreviewImageInput" class="btn btn-primary" style="cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
                                         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -4481,6 +4510,14 @@
             }
         }
 
+        // 折叠/展开设置区块
+        function toggleSettingsSection(sectionName) {
+            const section = document.querySelector(`.settings-section[data-section="${sectionName}"]`);
+            if (section) {
+                section.classList.toggle('collapsed');
+            }
+        }
+
         // 保存文档链接
         async function saveDocsUrl() {
             const docsUrl = document.getElementById('docsUrl').value.trim();
@@ -4730,17 +4767,12 @@
                 return;
             }
 
-            const nameInput = document.getElementById('newPreviewImageName');
-            const name = nameInput.value.trim();
-            
-            if (!name) {
-                showToast('请输入图片名称', 'error');
-                return;
-            }
+            // 使用文件名作为图片名称（去除扩展名）
+            const fileName = file.name.replace(/\.[^/.]+$/, '');
 
             const formData = new FormData();
             formData.append('file', file);
-            formData.append('name', name);
+            formData.append('name', fileName);
 
             try {
                 const response = await fetch('/api/admin/preview-images', {
@@ -4751,7 +4783,6 @@
                 const data = await response.json();
                 if (data.success) {
                     showToast('预览图片上传成功', 'success');
-                    nameInput.value = '';
                     document.getElementById('newPreviewImageInput').value = '';
                     loadPreviewImages();
                 } else {
