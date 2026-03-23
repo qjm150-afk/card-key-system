@@ -2375,7 +2375,9 @@ async def export_card_type_cards(
             output.seek(0)
             
             from fastapi.responses import StreamingResponse
-            filename = f"卡种{type_id}_卡密导出.xlsx"
+            # 使用英文文件名避免编码问题
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"card_type_{type_id}_export_{timestamp}.xlsx"
             
             return StreamingResponse(
                 output,
@@ -2407,7 +2409,9 @@ async def export_card_type_cards(
             from fastapi.responses import StreamingResponse
             ext = 'csv' if format == 'csv' else 'txt'
             media_type = 'text/csv' if format == 'csv' else 'text/plain'
-            filename = f"卡种{type_id}_卡密导出.{ext}"
+            # 使用英文文件名避免编码问题
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            filename = f"card_type_{type_id}_export_{timestamp}.{ext}"
             
             return StreamingResponse(
                 io.BytesIO(output.getvalue().encode('utf-8')),
