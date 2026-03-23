@@ -1949,12 +1949,6 @@
             previewBackground.style.filter = 'blur(3px)';
             previewBackground.style.transform = 'scale(1.03)';
             
-            // 设置标题
-            const previewTitle = document.getElementById('previewTitle');
-            if (previewTitle && previewData.name) {
-                previewTitle.textContent = previewData.name;
-            }
-            
             validatePage.style.display = 'none';
             successPage.style.display = 'none';
             previewPage.style.display = 'block';
