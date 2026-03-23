@@ -1808,12 +1808,14 @@ async def get_card_type_cards(
         # 构建查询
         query = client.table('card_keys_table').select('*', count='exact').eq('card_type_id', type_id)
         
-        # 搜索
+        # 搜索 - 改为应用层过滤，避免 Supabase or_() 与 eq() 组合问题
+        need_search_filter = False
         if search:
             search = search.strip()
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
+            need_search_filter = True
         
         # 激活状态筛选
+        need_activate_filter = False
         if activate_status:
             if activate_status == 'disabled':
                 # 已停用：status=0 或 退款或有纠纷
@@ -1849,15 +1851,79 @@ async def get_card_type_cards(
             # 永久有效
             query = query.is_('expire_at', 'null')
         
-        # 分页
-        start = (page - 1) * page_size
-        end = start + page_size - 1
-        
-        response = query.range(start, end).order('id', desc=True).execute()
-        
-        cards = response.data or []
+        # 如果需要应用层过滤（搜索或过期筛选），先获取所有数据
+        if need_search_filter or expire_filter == 'expired':
+            response = query.order('id', desc=True).execute()
+            all_cards = response.data or []
+            
+            # 应用层搜索过滤
+            if need_search_filter:
+                search_lower = search.lower()
+                filtered_cards = []
+                for card in all_cards:
+                    match_fields = [
+                        card.get('key_value', ''),
+                        card.get('user_note', ''),
+                        card.get('order_id', ''),
+                        card.get('link_name', ''),
+                        card.get('sales_channel', '')
+                    ]
+                    if any(search_lower in str(field).lower() for field in match_fields):
+                        filtered_cards.append(card)
+                all_cards = filtered_cards
+            
+            # 应用层过期筛选
+            if expire_filter == 'expired':
+                now = datetime.now()
+                expired_cards = []
+                for card in all_cards:
+                    expire_at = card.get('expire_at')
+                    expire_after_days = card.get('expire_after_days')
+                    activated_at = card.get('activated_at')
+                    is_expired = False
+                    
+                    if expire_at:
+                        try:
+                            if isinstance(expire_at, str):
+                                expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                            else:
+                                expire_time = expire_at
+                            if expire_time.tzinfo:
+                                expire_time = expire_time.replace(tzinfo=None)
+                            is_expired = expire_time < now
+                        except:
+                            pass
+                    elif expire_after_days and activated_at:
+                        try:
+                            if isinstance(activated_at, str):
+                                activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                            else:
+                                activated_time = activated_at
+                            if activated_time.tzinfo:
+                                activated_time = activated_time.replace(tzinfo=None)
+                            is_expired = activated_time + timedelta(days=expire_after_days) < now
+                        except:
+                            pass
+                    
+                    if is_expired:
+                        expired_cards.append(card)
+                all_cards = expired_cards
+            
+            # 手动分页
+            total = len(all_cards)
+            start = (page - 1) * page_size
+            end = start + page_size
+            cards = all_cards[start:end]
+        else:
+            # 分页
+            start = (page - 1) * page_size
+            end = start + page_size - 1
+            
+            response = query.range(start, end).order('id', desc=True).execute()
+            cards = response.data or []
         
         # 处理过期状态（包括按激活天数过期的情况）
+        now = datetime.now()
         for card in cards:
             expire_at = card.get('expire_at')
             expire_after_days = card.get('expire_after_days')
@@ -1894,24 +1960,29 @@ async def get_card_type_cards(
             
             card['actual_expire_at'] = actual_expire_at
             card['is_expired'] = is_expired
-            
-            # 过期筛选
-            if expire_filter == 'expired' and not is_expired:
-                continue
         
-        # 如果有过期筛选，需要在应用层重新过滤
-        if expire_filter == 'expired':
-            cards = [c for c in cards if c.get('is_expired')]
-        
-        return {
-            "success": True,
-            "data": cards,
-            "card_type": card_type,
-            "total": response.count or 0,
-            "page": page,
-            "page_size": page_size,
-            "total_pages": ((response.count or 0) + page_size - 1) // page_size
-        }
+        # 返回结果
+        if need_search_filter or expire_filter == 'expired':
+            # 应用层过滤时，使用已计算的 total
+            return {
+                "success": True,
+                "data": cards,
+                "card_type": card_type,
+                "total": total,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": (total + page_size - 1) // page_size if total else 0
+            }
+        else:
+            return {
+                "success": True,
+                "data": cards,
+                "card_type": card_type,
+                "total": response.count or 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": ((response.count or 0) + page_size - 1) // page_size
+            }
         
     except Exception as e:
         logger.error(f"获取卡种卡密列表失败: {str(e)}")
@@ -2115,10 +2186,11 @@ async def export_card_type_cards(
         # 构建查询
         query = client.table('card_keys_table').select('*').eq('card_type_id', type_id)
         
-        # 搜索
+        # 搜索 - 改为应用层过滤
+        need_search_filter = False
         if search:
             search = search.strip()
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+            need_search_filter = True
         
         # 激活状态筛选
         if activate_status:
@@ -2139,6 +2211,22 @@ async def export_card_type_cards(
         
         response = query.order('id', desc=True).execute()
         cards = response.data or []
+        
+        # 应用层搜索过滤
+        if need_search_filter:
+            search_lower = search.lower()
+            filtered_cards = []
+            for card in cards:
+                match_fields = [
+                    card.get('key_value', ''),
+                    card.get('user_note', ''),
+                    card.get('order_id', ''),
+                    card.get('link_name', ''),
+                    card.get('sales_channel', '')
+                ]
+                if any(search_lower in str(field).lower() for field in match_fields):
+                    filtered_cards.append(card)
+            cards = filtered_cards
         
         if not cards:
             return {"success": False, "msg": "没有可导出的数据"}
@@ -2165,7 +2253,8 @@ async def export_card_type_cards(
             # 过期时间
             expire_text = "-"
             if card.get('expire_at'):
-                expire_text = card['expire_at'].split('T')[0] if 'T' in card['expire_at'] else card['expire_at']
+                expire_at_str = str(card['expire_at'])
+                expire_text = expire_at_str.split('T')[0] if 'T' in expire_at_str else expire_at_str
             elif card.get('expire_after_days'):
                 if card.get('activated_at'):
                     expire_text = f"激活后{card['expire_after_days']}天"
@@ -2174,7 +2263,7 @@ async def export_card_type_cards(
             else:
                 expire_text = "永久"
             
-            create_time = card.get('bstudio_create_time', '')
+            create_time = str(card.get('bstudio_create_time', ''))
             if 'T' in create_time:
                 create_time = create_time.replace('T', ' ').split('.')[0]
             
@@ -2349,9 +2438,12 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     except ValueError:
                         pass
             
+            # 搜索 - 改为应用层过滤
+            need_search_filter = False
+            search_keyword = ''
             if filters.get('search') and filters.get('search') != '':
-                search = filters['search'].strip()  # 去除前后空格
-                query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
+                search_keyword = filters['search'].strip()
+                need_search_filter = True
             
             if filters.get('created_start') and filters.get('created_start') != '':
                 query = query.gte('bstudio_create_time', filters['created_start'])
@@ -2361,16 +2453,33 @@ async def batch_update_cards(request: BatchUpdateRequest):
             # 获取符合条件的记录
             response = query.execute()
             
-            # 如果需要在应用层过滤设备数量
-            if need_device_filter:
+            # 如果需要在应用层过滤设备数量或搜索
+            if need_device_filter or need_search_filter:
                 filtered_data = []
                 for card in response.data:
-                    try:
-                        devices = json.loads(card.get('devices', '[]'))
-                        if len(devices) == device_count_filter:
-                            filtered_data.append(card)
-                    except:
-                        pass
+                    # 设备数量过滤
+                    if need_device_filter:
+                        try:
+                            devices = json.loads(card.get('devices', '[]'))
+                            if len(devices) != device_count_filter:
+                                continue
+                        except:
+                            continue
+                    
+                    # 搜索过滤
+                    if need_search_filter:
+                        search_lower = search_keyword.lower()
+                        match_fields = [
+                            card.get('key_value', ''),
+                            card.get('user_note', ''),
+                            card.get('order_id', ''),
+                            card.get('link_name', ''),
+                            card.get('sales_channel', '')
+                        ]
+                        if not any(search_lower in str(field).lower() for field in match_fields):
+                            continue
+                    
+                    filtered_data.append(card)
                 affected_ids = [item['id'] for item in filtered_data]
             else:
                 affected_ids = [item['id'] for item in response.data]
@@ -2551,25 +2660,46 @@ async def count_by_filters(
                 except ValueError:
                     pass
         
+        # 搜索 - 改为应用层过滤
+        need_search_filter = False
+        search_keyword = ''
         if search and search != '':
-            query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%")
+            search_keyword = search.strip()
+            need_search_filter = True
         
         if created_start and created_start != '':
             query = query.gte('bstudio_create_time', created_start)
         if created_end and created_end != '':
             query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
         
-        # 如果需要在应用层过滤设备数量
-        if need_device_filter:
+        # 如果需要在应用层过滤设备数量或搜索
+        if need_device_filter or need_search_filter:
             response = query.execute()
             count = 0
             for card in response.data:
-                try:
-                    devices = json.loads(card.get('devices', '[]'))
-                    if len(devices) == device_count_filter:
-                        count += 1
-                except:
-                    pass
+                # 设备数量过滤
+                if need_device_filter:
+                    try:
+                        devices = json.loads(card.get('devices', '[]'))
+                        if len(devices) != device_count_filter:
+                            continue
+                    except:
+                        continue
+                
+                # 搜索过滤
+                if need_search_filter:
+                    search_lower = search_keyword.lower()
+                    match_fields = [
+                        card.get('key_value', ''),
+                        card.get('user_note', ''),
+                        card.get('order_id', ''),
+                        card.get('link_name', ''),
+                        card.get('sales_channel', '')
+                    ]
+                    if not any(search_lower in str(field).lower() for field in match_fields):
+                        continue
+                
+                count += 1
             return {"success": True, "count": count}
         
         response = query.execute()
@@ -2746,7 +2876,9 @@ async def get_filter_options(
                     query = query.eq('feishu_url', feishu_url)
             
             if search and search != '' and exclude != 'search':
-                query = query.or_(f"key_value.ilike.%{search}%,user_note.ilike.%{search}%")
+                # 搜索筛选 - 由于筛选选项API的特殊性，这里不进行搜索过滤
+                # 筛选选项主要用于下拉框，搜索功能由主列表API处理
+                pass
             
             if created_start and created_start != '' and exclude != 'created_start':
                 query = query.gte('bstudio_create_time', created_start)
