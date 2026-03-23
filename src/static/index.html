@@ -1296,75 +1296,79 @@
                 const exitBtn = document.getElementById('exitBtn');
                 
                 // 点击协作者悬浮层显示/隐藏退出按钮
-                collaboratorsOverlay.addEventListener('click', function(e) {
-                    // 如果点击的是退出按钮，不处理
-                    if (e.target.closest('.exit-btn')) return;
-                    
-                    // 切换显示退出按钮
-                    if (exitBtn.style.display === 'none' || !exitBtn.style.display) {
-                        exitBtn.style.display = 'flex';
-                        collaboratorsOverlay.classList.add('expanded');
-                    } else {
-                        exitBtn.style.display = 'none';
-                        collaboratorsOverlay.classList.remove('expanded');
-                    }
-                });
+                if (collaboratorsOverlay) {
+                    collaboratorsOverlay.addEventListener('click', function(e) {
+                        // 如果点击的是退出按钮，不处理
+                        if (e.target.closest('.exit-btn')) return;
+                        
+                        // 切换显示退出按钮
+                        if (exitBtn && (exitBtn.style.display === 'none' || !exitBtn.style.display)) {
+                            exitBtn.style.display = 'flex';
+                            collaboratorsOverlay.classList.add('expanded');
+                        } else if (exitBtn) {
+                            exitBtn.style.display = 'none';
+                            collaboratorsOverlay.classList.remove('expanded');
+                        }
+                    });
+                }
                 
                 // 绑定退出按钮事件
-                exitBtn.addEventListener('click', async function(e) {
-                    e.stopPropagation();
-                    
-                    // 获取当前会话信息
-                    const session = getLocalSession();
-                    
-                    // 先调用后端API解除设备绑定
-                    if (session && session.cardKey) {
-                        try {
-                            const deviceId = getDeviceId();
-                            const response = await fetch('/api/logout', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({
-                                    card_key: session.cardKey,
-                                    device_id: deviceId
-                                })
-                            });
-                            const result = await response.json();
-                            if (result.success) {
-                                console.log('退出登录成功，已解除设备绑定');
-                            } else {
-                                console.warn('退出登录API返回失败:', result.msg);
+                if (exitBtn) {
+                    exitBtn.addEventListener('click', async function(e) {
+                        e.stopPropagation();
+                        
+                        // 获取当前会话信息
+                        const session = getLocalSession();
+                        
+                        // 先调用后端API解除设备绑定
+                        if (session && session.cardKey) {
+                            try {
+                                const deviceId = getDeviceId();
+                                const response = await fetch('/api/logout', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        card_key: session.cardKey,
+                                        device_id: deviceId
+                                    })
+                                });
+                                const result = await response.json();
+                                if (result.success) {
+                                    console.log('退出登录成功，已解除设备绑定');
+                                } else {
+                                    console.warn('退出登录API返回失败:', result.msg);
+                                }
+                            } catch (err) {
+                                console.error('退出登录API调用失败:', err);
                             }
-                        } catch (err) {
-                            console.error('退出登录API调用失败:', err);
+                            // 无论API调用是否成功，都继续清除本地状态
                         }
-                        // 无论API调用是否成功，都继续清除本地状态
-                    }
-                    
-                    // 清除协作者更新定时器
-                    if (collaboratorsInterval) {
-                        clearInterval(collaboratorsInterval);
-                        collaboratorsInterval = null;
-                    }
-                    // 清除会话
-                    clearSession();
-                    // 重置iframe
-                    feishuFrame.src = '';
-                    // 切换回验证页面
-                    document.body.classList.remove('success-mode');
-                    document.body.classList.remove('preview-mode');
-                    document.body.classList.add('validate-mode');
-                    successPage.style.display = 'none';
-                    previewPage.style.display = 'none';
-                    validatePage.style.display = 'block';
-                    // 清空输入
-                    cardKeyInput.value = '';
-                    // 隐藏错误信息
-                    errorBox.style.display = 'none';
-                    // 隐藏退出按钮
-                    exitBtn.style.display = 'none';
-                    collaboratorsOverlay.classList.remove('expanded');
-                });
+                        
+                        // 清除协作者更新定时器
+                        if (collaboratorsInterval) {
+                            clearInterval(collaboratorsInterval);
+                            collaboratorsInterval = null;
+                        }
+                        // 清除会话
+                        clearSession();
+                        // 重置iframe
+                        feishuFrame.src = '';
+                        // 切换回验证页面
+                        document.body.classList.remove('success-mode');
+                        document.body.classList.remove('preview-mode');
+                        document.body.classList.add('validate-mode');
+                        successPage.style.display = 'none';
+                        previewPage.style.display = 'none';
+                        validatePage.style.display = 'block';
+                        // 清空输入
+                        cardKeyInput.value = '';
+                        // 隐藏错误信息
+                        errorBox.style.display = 'none';
+                        // 隐藏退出按钮
+                        exitBtn.style.display = 'none';
+                        collaboratorsOverlay.classList.remove('expanded');
+                    });
+                }
             }
             
             // 开始追踪会话行为数据
@@ -2028,28 +2032,30 @@
         }
 
         // 自动格式化输入（仅对 CSS 开头的卡密格式化）
-        cardKeyInput.addEventListener('input', function(e) {
-            let value = e.target.value.toUpperCase();
-            
-            // 只对以 CSS 开头的卡密进行格式化
-            if (value.startsWith('CSS')) {
-                // 移除所有非字母数字字符（保留 CSS 前缀的逻辑）
-                const cleanValue = value.replace(/[^A-Z0-9]/g, '');
-                // 格式化为 CSS-XXXX-XXXX-XXXX
-                let formatted = cleanValue.slice(0, 3); // CSS
-                if (cleanValue.length > 3) {
-                    formatted += '-' + cleanValue.slice(3, 7);
+        if (cardKeyInput) {
+            cardKeyInput.addEventListener('input', function(e) {
+                let value = e.target.value.toUpperCase();
+                
+                // 只对以 CSS 开头的卡密进行格式化
+                if (value.startsWith('CSS')) {
+                    // 移除所有非字母数字字符（保留 CSS 前缀的逻辑）
+                    const cleanValue = value.replace(/[^A-Z0-9]/g, '');
+                    // 格式化为 CSS-XXXX-XXXX-XXXX
+                    let formatted = cleanValue.slice(0, 3); // CSS
+                    if (cleanValue.length > 3) {
+                        formatted += '-' + cleanValue.slice(3, 7);
+                    }
+                    if (cleanValue.length > 7) {
+                        formatted += '-' + cleanValue.slice(7, 11);
+                    }
+                    if (cleanValue.length > 11) {
+                        formatted += '-' + cleanValue.slice(11, 15);
+                    }
+                    e.target.value = formatted;
                 }
-                if (cleanValue.length > 7) {
-                    formatted += '-' + cleanValue.slice(7, 11);
-                }
-                if (cleanValue.length > 11) {
-                    formatted += '-' + cleanValue.slice(11, 15);
-                }
-                e.target.value = formatted;
-            }
-            // 其他格式的卡密保持原样（只转大写）
-        });
+                // 其他格式的卡密保持原样（只转大写）
+            });
+        }
 
         // 粘贴按钮功能 - 兼容各种浏览器和WebView
         const pasteBtn = document.getElementById('pasteBtn');

@@ -7660,37 +7660,46 @@
 
         // 点击模态框外部关闭（改进：记录mousedown位置，避免三击选中时误触发）
         let modalOverlayMouseDownTarget = null;
-        document.getElementById('modalOverlay').addEventListener('mousedown', (e) => {
-            modalOverlayMouseDownTarget = e.target;
-        });
-        document.getElementById('modalOverlay').addEventListener('mouseup', (e) => {
-            if (e.target.id === 'modalOverlay' && modalOverlayMouseDownTarget?.id === 'modalOverlay') {
-                closeModal();
-            }
-            modalOverlayMouseDownTarget = null;
-        });
+        const modalOverlay = document.getElementById('modalOverlay');
+        if (modalOverlay) {
+            modalOverlay.addEventListener('mousedown', (e) => {
+                modalOverlayMouseDownTarget = e.target;
+            });
+            modalOverlay.addEventListener('mouseup', (e) => {
+                if (e.target.id === 'modalOverlay' && modalOverlayMouseDownTarget?.id === 'modalOverlay') {
+                    closeModal();
+                }
+                modalOverlayMouseDownTarget = null;
+            });
+        }
         
         let batchModalMouseDownTarget = null;
-        document.getElementById('batchModalOverlay').addEventListener('mousedown', (e) => {
-            batchModalMouseDownTarget = e.target;
-        });
-        document.getElementById('batchModalOverlay').addEventListener('mouseup', (e) => {
-            if (e.target.id === 'batchModalOverlay' && batchModalMouseDownTarget?.id === 'batchModalOverlay') {
-                closeBatchGenerateModal();
-            }
-            batchModalMouseDownTarget = null;
-        });
+        const batchModalOverlay = document.getElementById('batchModalOverlay');
+        if (batchModalOverlay) {
+            batchModalOverlay.addEventListener('mousedown', (e) => {
+                batchModalMouseDownTarget = e.target;
+            });
+            batchModalOverlay.addEventListener('mouseup', (e) => {
+                if (e.target.id === 'batchModalOverlay' && batchModalMouseDownTarget?.id === 'batchModalOverlay') {
+                    closeBatchGenerateModal();
+                }
+                batchModalMouseDownTarget = null;
+            });
+        }
 
         let changePasswordModalMouseDownTarget = null;
-        document.getElementById('changePasswordModalOverlay').addEventListener('mousedown', (e) => {
-            changePasswordModalMouseDownTarget = e.target;
-        });
-        document.getElementById('changePasswordModalOverlay').addEventListener('mouseup', (e) => {
-            if (e.target.id === 'changePasswordModalOverlay' && changePasswordModalMouseDownTarget?.id === 'changePasswordModalOverlay') {
-                closeChangePasswordModal();
-            }
-            changePasswordModalMouseDownTarget = null;
-        });
+        const changePasswordModalOverlay = document.getElementById('changePasswordModalOverlay');
+        if (changePasswordModalOverlay) {
+            changePasswordModalOverlay.addEventListener('mousedown', (e) => {
+                changePasswordModalMouseDownTarget = e.target;
+            });
+            changePasswordModalOverlay.addEventListener('mouseup', (e) => {
+                if (e.target.id === 'changePasswordModalOverlay' && changePasswordModalMouseDownTarget?.id === 'changePasswordModalOverlay') {
+                    closeChangePasswordModal();
+                }
+                changePasswordModalMouseDownTarget = null;
+            });
+        }
 
         // ==================== 登录验证 ====================
         
