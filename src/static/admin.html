@@ -1777,28 +1777,31 @@
         }
 
         .expire-bar-column {
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
+            position: relative;
             width: 100%;
-            height: 170px; /* 固定高度：140px柱子 + 30px数值区域 */
-        }
-
-        .expire-bar-value {
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 4px;
-            white-space: nowrap;
-            flex-shrink: 0;
+            height: 140px; /* 固定高度，与最大柱子高度一致 */
         }
 
         .expire-bar {
+            position: absolute;
+            bottom: 0; /* 底部固定对齐 */
+            left: 50%;
+            transform: translateX(-50%);
             width: 50px;
             min-height: 10px;
             border-radius: 6px 6px 0 0;
             transition: height 0.3s ease;
-            flex-shrink: 0;
+        }
+
+        .expire-bar-value {
+            position: absolute;
+            bottom: 100%; /* 在柱子正上方 */
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
+            margin-bottom: 4px;
         }
 
         .expire-bar-label {
@@ -5321,8 +5324,9 @@
                 return `
                     <div class="expire-bar-wrapper ${wrapperClass}">
                         <div class="expire-bar-column">
-                            <div class="expire-bar-value">${item.count}</div>
-                            <div class="expire-bar ${barClass}" style="height: ${height}px;" title="${fullLabel}"></div>
+                            <div class="expire-bar ${barClass}" style="height: ${height}px;" title="${fullLabel}">
+                                <span class="expire-bar-value">${item.count}</span>
+                            </div>
                         </div>
                         <div class="expire-bar-label" title="${fullLabel}">${shortLabel}</div>
                         ${item.type === 'date' ? `<div class="expire-bar-label-full">${item.days_remaining}天后</div>` : ''}
