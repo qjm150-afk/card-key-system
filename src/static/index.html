@@ -75,8 +75,8 @@
             height: 100%;
             background-size: cover;
             background-position: center;
-            filter: blur(20px);
-            transform: scale(1.1);
+            filter: blur(3px);
+            transform: scale(1.02);
         }
         
         .preview-overlay {
@@ -85,8 +85,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.3);
-            backdrop-filter: blur(8px);
+            background: rgba(255, 255, 255, 0.15);
         }
         
         .preview-content {
@@ -101,13 +100,21 @@
         }
         
         .preview-card {
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.98);
             border-radius: 24px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-            padding: 48px 32px;
-            max-width: 400px;
+            max-width: 420px;
             width: 100%;
-            text-align: center;
+            overflow: hidden;
+        }
+        
+        .preview-card .header-section {
+            padding: 32px 24px 24px;
+            border-bottom: 1px solid #F5EDE5;
+        }
+        
+        .preview-card .form-section {
+            padding: 24px;
         }
         
         .preview-title {
@@ -969,13 +976,57 @@
             <div class="preview-overlay"></div>
             <div class="preview-content">
                 <div class="preview-card">
-                    <h2 class="preview-title" id="previewTitle">内容已加密</h2>
-                    <p class="preview-hint" id="previewHint">此内容需要卡密验证后才能查看完整版本</p>
-                    <form id="previewForm" class="preview-input-wrapper">
-                        <input type="text" class="preview-input" id="previewCardKey" placeholder="请输入卡密" autocomplete="off">
-                    </form>
-                    <button class="preview-btn" id="previewSubmitBtn" onclick="submitPreviewKey()">验证并查看</button>
-                    <div class="preview-error" id="previewError"></div>
+                    <!-- 顶部视觉区 -->
+                    <div class="header-section" style="padding-bottom: 24px;">
+                        <div class="decoration-dots"></div>
+                        <h1 class="title" id="previewTitle">内容已加密</h1>
+                        <p class="subtitle">输入卡密，解锁完整内容</p>
+                    </div>
+
+                    <!-- 表单区域 -->
+                    <div class="form-section">
+                        <form id="previewForm">
+                            <div class="input-wrapper">
+                                <div class="input-container">
+                                    <div class="input-icon">🔑</div>
+                                    <input 
+                                        type="text" 
+                                        id="previewCardKey" 
+                                        class="input" 
+                                        placeholder="请输入您的专属卡密"
+                                        maxlength="50"
+                                        autocomplete="off"
+                                        autocorrect="off"
+                                        autocapitalize="characters"
+                                        spellcheck="false"
+                                    >
+                                    <button type="button" class="paste-btn" id="previewPasteBtn" title="粘贴卡密">📋</button>
+                                </div>
+                            </div>
+
+                            <!-- 智能提示 -->
+                            <div class="smart-hint">
+                                <span class="smart-hint-icon">💡</span>
+                                <span class="smart-hint-text">卡密已自动发送，若未收到请查看私信/短信</span>
+                            </div>
+
+                            <div id="previewErrorBox" class="error-box" style="display: none;">
+                                <span>⚠️</span>
+                                <p id="previewErrorText" class="error-text"></p>
+                            </div>
+
+                            <button type="button" id="previewSubmitBtn" class="button" onclick="submitPreviewKey()">
+                                ⚡ 立即解锁 · 抢占先机
+                            </button>
+                        </form>
+
+                        <div class="footer">
+                            <p class="footer-text">验证通过后即可访问完整内容</p>
+                            <p class="footer-text" style="margin-top: 8px; font-size: 12px; color: #B8B0A0;">
+                                💡 长按输入框可粘贴，如无法粘贴请点击右上角在浏览器中打开
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1893,9 +1944,11 @@
                 document.getElementById('previewBackground').style.backgroundImage = `url(${previewData.preview_image})`;
             }
             
-            // 设置标题和提示
-            document.getElementById('previewTitle').textContent = previewData.name || '内容已加密';
-            document.getElementById('previewHint').textContent = '此内容需要卡密验证后才能查看完整版本';
+            // 设置标题
+            const previewTitle = document.getElementById('previewTitle');
+            if (previewTitle && previewData.name) {
+                previewTitle.textContent = previewData.name;
+            }
             
             validatePage.style.display = 'none';
             successPage.style.display = 'none';
@@ -1904,36 +1957,39 @@
         
         // 预览模式提交卡密
         async function submitPreviewKey() {
-            const cardKey = document.getElementById('previewCardKey').value.trim().toUpperCase();
-            const errorEl = document.getElementById('previewError');
+            const cardKeyInput = document.getElementById('previewCardKey');
+            const errorBox = document.getElementById('previewErrorBox');
+            const errorText = document.getElementById('previewErrorText');
             const submitBtn = document.getElementById('previewSubmitBtn');
             
+            const cardKey = cardKeyInput.value.trim();
+            
             if (!cardKey) {
-                errorEl.textContent = '请输入卡密';
-                errorEl.style.display = 'block';
+                errorText.textContent = '请输入卡密';
+                errorBox.style.display = 'flex';
                 return;
             }
             
             // 禁用按钮
             submitBtn.disabled = true;
-            submitBtn.textContent = '验证中...';
-            errorEl.style.display = 'none';
+            submitBtn.innerHTML = '⏳ 验证中...';
+            errorBox.style.display = 'none';
             
             try {
-                const result = await validateCardKey(cardKey, true);
+                const result = await validateCardKey(cardKey.toUpperCase(), true);
                 if (result.success) {
                     // 验证成功，showSuccess会在validateCardKey中调用
                 } else {
-                    errorEl.textContent = result.msg || '验证失败';
-                    errorEl.style.display = 'block';
+                    errorText.textContent = result.msg || '验证失败';
+                    errorBox.style.display = 'flex';
                     submitBtn.disabled = false;
-                    submitBtn.textContent = '验证并查看';
+                    submitBtn.innerHTML = '⚡ 立即解锁 · 抢占先机';
                 }
             } catch (err) {
-                errorEl.textContent = '验证失败，请稍后重试';
-                errorEl.style.display = 'block';
+                errorText.textContent = '验证失败，请稍后重试';
+                errorBox.style.display = 'flex';
                 submitBtn.disabled = false;
-                submitBtn.textContent = '验证并查看';
+                submitBtn.innerHTML = '⚡ 立即解锁 · 抢占先机';
             }
         }
         
@@ -2053,6 +2109,66 @@
                 }
             });
         }
+        
+        // 预览页面粘贴按钮功能
+        const previewPasteBtn = document.getElementById('previewPasteBtn');
+        if (previewPasteBtn) {
+            previewPasteBtn.addEventListener('click', async function() {
+                const previewCardKeyInput = document.getElementById('previewCardKey');
+                const previewErrorBox = document.getElementById('previewErrorBox');
+                const previewErrorText = document.getElementById('previewErrorText');
+                let pasted = false;
+                
+                // 方案1: 使用现代 Clipboard API
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text) {
+                        previewCardKeyInput.value = text.toUpperCase();
+                        previewCardKeyInput.dispatchEvent(new Event('input'));
+                        previewCardKeyInput.focus();
+                        pasted = true;
+                    }
+                } catch (err) {
+                    console.log('Clipboard API 不可用:', err.message);
+                }
+                
+                // 方案2: execCommand
+                if (!pasted) {
+                    try {
+                        previewCardKeyInput.focus();
+                        previewCardKeyInput.select();
+                        pasted = document.execCommand('paste');
+                    } catch (err) {
+                        console.log('execCommand paste 不可用');
+                    }
+                }
+                
+                // 方案3: 显示引导提示
+                if (!pasted) {
+                    const ua = navigator.userAgent.toLowerCase();
+                    const isInApp = ua.includes('xiaohongshu') || 
+                                    ua.includes('redbook') || 
+                                    ua.includes('microMessenger') || 
+                                    ua.includes('weibo') ||
+                                    ua.includes('quark') ||
+                                    ua.includes('ucbrowser');
+                    
+                    if (isInApp) {
+                        previewErrorText.textContent = '请在输入框长按粘贴，或点击右上角"···"在浏览器中打开';
+                    } else {
+                        previewErrorText.textContent = '请在输入框长按粘贴';
+                    }
+                    previewErrorBox.style.display = 'flex';
+                    previewCardKeyInput.focus();
+                    
+                    setTimeout(() => {
+                        if (previewErrorText.textContent.includes('长按粘贴') || previewErrorText.textContent.includes('浏览器中打开')) {
+                            previewErrorBox.style.display = 'none';
+                        }
+                    }, 3000);
+                }
+            });
+        }
 
         // 显示错误
         function showError(message) {
@@ -2121,93 +2237,14 @@
             return null;
         }
         
-        // 显示预览页面
-        function showPreview(previewData) {
-            currentPreviewCardTypeId = previewData.id;
-            
-            // 设置预览背景图（无模糊）
-            const previewBackground = document.getElementById('previewBackground');
-            if (previewData.preview_image) {
-                previewBackground.style.backgroundImage = `url(${previewData.preview_image})`;
-                previewBackground.style.filter = 'none';  // 移除模糊
-            } else {
-                // 默认渐变背景
-                previewBackground.style.backgroundImage = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
-            }
-            
-            // 设置标题和提示
-            const previewTitle = document.getElementById('previewTitle');
-            const previewHint = document.getElementById('previewHint');
-            if (previewData.name) {
-                previewTitle.textContent = previewData.name;
-                previewHint.textContent = '此内容需要卡密验证后才能查看完整版本';
-            }
-            
-            // 切换到预览模式
-            document.body.classList.remove('loading-mode', 'validate-mode', 'success-mode');
-            document.body.classList.add('preview-mode');
-            document.getElementById('loadingSpinner').style.display = 'none';
-            validatePage.style.display = 'none';
-            successPage.style.display = 'none';
-            previewPage.style.display = 'block';
-        }
-        
-        // 预览页面提交验证
-        async function submitPreviewKey() {
-            const cardKeyInput = document.getElementById('previewCardKey');
-            const errorDiv = document.getElementById('previewError');
-            const submitBtn = document.getElementById('previewSubmitBtn');
-            
-            const cardKey = cardKeyInput.value.trim();
-            
-            if (!cardKey) {
-                errorDiv.textContent = '请输入卡密';
-                errorDiv.style.display = 'block';
-                return;
-            }
-            
-            // 禁用按钮
-            submitBtn.disabled = true;
-            submitBtn.textContent = '验证中...';
-            errorDiv.style.display = 'none';
-            
-            try {
-                const deviceId = getDeviceId();
-                const response = await fetch('/api/validate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        card_key: cardKey,
-                        device_id: deviceId 
-                    }),
-                });
-                
-                const data = await response.json();
-                
-                if (data.can_access) {
-                    // 验证成功，保存会话并跳转
-                    saveSession(cardKey, data.url, data.password);
-                    showSuccess(data.url, data.password);
-                } else {
-                    // 验证失败
-                    errorDiv.textContent = data.msg || '验证失败';
-                    errorDiv.style.display = 'block';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = '验证并查看';
-                }
-            } catch (err) {
-                errorDiv.textContent = '网络错误，请稍后重试';
-                errorDiv.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.textContent = '验证并查看';
-            }
-        }
-        
         // 预览页面回车提交
-        document.getElementById('previewForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            submitPreviewKey();
-        });
+        const previewForm = document.getElementById('previewForm');
+        if (previewForm) {
+            previewForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                submitPreviewKey();
+            });
+        }
 
         // 验证卡密
         async function validateCardKey(cardKey, saveSessionFlag = true) {
