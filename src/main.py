@@ -2569,6 +2569,9 @@ async def batch_update_cards(request: BatchUpdateRequest):
         if 'expire_at' in updates:
             update_data['expire_at'] = updates['expire_at'] or None
         
+        if 'expire_after_days' in updates:
+            update_data['expire_after_days'] = updates['expire_after_days'] or None
+        
         if 'user_note' in updates:
             update_data['user_note'] = updates['user_note'] or ''
         

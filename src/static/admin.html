@@ -4076,9 +4076,17 @@
                     </div>
                     <div class="update-field-row">
                         <input type="checkbox" class="update-field-checkbox" id="updateFieldExpireAt" onchange="toggleUpdateField('expire_at')">
-                        <span class="update-field-label">过期时间</span>
-                        <div class="update-field-input">
+                        <span class="update-field-label">⏰ 过期时间</span>
+                        <div class="update-field-input" style="flex-direction: column; align-items: flex-start; gap: 8px;">
+                            <select id="updateExpireType" disabled onchange="toggleBatchUpdateExpireFields()">
+                                <option value="fixed">固定日期</option>
+                                <option value="after_days">激活后N天有效</option>
+                                <option value="permanent">永久有效</option>
+                            </select>
                             <input type="datetime-local" id="updateValueExpireAt" disabled>
+                            <div id="updateExpireAfterDaysGroup" style="display: none; width: 100%;">
+                                <input type="number" id="updateExpireAfterDays" placeholder="激活后多少天有效" min="1" max="9999" style="width: 100%;">
+                            </div>
                         </div>
                     </div>
                     <div class="update-field-row">
@@ -8178,7 +8186,44 @@
             const checkbox = document.getElementById(`updateField${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_([a-z])/g, (g) => g[1].toUpperCase())}`);
             const input = document.getElementById(`updateValue${fieldName.charAt(0).toUpperCase() + fieldName.slice(1).replace(/_([a-z])/g, (g) => g[1].toUpperCase())}`);
             
-            input.disabled = !checkbox.checked;
+            const isEnabled = checkbox.checked;
+            input.disabled = !isEnabled;
+            
+            // 特殊处理过期时间字段：同时控制过期方式选择器
+            if (fieldName === 'expire_at') {
+                const expireTypeSelect = document.getElementById('updateExpireType');
+                const expireAfterDaysInput = document.getElementById('updateExpireAfterDays');
+                
+                expireTypeSelect.disabled = !isEnabled;
+                expireAfterDaysInput.disabled = !isEnabled;
+                
+                // 根据当前选择的过期方式显示对应输入框
+                if (isEnabled) {
+                    toggleBatchUpdateExpireFields();
+                } else {
+                    // 禁用时隐藏所有输入框
+                    document.getElementById('updateExpireAfterDaysGroup').style.display = 'none';
+                    document.getElementById('updateValueExpireAt').style.display = 'block';
+                }
+            }
+        }
+        
+        // 切换批量修改弹窗中的过期方式字段显示
+        function toggleBatchUpdateExpireFields() {
+            const expireType = document.getElementById('updateExpireType').value;
+            const expireAtInput = document.getElementById('updateValueExpireAt');
+            const afterDaysGroup = document.getElementById('updateExpireAfterDaysGroup');
+            
+            if (expireType === 'fixed') {
+                expireAtInput.style.display = 'block';
+                afterDaysGroup.style.display = 'none';
+            } else if (expireType === 'after_days') {
+                expireAtInput.style.display = 'none';
+                afterDaysGroup.style.display = 'block';
+            } else if (expireType === 'permanent') {
+                expireAtInput.style.display = 'none';
+                afterDaysGroup.style.display = 'none';
+            }
         }
 
         // 显示确认弹窗
@@ -8231,20 +8276,40 @@
                     
                     // 特殊处理过期时间字段
                     if (field === 'expire_at') {
-                        if (value) {
-                            // 格式化显示：datetime-local 格式转成易读格式
-                            const date = new Date(value);
-                            const display = date.toLocaleString('zh-CN', {
-                                year: 'numeric',
-                                month: '2-digit',
-                                day: '2-digit',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            });
-                            // 转换为 ISO 格式存储
-                            updates[field] = { value: date.toISOString(), display };
+                        const expireType = document.getElementById('updateExpireType').value;
+                        
+                        if (expireType === 'permanent') {
+                            // 永久有效
+                            updates[field] = { value: null, display: '永久有效', expireType: 'permanent' };
+                        } else if (expireType === 'after_days') {
+                            // 激活后N天有效
+                            const days = document.getElementById('updateExpireAfterDays').value;
+                            if (!days || days < 1) {
+                                showToast('请输入有效的天数', 'error');
+                                return;
+                            }
+                            updates[field] = { 
+                                value: null, 
+                                display: `激活后${days}天有效`, 
+                                expireType: 'after_days',
+                                expireAfterDays: parseInt(days)
+                            };
                         } else {
-                            updates[field] = { value: '', display: '(清空)' };
+                            // 固定日期
+                            if (value) {
+                                const date = new Date(value);
+                                const display = date.toLocaleString('zh-CN', {
+                                    year: 'numeric',
+                                    month: '2-digit',
+                                    day: '2-digit',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
+                                updates[field] = { value: date.toISOString(), display, expireType: 'fixed' };
+                            } else {
+                                showToast('请选择过期日期', 'error');
+                                return;
+                            }
                         }
                     }
                     // 转换显示文本
@@ -8309,6 +8374,19 @@
                 if (field === 'status') {
                     // valid 和 activated 都对应 status=1，disabled 对应 status=0
                     updatePayload[field] = (data.value === 'disabled') ? 0 : 1;
+                } else if (field === 'expire_at') {
+                    // 特殊处理过期时间：根据过期方式设置不同字段
+                    if (data.expireType === 'permanent') {
+                        updatePayload['expire_at'] = null;
+                        updatePayload['expire_after_days'] = null;
+                    } else if (data.expireType === 'after_days') {
+                        updatePayload['expire_at'] = null;
+                        updatePayload['expire_after_days'] = data.expireAfterDays;
+                    } else {
+                        // 固定日期
+                        updatePayload['expire_at'] = data.value;
+                        updatePayload['expire_after_days'] = null;
+                    }
                 } else {
                     updatePayload[field] = data.value;
                 }
