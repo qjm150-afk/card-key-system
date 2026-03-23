@@ -2912,8 +2912,6 @@
                             <th style="width: 80px;">已激活</th>
                             <th style="width: 80px;">已停用</th>
                             <th style="width: 80px;">已售</th>
-                            <th style="width: 100px;">预览</th>
-                            <th style="width: 80px;">状态</th>
                             <th style="width: 150px;">创建时间</th>
                             <th style="width: 180px;">操作</th>
                         </tr>
@@ -8260,7 +8258,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="10" class="empty-row">
+                        <td colspan="8" class="empty-row">
                             <div class="empty-content">
                                 <svg width="48" height="48" fill="none" stroke="#D4C4A8" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -8278,8 +8276,6 @@
             const startNum = (cardTypesPage - 1) * cardTypesPageSize;
             
             tbody.innerHTML = data.map((type, index) => {
-                const statusClass = type.status === 1 ? 'active' : 'inactive';
-                const statusText = type.status === 1 ? '有效' : '已停用';
                 const rowNum = startNum + index + 1;
                 const displayName = escapeHtml(type.name);
                 
@@ -8291,18 +8287,6 @@
                     <td style="text-align: center;"><span class="stat-number activated">${type.activated_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number deactivated">${type.deactivated_count || 0}</span></td>
                     <td style="text-align: center;"><span class="stat-number sold">${type.sold_count || 0}</span></td>
-                    <td style="text-align: center;">
-                        ${type.preview_enabled ? `
-                            <span class="preview-badge">
-                                <svg width="12" height="12" fill="currentColor" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
-                                已开启
-                                <button class="copy-btn" onclick="copyPreviewLink(${type.id})">复制</button>
-                            </span>
-                        ` : `<span style="color: #C4B8A8;">-</span>`}
-                    </td>
-                    <td style="text-align: center;">
-                        <span class="status-tag ${statusClass}">${statusText}</span>
-                    </td>
                     <td style="text-align: center; color: #A89070; font-size: 13px;">${formatTime(type.created_at)}</td>
                     <td>
                         <div class="actions-cell">
