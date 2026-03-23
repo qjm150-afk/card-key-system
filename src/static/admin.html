@@ -1084,14 +1084,18 @@
             bottom: 0;
             height: 30px;
             display: flex;
-            justify-content: space-between;
+            align-items: flex-start;
+            gap: 4px; /* 与柱状图gap一致 */
+            padding: 0;
         }
 
         .hour-x-label {
             font-size: 10px;
             color: #A89070;
             text-align: center;
-            width: 20px;
+            flex: 1;
+            min-width: 12px;
+            max-width: 28px;
         }
 
         /* 柱状图区域 */
@@ -5458,8 +5462,8 @@
             const yTicks = calculateYTicks(niceMax);
             const chartHeight = 160; // 柱状图区域高度
             
-            // 生成X轴标签（每3小时显示一个）
-            const xLabels = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+            // 生成X轴标签（每3小时显示一个，显示在该小时的格子中）
+            const xLabelHours = [0, 3, 6, 9, 12, 15, 18, 21];
             const tickCount = yTicks.length - 1; // 刻度间隔数
             
             // 构建HTML
@@ -5500,9 +5504,18 @@
             
             html += `
                 </div>
-                <!-- X轴 -->
+                <!-- X轴 - 24个格子与柱子对齐 -->
                 <div class="hour-x-axis">
-                    ${xLabels.map(h => `<span class="hour-x-label">${h}</span>`).join('')}
+                    ${Array.from({length: 24}, (_, hour) => {
+                        // 在特定小时显示标签，最后一个格子显示24
+                        let label = '';
+                        if (xLabelHours.includes(hour)) {
+                            label = hour;
+                        } else if (hour === 23) {
+                            label = '24';
+                        }
+                        return `<span class="hour-x-label">${label}</span>`;
+                    }).join('')}
                 </div>
             `;
             
