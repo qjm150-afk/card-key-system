@@ -3948,6 +3948,13 @@
                             <input type="datetime-local" id="updateValueExpireAt" disabled>
                         </div>
                     </div>
+                    <div class="update-field-row">
+                        <input type="checkbox" class="update-field-checkbox" id="updateFieldMaxDevices" onchange="toggleUpdateField('max_devices')">
+                        <span class="update-field-label">最大设备数</span>
+                        <div class="update-field-input">
+                            <input type="number" id="updateValueMaxDevices" placeholder="允许绑定的设备数量" min="1" max="100" value="5" disabled>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -7865,7 +7872,8 @@
                 'link_name': 'updateFieldLinkName',
                 'user_note': 'updateFieldUserNote',
                 'sales_channel': 'updateFieldSalesChannel',
-                'expire_at': 'updateFieldExpireAt'
+                'expire_at': 'updateFieldExpireAt',
+                'max_devices': 'updateFieldMaxDevices'
             };
             
             const valueMap = {
@@ -7875,7 +7883,8 @@
                 'link_name': 'updateValueLinkName',
                 'user_note': 'updateValueUserNote',
                 'sales_channel': 'updateValueSalesChannel',
-                'expire_at': 'updateValueExpireAt'
+                'expire_at': 'updateValueExpireAt',
+                'max_devices': 'updateValueMaxDevices'
             };
             
             const labelMap = {
@@ -7885,7 +7894,8 @@
                 'link_name': '链接名称',
                 'user_note': '备注',
                 'sales_channel': '销售渠道',
-                'expire_at': '过期时间'
+                'expire_at': '过期时间',
+                'max_devices': '最大设备数'
             };
             
             const statusTextMap = {

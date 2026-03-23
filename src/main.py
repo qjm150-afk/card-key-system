@@ -2554,6 +2554,9 @@ async def batch_update_cards(request: BatchUpdateRequest):
         if 'sales_channel' in updates:
             update_data['sales_channel'] = updates['sales_channel'] or ''
         
+        if 'max_devices' in updates and updates['max_devices'] is not None:
+            update_data['max_devices'] = int(updates['max_devices'])
+        
         if not update_data:
             return {"success": False, "msg": "没有需要更新的字段"}
         
@@ -2935,12 +2938,18 @@ async def get_filter_options(
                 query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
             
             if device_filter and device_filter != '' and exclude != 'device_filter':
-                try:
-                    device_count = int(device_filter)
-                    if device_count == 0:
-                        query = query.eq('devices', '[]')
-                except ValueError:
+                if device_filter == '0':
+                    query = query.eq('devices', '[]')
+                elif device_filter == '1+':
+                    # 已绑定需要应用层过滤，这里跳过
                     pass
+                else:
+                    try:
+                        device_count = int(device_filter)
+                        if device_count == 0:
+                            query = query.eq('devices', '[]')
+                    except ValueError:
+                        pass
             
             if expire_days and expire_days != '' and exclude != 'expire_days':
                 now = datetime.now()
