@@ -2918,7 +2918,7 @@ async def get_filter_options(
         # 定义一个辅助函数来构建带筛选条件的查询
         def build_query(exclude: str = None):
             """构建查询，exclude 指定要排除的筛选字段"""
-            query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, sales_channel')
+            query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, expire_after_days, sales_channel')
             
             # 应用筛选条件（排除指定字段）
             if status is not None and status != '' and exclude != 'status':
@@ -3057,15 +3057,26 @@ async def get_filter_options(
         
         # 5. 过期时间统计（排除 expire_days 筛选）
         expire_response = build_query(exclude='expire_days').execute()
+        logger.info(f"[filter-options] expire_response.data 长度: {len(expire_response.data)}")
         now = datetime.now()
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         expired_count = 0
         expire_groups = {}
         permanent_count = 0
+        relative_groups = {}  # 激活后N天有效
         
         for item in expire_response.data:
             expire_at = item.get('expire_at')
-            if expire_at is None:
+            expire_after_days = item.get('expire_after_days')
+            
+            # 优先处理激活后N天有效
+            if expire_after_days is not None:
+                days = expire_after_days
+                if days not in relative_groups:
+                    relative_groups[days] = 0
+                relative_groups[days] += 1
+            elif expire_at is None:
+                # 永久有效：expire_at 和 expire_after_days 都为空
                 permanent_count += 1
             else:
                 try:
@@ -3092,14 +3103,21 @@ async def get_filter_options(
                     pass
         
         # 构建过期时间分组列表（始终显示所有选项，即使数量为 0）
+        logger.info(f"[filter-options] relative_groups: {relative_groups}")
+        logger.info(f"[filter-options] permanent_count: {permanent_count}")
         expire_groups_list = []
         # 已过期（始终显示）
         expire_groups_list.append({"value": "expired", "label": "已过期", "count": expired_count})
+        # 激活后N天有效
+        for days in sorted(relative_groups.keys()):
+            expire_groups_list.append({"value": f"relative:{days}", "label": f"激活后{days}天有效", "count": relative_groups[days]})
         # 具体日期
         for group in sorted(expire_groups.values(), key=lambda x: x['date']):
             expire_groups_list.append({"value": f"date:{group['date']}", "label": f"{group['date']} 到期", "count": group['count']})
         # 永久有效（始终显示）
         expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
+        
+        logger.info(f"[filter-options] expire_groups_list: {expire_groups_list}")
         
         # 6. 卡种统计（排除 card_type_id 筛选）
         # 先获取所有卡种
