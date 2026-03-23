@@ -176,6 +176,7 @@ class ValidateResponse(BaseModel):
 class CardKeyCreate(BaseModel):
     """创建卡密"""
     key_value: str
+    card_type_id: Optional[int] = None  # 卡种ID
     status: int = 1
     user_note: Optional[str] = ""
     feishu_url: Optional[str] = ""
@@ -4154,6 +4155,7 @@ async def create_card_key(card: CardKeyCreate):
         
         data = {
             "key_value": card.key_value.upper(),
+            "card_type_id": card.card_type_id,  # 支持关联卡种
             "status": card.status,
             "user_note": card.user_note or "",
             "feishu_url": card.feishu_url or "",

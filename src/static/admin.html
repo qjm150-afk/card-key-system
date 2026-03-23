@@ -448,7 +448,7 @@
             color: #991B1B;
         }
 
-        /* 卡券管理表格样式 */
+        /* 卡密管理表格样式 */
         .card-type-cards-table th,
         .card-type-cards-table td {
             padding: 10px 12px;
@@ -2690,25 +2690,13 @@
                 <a href="/" class="btn btn-secondary">返回首页</a>
                 <a href="https://xxx.feishu.cn/docx/xxx" target="_blank" class="btn btn-secondary" id="docsLink">📚 文档中心</a>
                 <button class="btn btn-secondary logout-btn" onclick="handleLogout()">退出登录</button>
-                <button class="btn btn-primary" onclick="openModal()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    添加卡密
-                </button>
-                <button class="btn btn-success" onclick="openBatchGenerateModal()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 5v14M5 12h14"/>
-                    </svg>
-                    批量生成
-                </button>
             </div>
         </div>
 
         <!-- 标签页 -->
         <div class="tabs">
-            <button class="tab active" onclick="switchTab('cards')">卡密管理</button>
-            <button class="tab" onclick="switchTab('card-types')">卡种管理</button>
+            <button class="tab active" onclick="switchTab('card-types')">卡种管理</button>
+            <button class="tab" onclick="switchTab('cards')">卡密管理</button>
             <button class="tab" onclick="switchTab('logs')">访问日志</button>
             <button class="tab" onclick="switchTab('operation-logs')">操作日志</button>
             <button class="tab" onclick="switchTab('link-health')">链接健康</button>
@@ -2717,7 +2705,7 @@
         </div>
 
         <!-- 卡密管理 -->
-        <div id="cards-tab" class="tab-content active">
+        <div id="cards-tab" class="tab-content">
             <!-- 统计卡片 -->
             <div class="stats-row" id="statsRow">
                 <div class="stat-card">
@@ -2844,7 +2832,7 @@
         </div>
 
         <!-- 卡种管理 -->
-        <div id="card-types-tab" class="tab-content">
+        <div id="card-types-tab" class="tab-content active">
             <!-- 统计概览 -->
             <div class="card-types-stats">
                 <div class="card-type-stat-card">
@@ -2862,7 +2850,7 @@
                     </div>
                     <div class="stat-info">
                         <div class="stat-value" id="cardTypesCardsTotal">0</div>
-                        <div class="stat-label">卡券总数</div>
+                        <div class="stat-label">卡密总数</div>
                     </div>
                 </div>
                 <div class="card-type-stat-card">
@@ -3717,11 +3705,11 @@
         }
     </style>
 
-    <!-- 卡券管理全屏弹窗 -->
+    <!-- 卡密管理全屏弹窗 -->
     <div class="modal-overlay" id="cardTypeCardsModalOverlay" style="background: rgba(0,0,0,0.5); z-index: 1000;">
         <div class="modal" style="max-width: 1200px; width: 95vw; height: 90vh; display: flex; flex-direction: column;">
             <div class="modal-header" style="flex-shrink: 0;">
-                <h2 id="cardTypeCardsModalTitle">卡券管理</h2>
+                <h2 id="cardTypeCardsModalTitle">卡密管理</h2>
                 <button class="modal-close" onclick="closeCardTypeCardsModal()">&times;</button>
             </div>
             <div class="modal-body" style="flex: 1; overflow: hidden; display: flex; flex-direction: column; padding: 16px;">
@@ -3765,6 +3753,7 @@
                         <button class="btn btn-primary btn-sm" onclick="searchCardTypeCards()">搜索</button>
                     </div>
                     <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary btn-sm" onclick="showAddCardForType()">添加卡密</button>
                         <button class="btn btn-primary btn-sm" onclick="showBatchGenerateForType()">批量生成</button>
                         <button class="btn btn-secondary btn-sm" onclick="exportCardTypeCards()">导出</button>
                     </div>
@@ -3780,7 +3769,7 @@
                     <button class="btn btn-secondary btn-sm" onclick="clearCardTypeCardsSelection()">取消选择</button>
                 </div>
                 
-                <!-- 卡券列表 -->
+                <!-- 卡密列表 -->
                 <div style="flex: 1; overflow: auto; border: 1px solid #E8D5C4; border-radius: 8px;">
                     <table class="card-type-cards-table" style="min-width: 100%; border-collapse: collapse;">
                         <thead style="position: sticky; top: 0; background: #f5f5f5; z-index: 10;">
@@ -3803,7 +3792,7 @@
                         <tbody id="cardTypeCardsTableBody">
                             <tr>
                                 <td colspan="13" style="text-align: center; padding: 40px; color: #A89070;">
-                                    暂无卡券数据
+                                    暂无卡密数据
                                 </td>
                             </tr>
                         </tbody>
@@ -5854,7 +5843,7 @@
                     deviceCount = devices.length;
                 } catch (e) {}
                 
-                // 过期时间显示逻辑（与卡种卡券表格一致）
+                // 过期时间显示逻辑（与卡种卡密表格一致）
                 let expireDisplay = '永久';
                 if (card.expire_at) {
                     // 固定日期过期
@@ -6138,6 +6127,9 @@
         function closeModal() {
             document.getElementById('modalOverlay').classList.remove('active');
             originalCardData = null;  // 清除原始数据
+            // 清除添加卡密的来源标记
+            window.isAddCardFromCardType = false;
+            window.addCardCardTypeId = null;
         }
 
         // 打开批量生成模态框
@@ -6504,6 +6496,11 @@
             } else {
                 // 新建模式：发送所有字段
                 data = formValues;
+                
+                // 如果是从卡密管理弹窗打开的，自动关联当前卡种
+                if (window.isAddCardFromCardType && window.addCardCardTypeId) {
+                    data.card_type_id = window.addCardCardTypeId;
+                }
             }
 
             try {
@@ -6527,7 +6524,7 @@
                     loadFilterOptions(null);
                     // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
                     loadSalesChannelDatalist();
-                    // 如果卡种卡券管理弹窗打开，也刷新卡种卡券列表
+                    // 如果卡种卡密管理弹窗打开，也刷新卡种卡密列表
                     const cardTypeCardsModal = document.getElementById('cardTypeCardsModalOverlay');
                     if (cardTypeCardsModal && cardTypeCardsModal.classList.contains('active')) {
                         loadCardTypeCards();
@@ -6635,7 +6632,7 @@
                     // 刷新筛选选项
                     loadFilterOptions(null);
                     
-                    // 如果是从卡种管理页面打开的批量生成，刷新卡种卡券列表
+                    // 如果是从卡种管理页面打开的批量生成，刷新卡种卡密列表
                     if (window.isBatchGenerateFromCardType) {
                         window.isBatchGenerateFromCardType = false;
                         loadCardTypeCards();
@@ -8495,7 +8492,7 @@
         
         // 删除卡种
         async function deleteCardType(id) {
-            if (!confirm('确定要删除此卡种吗？该卡种下的所有卡券也将被删除！此操作不可恢复！')) {
+            if (!confirm('确定要删除此卡种吗？该卡种下的所有卡密也将被删除！此操作不可恢复！')) {
                 return;
             }
             
@@ -8535,19 +8532,19 @@
             });
         }
         
-        // 打开卡券管理弹窗
+        // 打开卡密管理弹窗
         async function openCardTypeCardsModal(typeId, typeName) {
             currentCardTypeId = typeId;
             cardTypeCardsPage = 1;
             cardTypeCardsSelectedIds.clear();
             
-            document.getElementById('cardTypeCardsModalTitle').textContent = `卡券管理 - ${typeName}`;
+            document.getElementById('cardTypeCardsModalTitle').textContent = `卡密管理 - ${typeName}`;
             document.getElementById('cardTypeCardsModalOverlay').classList.add('active');
             
             await loadCardTypeCards();
         }
         
-        // 关闭卡券管理弹窗
+        // 关闭卡密管理弹窗
         function closeCardTypeCardsModal() {
             document.getElementById('cardTypeCardsModalOverlay').classList.remove('active');
             currentCardTypeId = null;
@@ -8572,7 +8569,7 @@
             }
         }
         
-        // 加载卡种下的卡券
+        // 加载卡种下的卡密
         async function loadCardTypeCards() {
             if (!currentCardTypeId) return;
             
@@ -8604,24 +8601,24 @@
                     showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
-                showToast('加载卡券列表失败: ' + error.message, 'error');
+                showToast('加载卡密列表失败: ' + error.message, 'error');
             }
         }
         
-        // 搜索卡种卡券
+        // 搜索卡种卡密
         function searchCardTypeCards() {
             cardTypeCardsPage = 1;
             loadCardTypeCards();
         }
         
-        // 渲染卡种卡券表格
+        // 渲染卡种卡密表格
         function renderCardTypeCardsTable(data) {
             const tbody = document.getElementById('cardTypeCardsTableBody');
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
                         <td colspan="13" style="text-align: center; padding: 40px; color: #A89070;">
-                            暂无卡券数据
+                            暂无卡密数据
                         </td>
                     </tr>
                 `;
@@ -8727,7 +8724,7 @@
             }).join('');
         }
         
-        // 渲染卡种卡券分页
+        // 渲染卡种卡密分页
         function renderCardTypeCardsPagination(total, totalPages) {
             const container = document.getElementById('cardTypeCardsPagination');
             if (totalPages <= 1) {
@@ -8757,15 +8754,15 @@
             loadCardTypeCards();
         }
         
-        // 编辑卡券（调用主界面的编辑功能）
+        // 编辑卡密（调用主界面的编辑功能）
         async function editCardInType(cardId) {
             // 直接调用主界面的编辑函数
             await editCard(cardId);
         }
         
-        // 删除卡券
+        // 删除卡密
         async function deleteCardInType(cardId) {
-            if (!confirm('确定要删除此卡券吗？此操作不可恢复！')) {
+            if (!confirm('确定要删除此卡密吗？此操作不可恢复！')) {
                 return;
             }
             
@@ -8783,7 +8780,7 @@
                 alert('删除成功');
                 loadCardTypeCards();
             } catch (error) {
-                console.error('删除卡券失败:', error);
+                console.error('删除卡密失败:', error);
                 alert('删除失败');
             }
         }
@@ -8837,11 +8834,11 @@
         // 批量启用/停用
         async function batchToggleCardTypeCardsStatus(status) {
             if (cardTypeCardsSelectedIds.size === 0) {
-                showToast('请先选择卡券', 'error');
+                showToast('请先选择卡密', 'error');
                 return;
             }
             const action = status === 1 ? '启用' : '停用';
-            if (!confirm(`确定要${action}选中的 ${cardTypeCardsSelectedIds.size} 张卡券吗？`)) return;
+            if (!confirm(`确定要${action}选中的 ${cardTypeCardsSelectedIds.size} 张卡密吗？`)) return;
             
             try {
                 const response = await fetch('/api/admin/cards/batch-update', {
@@ -8854,7 +8851,7 @@
                 });
                 const result = await response.json();
                 if (result.success) {
-                    showToast(`已${action} ${result.affected_count || cardTypeCardsSelectedIds.size} 张卡券`, 'success');
+                    showToast(`已${action} ${result.affected_count || cardTypeCardsSelectedIds.size} 张卡密`, 'success');
                     clearCardTypeCardsSelection();
                     loadCardTypeCards();
                 } else {
@@ -8868,7 +8865,7 @@
         // 批量修改销售状态
         async function batchUpdateCardTypeCardsSaleStatus() {
             if (cardTypeCardsSelectedIds.size === 0) {
-                showToast('请先选择卡券', 'error');
+                showToast('请先选择卡密', 'error');
                 return;
             }
             const saleStatus = prompt('请输入销售状态 (unsold/sold/refunded/disputed):', 'sold');
@@ -8888,7 +8885,7 @@
                 });
                 const result = await response.json();
                 if (result.success) {
-                    showToast(`已修改 ${result.affected_count || cardTypeCardsSelectedIds.size} 张卡券的销售状态`, 'success');
+                    showToast(`已修改 ${result.affected_count || cardTypeCardsSelectedIds.size} 张卡密的销售状态`, 'success');
                     clearCardTypeCardsSelection();
                     loadCardTypeCards();
                 } else {
@@ -8902,10 +8899,10 @@
         // 批量删除
         async function batchDeleteCardTypeCards() {
             if (cardTypeCardsSelectedIds.size === 0) {
-                showToast('请先选择卡券', 'error');
+                showToast('请先选择卡密', 'error');
                 return;
             }
-            if (!confirm(`确定要删除选中的 ${cardTypeCardsSelectedIds.size} 张卡券吗？此操作不可恢复！`)) return;
+            if (!confirm(`确定要删除选中的 ${cardTypeCardsSelectedIds.size} 张卡密吗？此操作不可恢复！`)) return;
             
             try {
                 const response = await fetch('/api/admin/cards/batch-delete', {
@@ -8915,7 +8912,7 @@
                 });
                 const result = await response.json();
                 if (result.success) {
-                    showToast(`已删除 ${result.data.deleted_count} 张卡券`, 'success');
+                    showToast(`已删除 ${result.data.deleted_count} 张卡密`, 'success');
                     clearCardTypeCardsSelection();
                     loadCardTypeCards();
                 } else {
@@ -8926,7 +8923,17 @@
             }
         }
         
-        // 为卡种批量生成卡券 - 复用主界面的批量生成弹窗
+        // 为卡种添加卡密
+        function showAddCardForType() {
+            // 设置标记，表示从卡密管理弹窗打开
+            window.isAddCardFromCardType = true;
+            window.addCardCardTypeId = currentCardTypeId;
+            
+            // 打开添加卡密弹窗
+            openModal();
+        }
+        
+        // 为卡种批量生成卡密 - 复用主界面的批量生成弹窗
         async function showBatchGenerateForType() {
             // 设置标记
             window.isBatchGenerateFromCardType = true;
@@ -8952,7 +8959,7 @@
             }
         }
         
-        // 导出卡种卡券
+        // 导出卡种卡密
         async function exportCardTypeCards() {
             if (!currentCardTypeId) return;
             
