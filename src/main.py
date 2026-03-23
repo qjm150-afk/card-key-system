@@ -1121,10 +1121,14 @@ async def get_card_keys(
             query = query.eq('card_type_id', card_type_id)
         
         # 搜索支持：卡密、备注、订单号、链接名称、销售渠道
+        # 注意：Supabase 的 or_() 与 eq() 组合时需要特殊处理
+        # 当搜索词可能匹配不到任何结果时，直接在应用层过滤会更稳定
+        need_search_filter = False
         if search:
-            or_query = f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%,link_name.ilike.%{search}%,sales_channel.ilike.%{search}%"
-            logger.info(f"[搜索] 搜索关键词: {search}, OR查询: {or_query}")
-            query = query.or_(or_query)
+            # 先执行查询，然后在应用层过滤
+            # 这样可以避免 Supabase or_() 与 eq() 组合时的语法问题
+            need_search_filter = True
+            logger.info(f"[搜索] 搜索关键词: {search} (应用层过滤)")
         
         # 激活状态筛选（动态计算）
         # - valid（有效）：status=1 且未使用过且销售状态正常
@@ -1220,8 +1224,8 @@ async def get_card_keys(
                 except ValueError:
                     pass
         
-        # 如果需要在应用层过滤设备数量或激活状态，先获取所有数据再过滤
-        if need_device_filter or need_activate_filter:
+        # 如果需要在应用层过滤设备数量、激活状态或搜索，先获取所有数据再过滤
+        if need_device_filter or need_activate_filter or need_search_filter:
             # 获取所有匹配的数据
             response = query.order('id', desc=True).execute()
             all_data = response.data
@@ -1268,6 +1272,21 @@ async def get_card_keys(
                         if card_status != 0 and sale_status not in ['refunded', 'disputed']:
                             continue
                 
+                # 搜索过滤（模糊匹配多个字段）
+                if need_search_filter:
+                    search_lower = search.lower()
+                    match_fields = [
+                        card.get('key_value', ''),
+                        card.get('user_note', ''),
+                        card.get('order_id', ''),
+                        card.get('link_name', ''),
+                        card.get('sales_channel', '')
+                    ]
+                    # 检查是否有任一字段匹配搜索词
+                    matched = any(search_lower in str(field).lower() for field in match_fields)
+                    if not matched:
+                        continue
+                
                 filtered_data.append(card)
             
             # 手动分页
@@ -1303,7 +1322,9 @@ async def get_card_keys(
         }
         
     except Exception as e:
+        import traceback
         logger.error(f"获取卡密列表失败: {str(e)}")
+        logger.error(f"详细堆栈: {traceback.format_exc()}")
         return {"success": False, "msg": str(e)}
 
 
@@ -2914,7 +2935,9 @@ async def get_filter_options(
         }
         
     except Exception as e:
+        import traceback
         logger.error(f"获取筛选选项失败: {str(e)}")
+        logger.error(f"详细堆栈: {traceback.format_exc()}")
         return {"success": False, "msg": str(e)}
 
 
