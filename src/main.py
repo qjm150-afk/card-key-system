@@ -199,6 +199,7 @@ class CardKeyUpdate(BaseModel):
     link_name: Optional[str] = None
     expire_at: Optional[str] = None
     max_uses: Optional[int] = None
+    max_devices: Optional[int] = None  # 最大设备数
     sale_status: Optional[str] = None  # 销售状态
     order_id: Optional[str] = None  # 订单号
     sales_channel: Optional[str] = None  # 销售渠道
@@ -1188,16 +1189,23 @@ async def get_card_keys(
         need_device_filter = False
         device_count_filter = 0
         if device_filter:
-            try:
-                device_count_filter = int(device_filter)
-                if device_count_filter == 0:
-                    # 0台：空数组，可以用精确匹配
-                    query = query.eq('devices', '[]')
-                else:
-                    # 其他数量：需要在应用层过滤
-                    need_device_filter = True
-            except ValueError:
-                pass
+            if device_filter == '0':
+                # 未绑定：设备列表为空
+                query = query.eq('devices', '[]')
+            elif device_filter == '1+':
+                # 已绑定：设备列表不为空（需要在应用层过滤）
+                need_device_filter = True
+                device_count_filter = -1  # -1 表示筛选大于0的记录
+            else:
+                # 兼容旧版数字筛选
+                try:
+                    device_count_filter = int(device_filter)
+                    if device_count_filter == 0:
+                        query = query.eq('devices', '[]')
+                    else:
+                        need_device_filter = True
+                except ValueError:
+                    pass
         
         # 过期时间筛选
         if expire_days:
@@ -1237,10 +1245,18 @@ async def get_card_keys(
                 if need_device_filter:
                     try:
                         devices = json.loads(card.get('devices', '[]'))
-                        if len(devices) != device_count_filter:
+                        device_len = len(devices)
+                        if device_count_filter == -1:
+                            # -1 表示已绑定（设备数 > 0）
+                            if device_len == 0:
+                                continue
+                        elif device_len != device_count_filter:
                             continue
                     except:
-                        if device_count_filter != 0:
+                        if device_count_filter == -1:
+                            # 解析失败，视为无设备
+                            continue
+                        elif device_count_filter != 0:
                             continue
                 
                 # 激活状态过滤（需要处理 NULL 值）
@@ -2407,14 +2423,23 @@ async def batch_update_cards(request: BatchUpdateRequest):
             need_device_filter = False
             device_count_filter = 0
             if device_filter and device_filter != '':
-                try:
-                    device_count_filter = int(device_filter)
-                    if device_count_filter == 0:
-                        query = query.eq('devices', '[]')
-                    else:
-                        need_device_filter = True
-                except ValueError:
-                    pass
+                if device_filter == '0':
+                    # 未绑定：设备列表为空
+                    query = query.eq('devices', '[]')
+                elif device_filter == '1+':
+                    # 已绑定：设备列表不为空（需要在应用层过滤）
+                    need_device_filter = True
+                    device_count_filter = -1  # -1 表示筛选大于0的记录
+                else:
+                    # 兼容旧版数字筛选
+                    try:
+                        device_count_filter = int(device_filter)
+                        if device_count_filter == 0:
+                            query = query.eq('devices', '[]')
+                        else:
+                            need_device_filter = True
+                    except ValueError:
+                        pass
             
             # 过期时间筛选
             expire_days = filters.get('expire_days')
@@ -2461,7 +2486,12 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     if need_device_filter:
                         try:
                             devices = json.loads(card.get('devices', '[]'))
-                            if len(devices) != device_count_filter:
+                            device_len = len(devices)
+                            if device_count_filter == -1:
+                                # -1 表示已绑定（设备数 > 0）
+                                if device_len == 0:
+                                    continue
+                            elif device_len != device_count_filter:
                                 continue
                         except:
                             continue
@@ -2578,12 +2608,20 @@ async def count_by_filters(
         need_device_filter = False
         device_count_filter = 0
         if device_filter and device_filter != '':
-            try:
-                device_count_filter = int(device_filter)
-                if device_count_filter != 0:
-                    need_device_filter = True
-            except ValueError:
-                pass
+            if device_filter == '0':
+                # 未绑定
+                device_count_filter = 0
+            elif device_filter == '1+':
+                # 已绑定
+                need_device_filter = True
+                device_count_filter = -1  # -1 表示筛选大于0的记录
+            else:
+                try:
+                    device_count_filter = int(device_filter)
+                    if device_count_filter != 0:
+                        need_device_filter = True
+                except ValueError:
+                    pass
         
         # 根据是否需要应用层过滤选择字段
         if need_device_filter:
@@ -2631,13 +2669,19 @@ async def count_by_filters(
         
         # 绑定设备筛选（按设备数量）- 注意need_device_filter已在前面定义
         if device_filter and device_filter != '':
-            try:
-                device_count_filter = int(device_filter)
-                if device_count_filter == 0:
-                    query = query.eq('devices', '[]')
-                # else: need_device_filter已经在前面设为True
-            except ValueError:
+            if device_filter == '0':
+                query = query.eq('devices', '[]')
+            elif device_filter == '1+':
+                # 已绑定需要在应用层过滤
                 pass
+            else:
+                try:
+                    device_count_filter = int(device_filter)
+                    if device_count_filter == 0:
+                        query = query.eq('devices', '[]')
+                    # else: need_device_filter已经在前面设为True
+                except ValueError:
+                    pass
         
         # 过期时间筛选
         if expire_days and expire_days != '':
@@ -2681,7 +2725,12 @@ async def count_by_filters(
                 if need_device_filter:
                     try:
                         devices = json.loads(card.get('devices', '[]'))
-                        if len(devices) != device_count_filter:
+                        device_len = len(devices)
+                        if device_count_filter == -1:
+                            # -1 表示已绑定（设备数 > 0）
+                            if device_len == 0:
+                                continue
+                        elif device_len != device_count_filter:
                             continue
                     except:
                         continue
@@ -4453,6 +4502,8 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
             update_data["expire_at"] = card.expire_at
         if card.max_uses is not None:
             update_data["max_uses"] = card.max_uses
+        if card.max_devices is not None:
+            update_data["max_devices"] = card.max_devices
         if card.sale_status is not None:
             update_data["sale_status"] = card.sale_status
             # 已售出时记录时间

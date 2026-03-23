@@ -2746,12 +2746,8 @@
                     </select>
                     <select class="filter-select" id="deviceFilter" onchange="searchCards()">
                         <option value="">绑定设备</option>
-                        <option value="0">0 台</option>
-                        <option value="1">1 台</option>
-                        <option value="2">2 台</option>
-                        <option value="3">3 台</option>
-                        <option value="4">4 台</option>
-                        <option value="5">5 台</option>
+                        <option value="0">未绑定</option>
+                        <option value="1+">已绑定</option>
                     </select>
                     <select class="filter-select" id="expireDaysFilter" onchange="searchCards()">
                         <option value="">过期时间</option>
@@ -3504,6 +3500,11 @@
                             <label>订单号</label>
                             <input type="text" class="form-input" id="orderId" placeholder="可选，记录销售订单号">
                         </div>
+                    </div>
+                    <div class="form-group">
+                        <label>最大设备数</label>
+                        <input type="number" class="form-input" id="maxDevices" value="5" min="1" max="100">
+                        <small class="input-hint" style="color: #8B7355;">允许绑定的最大设备数量</small>
                     </div>
                     <div class="form-group">
                         <label>过期时间</label>
@@ -5681,7 +5682,15 @@
             
             const deviceFilter = document.getElementById('deviceFilter').value;
             if (deviceFilter) {
-                tags.push({ field: 'deviceFilter', label: `绑定设备: ${deviceFilter} 台`, value: deviceFilter });
+                let deviceLabel = '';
+                if (deviceFilter === '0') {
+                    deviceLabel = '未绑定';
+                } else if (deviceFilter === '1+') {
+                    deviceLabel = '已绑定';
+                } else {
+                    deviceLabel = `${deviceFilter} 台`;
+                }
+                tags.push({ field: 'deviceFilter', label: `绑定设备: ${deviceLabel}`, value: deviceFilter });
             }
             
             const expireDays = document.getElementById('expireDaysFilter').value;
@@ -6262,6 +6271,7 @@
                     document.getElementById('saleStatus').value = card.sale_status || 'unsold';
                     document.getElementById('salesChannel').value = card.sales_channel || '';
                     document.getElementById('orderId').value = card.order_id || '';
+                    document.getElementById('maxDevices').value = card.max_devices || 5;
                     document.getElementById('userNote').value = card.user_note || '';
                     document.getElementById('linkName').value = card.link_name || '';
                     document.getElementById('feishuUrl').value = card.feishu_url || '';
@@ -6455,6 +6465,7 @@
                 sale_status: document.getElementById('saleStatus').value,
                 sales_channel: document.getElementById('salesChannel').value,
                 order_id: document.getElementById('orderId').value,  // 空字符串表示清空，不发送表示不修改
+                max_devices: parseInt(document.getElementById('maxDevices').value) || 5,
                 user_note: document.getElementById('userNote').value,
                 link_name: document.getElementById('linkName').value,
                 feishu_url: document.getElementById('feishuUrl').value,
@@ -6476,7 +6487,7 @@
             if (id && originalCardData) {
                 // 编辑模式：只发送有变化的字段
                 data = {};
-                const fieldsToCheck = ['key_value', 'status', 'sale_status', 'sales_channel', 'order_id', 'user_note', 'link_name', 'feishu_url', 'feishu_password', 'expire_at'];
+                const fieldsToCheck = ['key_value', 'status', 'sale_status', 'sales_channel', 'order_id', 'max_devices', 'user_note', 'link_name', 'feishu_url', 'feishu_password', 'expire_at'];
                 
                 for (const field of fieldsToCheck) {
                     const currentValue = formValues[field];
