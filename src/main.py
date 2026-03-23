@@ -1120,9 +1120,9 @@ async def get_card_keys(
         if card_type_id:
             query = query.eq('card_type_id', card_type_id)
         
-        # 搜索支持卡密、备注、订单号
+        # 搜索支持：卡密、备注、订单号、链接名称、销售渠道
         if search:
-            or_query = f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%"
+            or_query = f"key_value.ilike.%{search}%,user_note.ilike.%{search}%,order_id.ilike.%{search}%,link_name.ilike.%{search}%,sales_channel.ilike.%{search}%"
             logger.info(f"[搜索] 搜索关键词: {search}, OR查询: {or_query}")
             query = query.or_(or_query)
         
