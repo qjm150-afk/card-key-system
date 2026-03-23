@@ -2794,12 +2794,19 @@
                         <button class="btn btn-link btn-sm" id="selectAllFiltered" onclick="selectAllFiltered()" style="display: none;">全选筛选结果</button>
                     </div>
                     <div class="batch-actions">
+                        <!-- 状态操作 -->
                         <button class="btn btn-success btn-sm" onclick="batchAction('activate')">批量激活</button>
                         <button class="btn btn-secondary btn-sm" onclick="batchAction('deactivate')">批量停用</button>
-                        <button class="btn btn-primary btn-sm" onclick="openBatchUpdateModal()">批量修改...</button>
-                        <button class="btn btn-info btn-sm" onclick="openImportSaleStatusModal()">导入销售状态</button>
+                        <button class="btn btn-primary btn-sm" onclick="openBatchUpdateModal()">批量修改</button>
+                        <!-- 分隔 -->
+                        <span style="width: 1px; height: 20px; background: #E8D5C4; display: inline-block; margin: 0 8px;"></span>
+                        <!-- 导入导出 -->
                         <button class="btn btn-primary btn-sm" onclick="openImportCardsModal()">导入卡密</button>
+                        <button class="btn btn-info btn-sm" onclick="openImportSaleStatusModal()">导入销售状态</button>
                         <button class="btn btn-secondary btn-sm" onclick="exportCards()">导出卡密</button>
+                        <!-- 分隔 -->
+                        <span style="width: 1px; height: 20px; background: #E8D5C4; display: inline-block; margin: 0 8px;"></span>
+                        <!-- 危险操作 -->
                         <button class="btn btn-danger btn-sm" onclick="batchAction('delete')">批量删除</button>
                     </div>
                 </div>
