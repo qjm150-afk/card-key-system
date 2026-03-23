@@ -9074,11 +9074,14 @@
                 const deviceCount = devices.length;
                 const maxDevices = card.max_devices || 5;
                 
-                // 状态判断（与后端统计逻辑一致）
+                // 状态判断（与主页面卡密列表一致，使用统一的逻辑）
                 let statusBadge;
                 if (card.status === 0 || card.sale_status === 'refunded' || card.sale_status === 'disputed') {
                     // 已停用：status=0 或 销售状态异常
                     statusBadge = '<span class="status-badge status-inactive">已停用</span>';
+                } else if (card.is_expired === true) {
+                    // 已过期：实时计算的过期状态
+                    statusBadge = '<span class="status-badge status-expired">已过期</span>';
                 } else if (deviceCount > 0) {
                     // 已激活：有设备绑定
                     statusBadge = '<span class="status-badge status-active">已激活</span>';
