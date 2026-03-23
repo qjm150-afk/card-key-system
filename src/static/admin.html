@@ -3799,24 +3799,6 @@
                                     请先在"设置"页面上传预览图片
                                 </p>
                             </div>
-                            <div class="form-group">
-                                <label>模糊程度</label>
-                                <div style="display: flex; gap: 16px; margin-top: 8px;">
-                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                        <input type="radio" name="blurLevel" value="4" style="width: 14px; height: 14px;">
-                                        <span>轻度</span>
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                        <input type="radio" name="blurLevel" value="8" checked style="width: 14px; height: 14px;">
-                                        <span>中度</span>
-                                    </label>
-                                    <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                                        <input type="radio" name="blurLevel" value="12" style="width: 14px; height: 14px;">
-                                        <span>重度</span>
-                                    </label>
-                                </div>
-                                <p style="font-size: 12px; color: #999; margin-top: 8px;">预览图会应用轻微模糊效果，突出登录框</p>
-                            </div>
                         </div>
                     </div>
                     
@@ -8856,11 +8838,6 @@
                         }
                     }
                     
-                    const blurLevel = type.blur_level || 8;
-                    document.querySelectorAll('input[name="blurLevel"]').forEach(r => {
-                        r.checked = r.value == blurLevel;
-                    });
-                    
                     document.getElementById('cardTypeModalOverlay').classList.add('active');
                 } else {
                     showToast(getErrorMsg(result), 'error');
@@ -8876,10 +8853,6 @@
             
             const id = document.getElementById('cardTypeId').value;
             
-            // 获取模糊程度
-            const blurLevelRadio = document.querySelector('input[name="blurLevel"]:checked');
-            const blurLevel = blurLevelRadio ? parseInt(blurLevelRadio.value) : 8;
-            
             // 获取选择的预览图片 ID
             const previewEnabled = document.getElementById('cardTypePreviewEnabled').checked;
             const previewImageSelect = document.getElementById('cardTypePreviewImageSelect');
@@ -8888,8 +8861,7 @@
             const data = {
                 name: document.getElementById('cardTypeName').value.trim(),
                 preview_image_id: previewImageId ? parseInt(previewImageId) : null,
-                preview_enabled: previewEnabled,
-                blur_level: blurLevel
+                preview_enabled: previewEnabled
             };
             
             if (!data.name) {

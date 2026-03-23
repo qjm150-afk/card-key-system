@@ -1944,13 +1944,10 @@
                 document.getElementById('previewBackground').style.backgroundImage = `url(${previewData.preview_image})`;
             }
             
-            // 根据模糊程度设置背景模糊效果（使用较轻的模糊）
+            // 设置背景模糊效果（统一的轻微模糊）
             const previewBackground = document.getElementById('previewBackground');
-            const blurLevel = previewData.blur_level || 3;
-            // 将后台设置的模糊程度转换为更轻的效果：4→2px, 8→3px, 12→5px
-            const actualBlur = blurLevel <= 4 ? 2 : (blurLevel <= 8 ? 3 : 5);
-            previewBackground.style.filter = `blur(${actualBlur}px)`;
-            previewBackground.style.transform = `scale(1.0${actualBlur})`;
+            previewBackground.style.filter = 'blur(3px)';
+            previewBackground.style.transform = 'scale(1.03)';
             
             // 设置标题
             const previewTitle = document.getElementById('previewTitle');

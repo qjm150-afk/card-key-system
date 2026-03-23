@@ -256,7 +256,6 @@ class CardTypeCreate(BaseModel):
     preview_image: Optional[str] = None  # 预览截图URL（兼容旧接口）
     preview_image_id: Optional[int] = None  # 预览图片ID（新接口）
     preview_enabled: bool = False  # 是否启用预览
-    blur_level: Optional[int] = 8  # 模糊程度(px): 4=轻度, 8=中度, 12=重度
 
 
 class CardTypeUpdate(BaseModel):
@@ -268,7 +267,6 @@ class CardTypeUpdate(BaseModel):
     preview_image: Optional[str] = None  # 预览截图URL（兼容旧接口）
     preview_image_id: Optional[int] = None  # 预览图片ID（新接口）
     preview_enabled: Optional[bool] = None  # 是否启用预览
-    blur_level: Optional[int] = None  # 模糊程度
     
     # 状态
     status: Optional[int] = None
@@ -559,7 +557,7 @@ async def get_card_type_preview_by_link(link_name: str):
         card_type_id = card_with_type['card_type_id']
         
         # 获取卡种信息
-        response = client.table('card_types').select('id, name, preview_image, preview_enabled, blur_level, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
+        response = client.table('card_types').select('id, name, preview_image, preview_enabled, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
         
         if not response.data:
             return {"success": False, "msg": "卡种不存在"}
@@ -576,8 +574,7 @@ async def get_card_type_preview_by_link(link_name: str):
                 "id": card_type['id'],
                 "name": card_type['name'],
                 "preview_image": card_type.get('preview_image'),
-                "preview_enabled": card_type.get('preview_enabled', False),
-                "blur_level": card_type.get('blur_level', 8)
+                "preview_enabled": card_type.get('preview_enabled', False)
             }
         }
         
@@ -644,7 +641,7 @@ async def get_card_type_preview(card_type_id: int):
         client = get_supabase_client()
         
         # 获取卡种信息
-        response = client.table('card_types').select('id, name, preview_image, preview_image_id, preview_enabled, blur_level, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
+        response = client.table('card_types').select('id, name, preview_image, preview_image_id, preview_enabled, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
         
         if not response.data:
             return {"success": False, "msg": "卡种不存在"}
@@ -682,8 +679,7 @@ async def get_card_type_preview(card_type_id: int):
                 "id": card_type['id'],
                 "name": card_type['name'],
                 "preview_image": preview_image_url,
-                "preview_enabled": card_type.get('preview_enabled', False),
-                "blur_level": card_type.get('blur_level', 8)
+                "preview_enabled": card_type.get('preview_enabled', False)
             }
         }
         
