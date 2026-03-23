@@ -4360,9 +4360,12 @@
             // 注意：不在这里调用 loadCards()、loadStats()、loadFilterOptions()
             // 这些函数会在 checkAuth() 验证登录成功后，由 showMainContent() 调用
             
-            document.getElementById('searchInput').addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') searchCards();
-            });
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') searchCards();
+                });
+            }
             
             // 日志搜索框回车事件
             const logSearchInput = document.getElementById('logSearchInput');
