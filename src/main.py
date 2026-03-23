@@ -6233,7 +6233,12 @@ async def serve_admin():
     """服务管理后台"""
     admin_path = os.path.join(STATIC_DIR, "admin.html")
     if os.path.exists(admin_path):
-        return FileResponse(admin_path, media_type="text/html")
+        response = FileResponse(admin_path, media_type="text/html")
+        # 禁用缓存，确保用户总是获取最新版本
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
     raise HTTPException(status_code=404, detail="Admin page not found")
 
 
@@ -6256,9 +6261,22 @@ async def serve_wechat_verify(verify_file: str):
     raise HTTPException(status_code=404, detail="File not found")
 
 
-# 挂载静态文件目录
+# 挂载静态文件目录（禁用缓存）
+class NoCacheStaticFiles(StaticFiles):
+    """禁用缓存的静态文件服务"""
+    async def __call__(self, scope, receive, send) -> None:
+        # 先调用父类处理请求
+        await super().__call__(scope, receive, send)
+    
+    def file_response(self, *args, **kwargs):
+        response = super().file_response(*args, **kwargs)
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
 if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
 
 
 if __name__ == "__main__":
