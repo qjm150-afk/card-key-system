@@ -1782,6 +1782,7 @@
             justify-content: flex-end;
             align-items: center;
             width: 100%;
+            height: 170px; /* 固定高度：140px柱子 + 30px数值区域 */
         }
 
         .expire-bar-value {
@@ -5319,7 +5320,7 @@
                 
                 return `
                     <div class="expire-bar-wrapper ${wrapperClass}">
-                        <div class="expire-bar-column" style="height: ${maxHeight + 30}px;">
+                        <div class="expire-bar-column">
                             <div class="expire-bar-value">${item.count}</div>
                             <div class="expire-bar ${barClass}" style="height: ${height}px;" title="${fullLabel}"></div>
                         </div>
