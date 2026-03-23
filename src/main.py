@@ -3057,7 +3057,6 @@ async def get_filter_options(
         
         # 5. 过期时间统计（排除 expire_days 筛选）
         expire_response = build_query(exclude='expire_days').execute()
-        logger.info(f"[filter-options] expire_response.data 长度: {len(expire_response.data)}")
         now = datetime.now()
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         expired_count = 0
@@ -3103,8 +3102,6 @@ async def get_filter_options(
                     pass
         
         # 构建过期时间分组列表（始终显示所有选项，即使数量为 0）
-        logger.info(f"[filter-options] relative_groups: {relative_groups}")
-        logger.info(f"[filter-options] permanent_count: {permanent_count}")
         expire_groups_list = []
         # 已过期（始终显示）
         expire_groups_list.append({"value": "expired", "label": "已过期", "count": expired_count})
@@ -3116,8 +3113,6 @@ async def get_filter_options(
             expire_groups_list.append({"value": f"date:{group['date']}", "label": f"{group['date']} 到期", "count": group['count']})
         # 永久有效（始终显示）
         expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
-        
-        logger.info(f"[filter-options] expire_groups_list: {expire_groups_list}")
         
         # 6. 卡种统计（排除 card_type_id 筛选）
         # 先获取所有卡种
@@ -4875,10 +4870,30 @@ async def preview_clean_logs(request: CleanLogsRequest):
         elif request.condition == 'success':
             query = query.eq('success', True)
         elif request.condition == 'expired':
-            # 查找过期卡密的日志
-            now = datetime.now().isoformat()
-            expired_cards = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now).execute()
-            expired_keys = [card['key_value'] for card in (expired_cards.data or [])]
+            # 查找过期卡密的日志（包括固定过期日期和激活后N天过期）
+            now = datetime.now()
+            # 1. 固定过期日期的卡密
+            expired_fixed = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now.isoformat()).execute()
+            expired_keys = [card['key_value'] for card in (expired_fixed.data or [])]
+            
+            # 2. 激活后N天有效且已过期的卡密
+            relative_cards = client.table('card_keys_table').select('key_value, expire_after_days, activated_at').not_.is_('expire_after_days', 'null').not_.is_('activated_at', 'null').execute()
+            for card in (relative_cards.data or []):
+                try:
+                    activated_at = card['activated_at']
+                    expire_after_days = card['expire_after_days']
+                    if isinstance(activated_at, str):
+                        activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                    else:
+                        activated_time = activated_at
+                    if activated_time.tzinfo is not None:
+                        activated_time = activated_time.replace(tzinfo=None)
+                    expire_time = activated_time + timedelta(days=expire_after_days)
+                    if expire_time < now:
+                        expired_keys.append(card['key_value'])
+                except:
+                    pass
+            
             if expired_keys:
                 query = query.in_('key_value', expired_keys)
             else:
@@ -4918,10 +4933,30 @@ async def clean_logs(request: CleanLogsRequest):
         elif request.condition == 'success':
             query = query.eq('success', True)
         elif request.condition == 'expired':
-            # 查找过期卡密的日志
-            now = datetime.now().isoformat()
-            expired_cards = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now).execute()
-            expired_keys = [card['key_value'] for card in (expired_cards.data or [])]
+            # 查找过期卡密的日志（包括固定过期日期和激活后N天过期）
+            now = datetime.now()
+            # 1. 固定过期日期的卡密
+            expired_fixed = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now.isoformat()).execute()
+            expired_keys = [card['key_value'] for card in (expired_fixed.data or [])]
+            
+            # 2. 激活后N天有效且已过期的卡密
+            relative_cards = client.table('card_keys_table').select('key_value, expire_after_days, activated_at').not_.is_('expire_after_days', 'null').not_.is_('activated_at', 'null').execute()
+            for card in (relative_cards.data or []):
+                try:
+                    activated_at = card['activated_at']
+                    expire_after_days = card['expire_after_days']
+                    if isinstance(activated_at, str):
+                        activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                    else:
+                        activated_time = activated_at
+                    if activated_time.tzinfo is not None:
+                        activated_time = activated_time.replace(tzinfo=None)
+                    expire_time = activated_time + timedelta(days=expire_after_days)
+                    if expire_time < now:
+                        expired_keys.append(card['key_value'])
+                except:
+                    pass
+            
             if expired_keys:
                 query = query.in_('key_value', expired_keys)
             else:
@@ -5443,7 +5478,8 @@ async def get_statistics_distribution():
         expired_count = 0
         expiring_7days = 0
         expiring_30days = 0
-        permanent_count = 0  # 永久有效（expire_at 为空）
+        relative_active_count = 0  # 激活后N天有效（未过期）
+        permanent_count = 0  # 永久有效（expire_at 和 expire_after_days 都为空）
         
         for card in cards:
             # 销售状态
@@ -5474,7 +5510,34 @@ async def get_statistics_distribution():
             
             # 过期状态
             expire_at = card.get('expire_at')
-            if expire_at:
+            expire_after_days = card.get('expire_after_days')
+            activated_at = card.get('activated_at')
+            
+            # 优先处理激活后N天有效
+            if expire_after_days is not None:
+                if activated_at:
+                    try:
+                        if isinstance(activated_at, str):
+                            activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                        else:
+                            activated_time = activated_at
+                        if activated_time.tzinfo is not None:
+                            activated_time = activated_time.replace(tzinfo=None)
+                        expire_time = activated_time + timedelta(days=expire_after_days)
+                        if expire_time < now:
+                            expired_count += 1
+                        elif expire_time < now + timedelta(days=7):
+                            expiring_7days += 1
+                        elif expire_time < now + timedelta(days=30):
+                            expiring_30days += 1
+                        else:
+                            relative_active_count += 1
+                    except:
+                        relative_active_count += 1
+                else:
+                    # 未激活，不计入过期统计
+                    relative_active_count += 1
+            elif expire_at:
                 try:
                     # 处理字符串或 datetime 对象
                     if isinstance(expire_at, str):
@@ -5494,7 +5557,7 @@ async def get_statistics_distribution():
                 except:
                     pass
             else:
-                # expire_at 为空，表示永久有效
+                # expire_at 和 expire_after_days 都为空，表示永久有效
                 permanent_count += 1
         
         return {
@@ -5508,6 +5571,7 @@ async def get_statistics_distribution():
                     "expired": expired_count,
                     "expiring_7days": expiring_7days,
                     "expiring_30days": expiring_30days,
+                    "relative_active": relative_active_count,
                     "permanent": permanent_count
                 }
             }
