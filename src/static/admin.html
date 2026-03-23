@@ -2730,24 +2730,19 @@
             <div class="filter-section">
                 <div class="filter-row">
                     <input type="text" class="search-input search-input-wide" id="searchInput" placeholder="搜索卡密/订单号..." autocomplete="off">
+                    <!-- 卡种相关 -->
+                    <select class="filter-select" id="cardTypeFilter" onchange="searchCards()" style="max-width: 120px;">
+                        <option value="">卡种</option>
+                    </select>
+                    <select class="filter-select" id="feishuUrlFilter" onchange="searchCards()">
+                        <option value="">链接名称</option>
+                    </select>
+                    <!-- 状态相关 -->
                     <select class="filter-select" id="statusFilter" onchange="searchCards()">
                         <option value="">激活状态</option>
                         <option value="valid">有效</option>
                         <option value="activated">已激活</option>
                         <option value="disabled">已停用</option>
-                    </select>
-                    <select class="filter-select" id="saleStatusFilter" onchange="searchCards()">
-                        <option value="">销售状态</option>
-                        <option value="unsold">未售出</option>
-                        <option value="sold">已售出</option>
-                        <option value="refunded">已退款</option>
-                        <option value="disputed">有纠纷</option>
-                    </select>
-                    <select class="filter-select" id="salesChannelFilter" onchange="searchCards()">
-                        <option value="">销售渠道</option>
-                    </select>
-                    <select class="filter-select" id="cardTypeFilter" onchange="searchCards()">
-                        <option value="">卡种</option>
                     </select>
                     <select class="filter-select" id="deviceFilter" onchange="searchCards()">
                         <option value="">绑定设备</option>
@@ -2761,8 +2756,16 @@
                     <select class="filter-select" id="expireDaysFilter" onchange="searchCards()">
                         <option value="">过期时间</option>
                     </select>
-                    <select class="filter-select" id="feishuUrlFilter" onchange="searchCards()">
-                        <option value="">链接名称</option>
+                    <!-- 销售相关 -->
+                    <select class="filter-select" id="saleStatusFilter" onchange="searchCards()">
+                        <option value="">销售状态</option>
+                        <option value="unsold">未售出</option>
+                        <option value="sold">已售出</option>
+                        <option value="refunded">已退款</option>
+                        <option value="disputed">有纠纷</option>
+                    </select>
+                    <select class="filter-select" id="salesChannelFilter" onchange="searchCards()">
+                        <option value="">销售渠道</option>
                     </select>
                 </div>
                 <div class="filter-row filter-row-second">
