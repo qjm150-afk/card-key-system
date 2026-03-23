@@ -1268,8 +1268,10 @@
             // 切换到成功模式
             document.body.classList.remove('loading-mode');
             document.body.classList.remove('validate-mode');
+            document.body.classList.remove('preview-mode');
             document.body.classList.add('success-mode');
             validatePage.style.display = 'none';
+            previewPage.style.display = 'none';
             successPage.style.display = 'flex';
             feishuFrame.src = url;
             
@@ -1977,7 +1979,10 @@
             try {
                 const result = await validateCardKey(cardKey.toUpperCase(), true);
                 if (result.success) {
-                    // 验证成功，showSuccess会在validateCardKey中调用
+                    // 验证成功，重置按钮状态
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = '⚡ 立即解锁 · 抢占先机';
+                    // showSuccess会在validateCardKey中调用
                 } else {
                     errorText.textContent = result.msg || '验证失败';
                     errorBox.style.display = 'flex';
