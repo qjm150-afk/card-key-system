@@ -3732,8 +3732,12 @@
                         <span id="cardTypeCardsStock" style="font-weight: bold; color: #5D4E37;">0</span>
                     </div>
                     <div style="background: #f5f5f5; padding: 12px 20px; border-radius: 8px;">
-                        <span style="color: #666;">已用：</span>
-                        <span id="cardTypeCardsUsed" style="font-weight: bold; color: #5D4E37;">0</span>
+                        <span style="color: #666;">已激活：</span>
+                        <span id="cardTypeCardsActivated" style="font-weight: bold; color: #5D4E37;">0</span>
+                    </div>
+                    <div style="background: #f5f5f5; padding: 12px 20px; border-radius: 8px;">
+                        <span style="color: #666;">已停用：</span>
+                        <span id="cardTypeCardsDisabled" style="font-weight: bold; color: #5D4E37;">0</span>
                     </div>
                     <div style="background: #f5f5f5; padding: 12px 20px; border-radius: 8px;">
                         <span style="color: #666;">总数：</span>
@@ -8541,6 +8545,25 @@
             currentCardTypeId = null;
         }
         
+        // 加载卡种统计信息
+        async function loadCardTypeCardsStats() {
+            if (!currentCardTypeId) return;
+            
+            try {
+                const response = await fetch(`/api/admin/card-types/${currentCardTypeId}/stats`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('cardTypeCardsStock').textContent = result.data.stock;
+                    document.getElementById('cardTypeCardsActivated').textContent = result.data.activated;
+                    document.getElementById('cardTypeCardsDisabled').textContent = result.data.disabled;
+                    document.getElementById('cardTypeCardsTotal').textContent = result.data.total;
+                }
+            } catch (error) {
+                console.error('加载统计信息失败:', error);
+            }
+        }
+        
         // 加载卡种下的卡券
         async function loadCardTypeCards() {
             if (!currentCardTypeId) return;
@@ -8558,16 +8581,15 @@
                 if (statusFilter) params.append('activate_status', statusFilter);
                 if (saleStatusFilter) params.append('sale_status', saleStatusFilter);
                 
-                const response = await fetch(`/api/admin/card-types/${currentCardTypeId}/cards?${params.toString()}`);
-                const result = await response.json();
+                // 并行加载统计和列表
+                const [cardsResponse] = await Promise.all([
+                    fetch(`/api/admin/card-types/${currentCardTypeId}/cards?${params.toString()}`),
+                    loadCardTypeCardsStats()
+                ]);
+                
+                const result = await cardsResponse.json();
                 
                 if (result.success) {
-                    // 更新统计信息
-                    document.getElementById('cardTypeCardsStock').textContent = result.data.length > 0 ? 
-                        (result.data.filter(c => !JSON.parse(c.devices || '[]').length).length) : 0;
-                    document.getElementById('cardTypeCardsUsed').textContent = result.data.filter(c => JSON.parse(c.devices || '[]').length > 0).length;
-                    document.getElementById('cardTypeCardsTotal').textContent = result.total;
-                    
                     renderCardTypeCardsTable(result.data);
                     renderCardTypeCardsPagination(result.total, result.total_pages);
                 } else {

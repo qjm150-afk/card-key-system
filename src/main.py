@@ -1692,6 +1692,55 @@ async def delete_card_type(type_id: int):
         return {"success": False, "msg": str(e)}
 
 
+@app.get("/api/admin/card-types/{type_id}/stats")
+async def get_card_type_stats(type_id: int):
+    """获取卡种统计数据：库存、已激活、已停用、总数"""
+    try:
+        client = get_supabase_client()
+        
+        # 检查卡种是否存在
+        type_response = client.table('card_types').select('id, name').eq('id', type_id).is_('deleted_at', 'null').execute()
+        if not type_response.data:
+            return {"success": False, "msg": "卡种不存在"}
+        
+        # 获取该卡种下所有卡券的统计
+        # 只需要统计关键字段
+        response = client.table('card_keys_table').select('status, devices, sale_status').eq('card_type_id', type_id).execute()
+        
+        cards = response.data or []
+        total = len(cards)
+        
+        # 库存（未激活）：status=1 且 devices为空 且 销售状态正常
+        stock = sum(1 for c in cards if 
+            c.get('status') == 1 and 
+            c.get('devices') in ['[]', None, ''] and
+            c.get('sale_status') not in ['refunded', 'disputed'])
+        
+        # 已激活：devices不为空 且 销售状态正常
+        activated = sum(1 for c in cards if 
+            c.get('devices') not in ['[]', None, ''] and 
+            c.get('sale_status') not in ['refunded', 'disputed'])
+        
+        # 已停用：status=0 或 销售状态为refunded/disputed
+        disabled = sum(1 for c in cards if 
+            c.get('status') == 0 or 
+            c.get('sale_status') in ['refunded', 'disputed'])
+        
+        return {
+            "success": True,
+            "data": {
+                "stock": stock,
+                "activated": activated,
+                "disabled": disabled,
+                "total": total
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"获取卡种统计失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.get("/api/admin/card-types/{type_id}/cards")
 async def get_card_type_cards(
     type_id: int,
