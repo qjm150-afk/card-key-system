@@ -4627,6 +4627,7 @@
         // ==================== 预览图设置 ====================
         
         let currentPreviewImage = null;  // 当前预览图URL
+        let currentPreviewImageId = null;  // 当前预览图ID
         let currentPreviewEnabled = false;  // 当前预览模式开关状态
 
         // 加载预览图设置
@@ -4644,6 +4645,7 @@
                 // 回显设置
                 if (settingsData.success && settingsData.data) {
                     currentPreviewImage = settingsData.data.preview_image || null;
+                    currentPreviewImageId = settingsData.data.image_id || null;
                     currentPreviewEnabled = settingsData.data.enabled || false;
                     
                     // 更新开关状态
@@ -4688,7 +4690,7 @@
             const newEnabled = switchEl.checked;
             
             // 如果要开启但没有设置预览图
-            if (newEnabled && !currentPreviewImage) {
+            if (newEnabled && !currentPreviewImageId) {
                 showToast('请先设置一张预览图', 'error');
                 switchEl.checked = false;
                 return;
@@ -4699,7 +4701,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        preview_image: currentPreviewImage,
+                        image_id: currentPreviewImageId,
                         enabled: newEnabled
                     })
                 });
@@ -4721,13 +4723,14 @@
         }
 
         // 设置预览图
-        async function setPreviewImage(imageUrl) {
+        // 设置预览图（传递图片ID，后端存储key）
+        async function setPreviewImage(imageId, imageUrl) {
             try {
                 const response = await fetch('/api/admin/settings/global-preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        preview_image: imageUrl,
+                        image_id: imageId,
                         enabled: currentPreviewEnabled
                     })
                 });
@@ -4735,6 +4738,7 @@
                 const data = await response.json();
                 if (data.success) {
                     currentPreviewImage = imageUrl;
+                    currentPreviewImageId = imageId;
                     updateCurrentPreviewDisplay();
                     showToast('预览图设置成功', 'success');
                     // 刷新图片列表以更新选中状态
@@ -4754,7 +4758,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        preview_image: null,
+                        image_id: null,
                         enabled: false
                     })
                 });
@@ -4762,6 +4766,7 @@
                 const data = await response.json();
                 if (data.success) {
                     currentPreviewImage = null;
+                    currentPreviewImageId = null;
                     currentPreviewEnabled = false;
                     
                     // 更新UI
@@ -4804,14 +4809,14 @@
             
             container.innerHTML = `<div class="preview-images-grid">${
                 images.map(img => `
-                    <div class="preview-image-item ${currentPreviewImage === img.url ? 'selected' : ''}" data-id="${img.id}" style="${currentPreviewImage === img.url ? 'border-color: #4CAF50; box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);' : ''}">
+                    <div class="preview-image-item ${currentPreviewImageId === img.id ? 'selected' : ''}" data-id="${img.id}" style="${currentPreviewImageId === img.id ? 'border-color: #4CAF50; box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);' : ''}">
                         <img src="${img.url}" alt="${escapeHtml(img.name)}" class="preview-image-thumb" onclick="window.open('${img.url}', '_blank')" onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect fill=%22%23f5f5f5%22 width=%22100%22 height=%22100%22/%3E%3Ctext x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23999%22 font-size=%2212%22%3E加载失败%3C/text%3E%3C/svg%3E'">
                         <div class="preview-image-info">
                             <div class="preview-image-name" title="${escapeHtml(img.name)}">${escapeHtml(img.name)}</div>
                             <div class="preview-image-meta">${formatTime(img.created_at)}</div>
                         </div>
                         <div class="preview-image-actions" style="display: flex; gap: 8px;">
-                            <button class="btn btn-sm ${currentPreviewImage === img.url ? 'btn-success' : ''}" onclick="setPreviewImage('${img.url}')" style="${currentPreviewImage === img.url ? 'background: #4CAF50; color: white;' : ''}">${currentPreviewImage === img.url ? '当前预览图' : '设为预览图'}</button>
+                            <button class="btn btn-sm ${currentPreviewImageId === img.id ? 'btn-success' : ''}" onclick="setPreviewImage(${img.id}, '${img.url}')" style="${currentPreviewImageId === img.id ? 'background: #4CAF50; color: white;' : ''}">${currentPreviewImageId === img.id ? '当前预览图' : '设为预览图'}</button>
                             <button class="btn btn-danger btn-sm" onclick="deletePreviewImage(${img.id})">删除</button>
                         </div>
                     </div>

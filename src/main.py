@@ -629,14 +629,32 @@ async def get_global_preview_public():
             import json
             try:
                 data = json.loads(result.data[0]['value'])
-                if data.get('preview_image') and data.get('enabled'):
-                    return {
-                        "success": True,
-                        "data": {
-                            "preview_image": data.get('preview_image'),
-                            "enabled": True
+                if data.get('enabled'):
+                    image_key = data.get('image_key', '')
+                    preview_url = data.get('preview_image', '')
+                    
+                    # 如果存储的是 key，动态生成 URL
+                    if image_key and not image_key.startswith('http') and not image_key.startswith('data:'):
+                        import os
+                        from coze_coding_dev_sdk.s3 import S3SyncStorage
+                        
+                        storage = S3SyncStorage(
+                            endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                            access_key="",
+                            secret_key="",
+                            bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                            region="cn-beijing",
+                        )
+                        preview_url = storage.generate_presigned_url(key=image_key, expire_time=86400)
+                    
+                    if preview_url:
+                        return {
+                            "success": True,
+                            "data": {
+                                "preview_image": preview_url,
+                                "enabled": True
+                            }
                         }
-                    }
             except:
                 pass
         return {"success": True, "data": {"preview_image": None, "enabled": False}}
@@ -5119,7 +5137,8 @@ async def set_docs_url(request: DocsUrlRequest, req: Request):
 
 class GlobalPreviewRequest(BaseModel):
     """全局预览图请求"""
-    preview_image: Optional[str] = None
+    preview_image: Optional[str] = None  # 兼容旧接口
+    image_id: Optional[int] = None  # 新接口：传递图片ID
     enabled: bool = False
 
 
@@ -5137,13 +5156,32 @@ async def get_global_preview(req: Request):
             import json
             try:
                 data = json.loads(result.data[0]['value'])
+                image_key = data.get('image_key', '')
+                image_id = data.get('image_id')
+                preview_url = data.get('preview_image', '')
+                
+                # 如果存储的是 key，动态生成 URL
+                if image_key and not image_key.startswith('http') and not image_key.startswith('data:'):
+                    import os
+                    from coze_coding_dev_sdk.s3 import S3SyncStorage
+                    
+                    storage = S3SyncStorage(
+                        endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                        access_key="",
+                        secret_key="",
+                        bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                        region="cn-beijing",
+                    )
+                    preview_url = storage.generate_presigned_url(key=image_key, expire_time=86400)
+                
                 return {"success": True, "data": {
-                    "preview_image": data.get('preview_image', ''),
+                    "preview_image": preview_url,
+                    "image_id": image_id,
                     "enabled": data.get('enabled', False)
                 }}
             except:
-                return {"success": True, "data": {"preview_image": "", "enabled": False}}
-        return {"success": True, "data": {"preview_image": "", "enabled": False}}
+                return {"success": True, "data": {"preview_image": "", "image_id": None, "enabled": False}}
+        return {"success": True, "data": {"preview_image": "", "image_id": None, "enabled": False}}
     except Exception as e:
         logger.error(f"获取全局预览图设置失败: {str(e)}")
         return {"success": False, "msg": str(e)}
@@ -5159,8 +5197,27 @@ async def set_global_preview(request: GlobalPreviewRequest, req: Request):
     try:
         client = get_supabase_client()
         import json
+        import os
+        from coze_coding_dev_sdk.s3 import S3SyncStorage
+        
+        image_key = ''
+        image_id = None
+        
+        # 如果传递了 image_id，从预览图片表中获取 image_key
+        if request.image_id:
+            img_result = client.table('preview_images').select('*').eq('id', request.image_id).execute()
+            if img_result.data:
+                img_data = img_result.data[0]
+                image_key = img_data.get('image_key') or img_data.get('url', '')
+                image_id = request.image_id
+        # 兼容旧接口：如果传递了 preview_image
+        elif request.preview_image:
+            image_key = request.preview_image
+        
         value = json.dumps({
-            "preview_image": request.preview_image or "",
+            "preview_image": image_key,  # 存储 key 而非 URL
+            "image_key": image_key,
+            "image_id": image_id,
             "enabled": request.enabled
         })
         
@@ -5170,7 +5227,7 @@ async def set_global_preview(request: GlobalPreviewRequest, req: Request):
             # 如果没有更新到，说明记录不存在，尝试插入
             client.table('admin_settings').insert({'key': 'global_preview', 'value': value}).execute()
         
-        logger.info(f"全局预览图设置成功, enabled={request.enabled}")
+        logger.info(f"全局预览图设置成功, image_id={image_id}, enabled={request.enabled}")
         return {"success": True, "msg": "保存成功"}
     except Exception as e:
         logger.error(f"设置全局预览图失败: {str(e)}")
@@ -5194,7 +5251,32 @@ async def get_preview_images(req: Request):
     try:
         client = get_supabase_client()
         result = client.table('preview_images').select('*').order('created_at', desc=True).execute()
-        return {"success": True, "data": result.data or []}
+        
+        # 动态生成 URL
+        images = result.data or []
+        if images:
+            import os
+            from coze_coding_dev_sdk.s3 import S3SyncStorage
+            
+            storage = S3SyncStorage(
+                endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                access_key="",
+                secret_key="",
+                bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                region="cn-beijing",
+            )
+            
+            for img in images:
+                image_key = img.get('image_key') or img.get('url')  # 兼容旧数据
+                if image_key and not image_key.startswith('data:') and not image_key.startswith('http'):
+                    # 存储的是 key，动态生成 URL
+                    img['url'] = storage.generate_presigned_url(key=image_key, expire_time=86400)
+                elif image_key and image_key.startswith('http'):
+                    # 旧数据存储的是 URL，保持不变
+                    img['url'] = image_key
+                # base64 数据保持不变
+        
+        return {"success": True, "data": images}
     except Exception as e:
         logger.error(f"获取预览图片列表失败: {str(e)}")
         return {"success": False, "msg": str(e)}
@@ -5242,24 +5324,30 @@ async def upload_preview_image(req: Request, file: UploadFile = File(...), name:
             file_ext = file.filename.split('.')[-1] if file.filename else 'png'
             file_name = f"preview_images/{datetime.now().strftime('%Y%m%d%H%M%S')}_{secrets.token_hex(4)}.{file_ext}"
             
-            # 上传文件
+            # 上传文件，获取实际的 key
             actual_key = storage.upload_file(
                 file_content=content,
                 file_name=file_name,
                 content_type=file.content_type,
             )
             
-            # 生成访问URL（有效期30天）
-            image_url = storage.generate_presigned_url(key=actual_key, expire_time=2592000)
+            # 生成访问URL（有效期1天，用于即时显示）
+            image_url = storage.generate_presigned_url(key=actual_key, expire_time=86400)
             
-            # 保存到预览图片表
+            # 保存到预览图片表 - 存储 key 而非 URL
             result = client.table('preview_images').insert({
                 'name': name,
-                'url': image_url
+                'image_key': actual_key,
+                'url': actual_key  # 兼容旧字段，存储 key
             }).execute()
             
+            # 返回数据包含动态生成的 URL
+            return_data = {"name": name, "url": image_url, "image_key": actual_key}
+            if result.data:
+                return_data = {**result.data[0], "url": image_url}
+            
             logger.info(f"预览图片上传成功: {name}, key={actual_key}")
-            return {"success": True, "data": result.data[0] if result.data else {"name": name, "url": image_url}}
+            return {"success": True, "data": return_data}
             
         except Exception as storage_err:
             logger.error(f"存储上传失败: {str(storage_err)}")
@@ -5281,12 +5369,32 @@ async def delete_preview_image(image_id: int, req: Request):
         client = get_supabase_client()
         
         # 先获取图片信息
-        result = client.table('preview_images').select('url').eq('id', image_id).execute()
+        result = client.table('preview_images').select('*').eq('id', image_id).execute()
         if result.data:
-            image_url = result.data[0].get('url', '')
+            img_data = result.data[0]
+            image_key = img_data.get('image_key') or img_data.get('url', '')
             
-            # 尝试从存储中删除（如果是对象存储的URL）
-            if image_url and not image_url.startswith('data:'):
+            # 尝试从存储中删除（如果是对象存储的 key）
+            if image_key and not image_key.startswith('data:') and not image_key.startswith('http'):
+                try:
+                    import os
+                    from coze_coding_dev_sdk.s3 import S3SyncStorage
+                    
+                    storage = S3SyncStorage(
+                        endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                        access_key="",
+                        secret_key="",
+                        bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                        region="cn-beijing",
+                    )
+                    
+                    # 直接使用存储的 key 删除文件
+                    storage.delete_file(file_key=image_key)
+                    logger.info(f"已从对象存储删除文件: {image_key}")
+                except Exception as e:
+                    logger.warning(f"从存储删除文件失败: {str(e)}")
+            elif image_key and image_key.startswith('http'):
+                # 旧数据存储的是 URL，尝试从 URL 中提取 key
                 try:
                     import os
                     from coze_coding_dev_sdk.s3 import S3SyncStorage
@@ -5300,12 +5408,10 @@ async def delete_preview_image(image_id: int, req: Request):
                     )
                     
                     # 从 URL 提取 key（URL 格式: endpoint/bucket/key?签名参数）
-                    # 例如: https://xxx.com/bucket/preview_images/xxx.png?X-Amz-...
-                    if 'preview_images/' in image_url:
-                        # 提取 preview_images/xxx.png 部分
-                        key_part = image_url.split('preview_images/')[-1].split('?')[0]
+                    if 'preview_images/' in image_key:
+                        key_part = image_key.split('preview_images/')[-1].split('?')[0]
                         file_key = f"preview_images/{key_part}"
-                        storage.delete_file(file_key)
+                        storage.delete_file(file_key=file_key)
                         logger.info(f"已从对象存储删除文件: {file_key}")
                 except Exception as e:
                     logger.warning(f"从存储删除文件失败: {str(e)}")
