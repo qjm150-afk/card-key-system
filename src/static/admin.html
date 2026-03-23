@@ -5263,6 +5263,12 @@
                     wrapperClass = 'permanent';
                     shortLabel = '永久有效';
                     fullLabel = '永久有效';
+                } else if (item.type === 'relative') {
+                    // 激活后N天有效
+                    barClass = 'expiring';
+                    wrapperClass = 'expiring';
+                    shortLabel = `激活后${item.days}天`;
+                    fullLabel = item.label || `激活后${item.days}天有效`;
                 } else if (item.type === 'date') {
                     barClass = 'expiring';
                     wrapperClass = 'expiring';
