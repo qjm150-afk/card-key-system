@@ -3627,8 +3627,21 @@
                         <small class="input-hint" style="color: #8B7355;">允许绑定的最大设备数量</small>
                     </div>
                     <div class="form-group">
+                        <label>过期方式</label>
+                        <select class="form-select" id="cardExpireType" onchange="toggleCardExpireFields()">
+                            <option value="fixed">固定日期</option>
+                            <option value="relative">激活后N天有效</option>
+                            <option value="permanent">永久有效</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="cardExpireDateGroup">
                         <label>过期时间</label>
                         <input type="datetime-local" class="form-input" id="expireAt">
+                    </div>
+                    <div class="form-group" id="cardExpireDaysGroup" style="display: none;">
+                        <label>有效天数</label>
+                        <input type="number" class="form-input" id="cardExpireDays" placeholder="输入天数，如 30" min="1" max="3650">
+                        <small class="input-hint" style="color: #8B7355;">从首次验证激活开始计算</small>
                     </div>
                     <div class="form-group">
                         <label>备注</label>
@@ -6398,6 +6411,9 @@
             // 只有添加模式才重置表单，编辑模式由 editCard 填充数据
             if (!id) {
                 document.getElementById('cardForm').reset();
+                // 重置过期方式为固定日期
+                document.getElementById('cardExpireType').value = 'fixed';
+                toggleCardExpireFields();
                 // 添加模式下加载销售渠道列表
                 loadSalesChannelDatalist();
             }
@@ -6436,6 +6452,25 @@
             const expireType = document.getElementById('generateExpireType').value;
             const expireDateGroup = document.getElementById('expireDateGroup');
             const expireDaysGroup = document.getElementById('expireDaysGroup');
+            
+            if (expireType === 'fixed') {
+                expireDateGroup.style.display = 'block';
+                expireDaysGroup.style.display = 'none';
+            } else if (expireType === 'relative') {
+                expireDateGroup.style.display = 'none';
+                expireDaysGroup.style.display = 'block';
+            } else {
+                // permanent 永久有效
+                expireDateGroup.style.display = 'none';
+                expireDaysGroup.style.display = 'none';
+            }
+        }
+        
+        // 切换添加/编辑卡密的过期方式字段显示
+        function toggleCardExpireFields() {
+            const expireType = document.getElementById('cardExpireType').value;
+            const expireDateGroup = document.getElementById('cardExpireDateGroup');
+            const expireDaysGroup = document.getElementById('cardExpireDaysGroup');
             
             if (expireType === 'fixed') {
                 expireDateGroup.style.display = 'block';
@@ -6539,15 +6574,28 @@
                     document.getElementById('feishuUrl').value = card.feishu_url || '';
                     document.getElementById('feishuPassword').value = card.feishu_password || '';
                     
-                    // 清空过期时间
+                    // 设置过期方式
+                    document.getElementById('cardExpireDays').value = '';
                     document.getElementById('expireAt').value = '';
                     
-                    if (card.expire_at) {
+                    if (card.expire_after_days) {
+                        // 激活后N天有效
+                        document.getElementById('cardExpireType').value = 'relative';
+                        document.getElementById('cardExpireDays').value = card.expire_after_days;
+                    } else if (card.expire_at) {
+                        // 固定日期
+                        document.getElementById('cardExpireType').value = 'fixed';
                         try {
                             const date = new Date(card.expire_at);
                             document.getElementById('expireAt').value = date.toISOString().slice(0, 16);
                         } catch(e) {}
+                    } else {
+                        // 永久有效
+                        document.getElementById('cardExpireType').value = 'permanent';
                     }
+                    
+                    // 切换过期字段显示
+                    toggleCardExpireFields();
                     
                     openModal(id);
                 } else {
@@ -6720,6 +6768,9 @@
             }
             // valid 和 activated 都是 status=1，区别在于是否已使用（不可直接修改）
             
+            // 获取过期方式
+            const expireType = document.getElementById('cardExpireType').value;
+            
             // 获取表单当前值
             const formValues = {
                 key_value: document.getElementById('keyValue').value.toUpperCase(),
@@ -6734,9 +6785,23 @@
                 feishu_password: document.getElementById('feishuPassword').value
             };
             
-            const expireAt = document.getElementById('expireAt').value;
-            if (expireAt) {
-                formValues.expire_at = new Date(expireAt).toISOString();
+            // 根据过期方式设置过期时间
+            if (expireType === 'fixed') {
+                const expireAt = document.getElementById('expireAt').value;
+                if (expireAt) {
+                    formValues.expire_at = new Date(expireAt).toISOString();
+                }
+                formValues.expire_after_days = null;
+            } else if (expireType === 'relative') {
+                const expireDays = document.getElementById('cardExpireDays').value;
+                if (expireDays) {
+                    formValues.expire_after_days = parseInt(expireDays);
+                }
+                formValues.expire_at = null;
+            } else {
+                // permanent 永久有效
+                formValues.expire_at = null;
+                formValues.expire_after_days = null;
             }
 
             if (!formValues.key_value) {
@@ -6749,14 +6814,14 @@
             if (id && originalCardData) {
                 // 编辑模式：只发送有变化的字段
                 data = {};
-                const fieldsToCheck = ['key_value', 'status', 'sale_status', 'sales_channel', 'order_id', 'max_devices', 'user_note', 'link_name', 'feishu_url', 'feishu_password', 'expire_at'];
+                const fieldsToCheck = ['key_value', 'status', 'sale_status', 'sales_channel', 'order_id', 'max_devices', 'user_note', 'link_name', 'feishu_url', 'feishu_password', 'expire_at', 'expire_after_days'];
                 
                 for (const field of fieldsToCheck) {
                     const currentValue = formValues[field];
                     const originalValue = originalCardData[field];
                     
                     // 对于 order_id、user_note 等可选字段，null 和空字符串视为相同
-                    const nullableFields = ['order_id', 'user_note', 'sales_channel', 'link_name', 'feishu_url', 'feishu_password'];
+                    const nullableFields = ['order_id', 'user_note', 'sales_channel', 'link_name', 'feishu_url', 'feishu_password', 'expire_at', 'expire_after_days'];
                     const normalizedCurrent = nullableFields.includes(field) ? (currentValue || '') : currentValue;
                     const normalizedOriginal = nullableFields.includes(field) ? (originalValue || '') : originalValue;
                     
