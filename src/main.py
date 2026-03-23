@@ -1245,25 +1245,27 @@ async def get_card_keys(
                     if sale_status in ['refunded', 'disputed']:
                         continue
                     
+                    card_status = card.get('status', 1)
+                    try:
+                        devices = json.loads(card.get('devices', '[]'))
+                        has_devices = len(devices) > 0
+                    except:
+                        has_devices = False
+                    
                     if activate_status == 'valid':
-                        # 有效：未使用过（无绑定设备且used_count=0）
-                        try:
-                            devices = json.loads(card.get('devices', '[]'))
-                            if len(devices) > 0 or (card.get('used_count') and card.get('used_count') > 0):
-                                continue
-                        except:
-                            if card.get('used_count') and card.get('used_count') > 0:
-                                continue
+                        # 有效：status=1 且 未使用过（无绑定设备）
+                        if card_status == 0 or has_devices:
+                            continue
                     
                     elif activate_status == 'activated':
-                        # 已激活：已使用过（有绑定设备或used_count>0）
-                        try:
-                            devices = json.loads(card.get('devices', '[]'))
-                            if len(devices) == 0 and (not card.get('used_count') or card.get('used_count') == 0):
-                                continue
-                        except:
-                            if not card.get('used_count') or card.get('used_count') == 0:
-                                continue
+                        # 已激活：有绑定设备
+                        if not has_devices:
+                            continue
+                    
+                    elif activate_status == 'disabled':
+                        # 已停用：status=0 或 销售状态为refunded/disputed
+                        if card_status != 0 and sale_status not in ['refunded', 'disputed']:
+                            continue
                 
                 filtered_data.append(card)
             
@@ -1374,12 +1376,12 @@ async def get_card_types(
             sold_count = 0
             refunded_count = 0
             disputed_count = 0
-            used_count = 0
             expired_count = 0
             
             # 激活状态统计
-            activated_count = 0  # 已激活：status=1 且已使用
-            deactivated_count = 0  # 已停用：status=0
+            activated_count = 0  # 已激活：devices不为空 且 销售状态正常
+            deactivated_count = 0  # 已停用：status=0 或 销售状态为refunded/disputed
+            stock_count = 0  # 库存：status=1 且 devices为空 且 销售状态正常
             
             now = datetime.now()
             
@@ -1387,21 +1389,26 @@ async def get_card_types(
                 # 统计卡券状态（激活/停用）
                 card_status = card.get('status', 1)
                 devices = card.get('devices', '[]')
+                sale_status = card.get('sale_status', 'unsold')
+                
                 try:
                     device_list = json.loads(devices) if devices else []
                 except:
                     device_list = []
                 
-                if card_status == 0:
-                    # 已停用
+                # 判断销售状态是否正常
+                is_sale_normal = sale_status not in ['refunded', 'disputed']
+                has_devices = len(device_list) > 0
+                
+                # 统计已停用：status=0 或 销售状态为refunded/disputed
+                if card_status == 0 or not is_sale_normal:
                     deactivated_count += 1
-                elif len(device_list) > 0:
+                elif has_devices:
                     # 已激活（有设备绑定）
                     activated_count += 1
-                
-                # 统计已使用（有设备绑定）
-                if len(device_list) > 0:
-                    used_count += 1
+                else:
+                    # 库存：status=1 且 devices为空 且 销售状态正常
+                    stock_count += 1
                 
                 # 统计销售状态
                 sale_status = card.get('sale_status', 'unsold')
@@ -1451,13 +1458,11 @@ async def get_card_types(
             card_type['sold_count'] = sold_count
             card_type['refunded_count'] = refunded_count
             card_type['disputed_count'] = disputed_count
-            card_type['used_count'] = used_count
-            card_type['stock_count'] = total_count - used_count  # 库存 = 总数 - 已用
+            card_type['stock_count'] = stock_count  # 库存：未激活且正常
             card_type['expired_count'] = expired_count
             # 激活状态统计
             card_type['activated_count'] = activated_count  # 已激活
             card_type['deactivated_count'] = deactivated_count  # 已停用
-            card_type['active_count'] = total_count - activated_count - deactivated_count  # 有效未激活
         
         return {
             "success": True,
@@ -1541,20 +1546,34 @@ async def get_card_type(type_id: int):
         stats_response = client.table('card_keys_table').select('id, status, devices, expire_at, expire_after_days, activated_at, sale_status', count='exact').eq('card_type_id', type_id).execute()
         
         total_count = stats_response.count or 0
-        used_count = 0
         expired_count = 0
         sold_count = 0
+        activated_count = 0
+        deactivated_count = 0
+        stock_count = 0
         now = datetime.now()
         
         for card in (stats_response.data or []):
-            # 统计已使用
+            # 统计状态
+            card_status = card.get('status', 1)
             devices = card.get('devices', '[]')
+            sale_status = card.get('sale_status', 'unsold')
+            
             try:
                 device_list = json.loads(devices) if devices else []
-                if len(device_list) > 0:
-                    used_count += 1
+                has_devices = len(device_list) > 0
             except:
-                pass
+                has_devices = False
+            
+            is_sale_normal = sale_status not in ['refunded', 'disputed']
+            
+            # 统计已停用：status=0 或 销售状态为refunded/disputed
+            if card_status == 0 or not is_sale_normal:
+                deactivated_count += 1
+            elif has_devices:
+                activated_count += 1
+            else:
+                stock_count += 1
             
             # 统计已过期
             expire_at = card.get('expire_at')
@@ -1593,8 +1612,9 @@ async def get_card_type(type_id: int):
         
         card_type['stats'] = {
             'total_count': total_count,
-            'used_count': used_count,
-            'stock_count': total_count - used_count,
+            'stock_count': stock_count,
+            'activated_count': activated_count,
+            'deactivated_count': deactivated_count,
             'expired_count': expired_count,
             'sold_count': sold_count
         }
