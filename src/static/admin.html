@@ -8924,7 +8924,7 @@
         function copyPreviewLink(cardTypeId) {
             // 获取当前域名
             const domain = window.location.origin;
-            const previewUrl = `${domain}/?preview=${cardTypeId}`;
+            const previewUrl = `${domain}/?card_type_id=${cardTypeId}`;
             
             // 复制到剪贴板
             navigator.clipboard.writeText(previewUrl).then(() => {

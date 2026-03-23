@@ -1561,10 +1561,8 @@ async def create_card_type(card_type: CardTypeCreate):
             "created_at": datetime.now().isoformat()
         }
         
-        # 预览图片处理：优先使用 preview_image_id
+        # 预览图片处理：根据 preview_image_id 获取 image_key 存储到 preview_image 字段
         if card_type.preview_image_id:
-            data["preview_image_id"] = card_type.preview_image_id
-            # 根据 ID 获取 image_key 存储到 preview_image 字段（兼容旧逻辑）
             img_result = client.table('preview_images').select('image_key').eq('id', card_type.preview_image_id).execute()
             if img_result.data:
                 data["preview_image"] = img_result.data[0].get('image_key', '')
@@ -1612,6 +1610,12 @@ async def get_card_type(type_id: int):
             card_type['preview_image_url'] = storage.generate_presigned_url(key=preview_image_key, expire_time=86400)
         else:
             card_type['preview_image_url'] = preview_image_key
+        
+        # 根据 preview_image (image_key) 反向查找 preview_image_id
+        if preview_image_key:
+            img_result = client.table('preview_images').select('id').eq('image_key', preview_image_key).execute()
+            if img_result.data:
+                card_type['preview_image_id'] = img_result.data[0]['id']
         
         # 获取该卡种下的卡密统计
         stats_response = client.table('card_keys_table').select('id, status, devices, expire_at, expire_after_days, activated_at, sale_status', count='exact').eq('card_type_id', type_id).execute()
@@ -1718,10 +1722,8 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
                 return {"success": False, "msg": "卡种名称已存在"}
             update_data['name'] = card_type.name
         
-        # 预览设置：优先使用 preview_image_id
+        # 预览设置：根据 preview_image_id 获取 image_key 存储到 preview_image 字段
         if card_type.preview_image_id is not None:
-            update_data['preview_image_id'] = card_type.preview_image_id
-            # 根据 ID 获取 image_key 存储到 preview_image 字段
             if card_type.preview_image_id:
                 img_result = client.table('preview_images').select('image_key').eq('id', card_type.preview_image_id).execute()
                 if img_result.data:
