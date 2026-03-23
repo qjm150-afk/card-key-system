@@ -8789,15 +8789,15 @@
                 const data = await response.json();
                 
                 const select = document.getElementById('cardTypePreviewImageSelect');
-                const currentValue = select.getAttribute('data-selected') || '';
+                const currentId = select.getAttribute('data-selected-id') || '';
                 
                 if (data.success && data.data && data.data.length > 0) {
                     select.innerHTML = '<option value="">-- 请选择预览图片 --</option>' +
-                        data.data.map(img => `<option value="${img.url}">${escapeHtml(img.name)}</option>`).join('');
+                        data.data.map(img => `<option value="${img.id}" data-url="${img.url}">${escapeHtml(img.name)}</option>`).join('');
                     
                     // 恢复之前选中的值
-                    if (currentValue) {
-                        select.value = currentValue;
+                    if (currentId) {
+                        select.value = currentId;
                     }
                 } else {
                     select.innerHTML = '<option value="">-- 暂无可选图片，请先上传 --</option>';
@@ -8814,8 +8814,9 @@
             document.getElementById('cardTypeName').value = '';
             
             // 重置预览设置
-            document.getElementById('cardTypePreviewImageSelect').setAttribute('data-selected', '');
-            document.getElementById('cardTypePreviewImageSelect').innerHTML = '<option value="">-- 请选择预览图片 --</option>';
+            const previewImageSelect = document.getElementById('cardTypePreviewImageSelect');
+            previewImageSelect.setAttribute('data-selected-id', '');
+            previewImageSelect.innerHTML = '<option value="">-- 请选择预览图片 --</option>';
             document.getElementById('cardTypePreviewEnabled').checked = false;
             document.getElementById('previewSettingsDetail').style.display = 'none';
             document.querySelector('input[name="blurLevel"][value="8"]').checked = true;
@@ -8840,16 +8841,17 @@
                     document.getElementById('cardTypeId').value = type.id;
                     document.getElementById('cardTypeName').value = type.name;
                     
-                    // 预览设置
-                    document.getElementById('cardTypePreviewImageSelect').setAttribute('data-selected', type.preview_image || '');
+                    // 预览设置 - 使用 preview_image_id 进行回显
+                    const previewImageSelect = document.getElementById('cardTypePreviewImageSelect');
+                    previewImageSelect.setAttribute('data-selected-id', type.preview_image_id || '');
                     document.getElementById('cardTypePreviewEnabled').checked = type.preview_enabled || false;
                     document.getElementById('previewSettingsDetail').style.display = type.preview_enabled ? 'block' : 'none';
                     
                     // 如果启用预览，加载图片列表并回显
                     if (type.preview_enabled) {
                         await loadPreviewImagesForSelect();
-                        if (type.preview_image) {
-                            document.getElementById('cardTypePreviewImageSelect').value = type.preview_image;
+                        if (type.preview_image_id) {
+                            previewImageSelect.value = type.preview_image_id;
                         }
                     }
                     
@@ -8877,14 +8879,14 @@
             const blurLevelRadio = document.querySelector('input[name="blurLevel"]:checked');
             const blurLevel = blurLevelRadio ? parseInt(blurLevelRadio.value) : 8;
             
-            // 获取选择的预览图片URL
+            // 获取选择的预览图片 ID
             const previewEnabled = document.getElementById('cardTypePreviewEnabled').checked;
             const previewImageSelect = document.getElementById('cardTypePreviewImageSelect');
-            const previewImage = previewEnabled ? (previewImageSelect.value || null) : null;
+            const previewImageId = previewEnabled ? (previewImageSelect.value || null) : null;
             
             const data = {
                 name: document.getElementById('cardTypeName').value.trim(),
-                preview_image: previewImage,
+                preview_image_id: previewImageId ? parseInt(previewImageId) : null,
                 preview_enabled: previewEnabled,
                 blur_level: blurLevel
             };
@@ -8895,7 +8897,7 @@
             }
             
             // 如果启用预览但没有选择图片
-            if (previewEnabled && !previewImage) {
+            if (previewEnabled && !previewImageId) {
                 showToast('请选择预览图片，或关闭预览模式', 'error');
                 return;
             }

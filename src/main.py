@@ -253,7 +253,8 @@ class CardTypeCreate(BaseModel):
     name: str
     
     # 预览设置
-    preview_image: Optional[str] = None  # 预览截图URL
+    preview_image: Optional[str] = None  # 预览截图URL（兼容旧接口）
+    preview_image_id: Optional[int] = None  # 预览图片ID（新接口）
     preview_enabled: bool = False  # 是否启用预览
     blur_level: Optional[int] = 8  # 模糊程度(px): 4=轻度, 8=中度, 12=重度
 
@@ -264,7 +265,8 @@ class CardTypeUpdate(BaseModel):
     name: Optional[str] = None
     
     # 预览设置
-    preview_image: Optional[str] = None  # 预览截图URL
+    preview_image: Optional[str] = None  # 预览截图URL（兼容旧接口）
+    preview_image_id: Optional[int] = None  # 预览图片ID（新接口）
     preview_enabled: Optional[bool] = None  # 是否启用预览
     blur_level: Optional[int] = None  # 模糊程度
     
@@ -529,38 +531,6 @@ def get_client_ip(request) -> str:
 
 # ==================== 预览转化模式 API ====================
 
-@app.get("/api/preview/{card_type_id}")
-async def get_card_type_preview(card_type_id: int):
-    """
-    获取卡种预览信息（用于预览转化模式）
-    - 返回预览图片URL和启用状态
-    - 用于未验证用户查看模糊预览
-    """
-    try:
-        client = get_supabase_client()
-        
-        response = client.table('card_types').select('id, name, preview_image, preview_enabled, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
-        
-        if not response.data:
-            return {"success": False, "msg": "卡种不存在"}
-        
-        card_type = response.data[0]
-        
-        return {
-            "success": True,
-            "data": {
-                "id": card_type['id'],
-                "name": card_type['name'],
-                "preview_image": card_type.get('preview_image'),
-                "preview_enabled": card_type.get('preview_enabled', False)
-            }
-        }
-        
-    except Exception as e:
-        logger.error(f"获取卡种预览信息失败: {str(e)}")
-        return {"success": False, "msg": str(e)}
-
-
 @app.get("/api/preview/by-link/{link_name}")
 async def get_card_type_preview_by_link(link_name: str):
     """
@@ -674,7 +644,7 @@ async def get_card_type_preview(card_type_id: int):
         client = get_supabase_client()
         
         # 获取卡种信息
-        response = client.table('card_types').select('id, name, preview_image, preview_enabled, blur_level, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
+        response = client.table('card_types').select('id, name, preview_image, preview_image_id, preview_enabled, blur_level, status').eq('id', card_type_id).is_('deleted_at', 'null').execute()
         
         if not response.data:
             return {"success": False, "msg": "卡种不存在"}
@@ -689,12 +659,29 @@ async def get_card_type_preview(card_type_id: int):
         if not card_type.get('preview_enabled'):
             return {"success": False, "msg": "该卡种未启用预览"}
         
+        # 动态生成预览图 URL
+        preview_image_key = card_type.get('preview_image')
+        preview_image_url = preview_image_key
+        
+        if preview_image_key and not preview_image_key.startswith('http') and not preview_image_key.startswith('data:'):
+            import os
+            from coze_coding_dev_sdk.s3 import S3SyncStorage
+            
+            storage = S3SyncStorage(
+                endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                access_key="",
+                secret_key="",
+                bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                region="cn-beijing",
+            )
+            preview_image_url = storage.generate_presigned_url(key=preview_image_key, expire_time=86400)
+        
         return {
             "success": True,
             "data": {
                 "id": card_type['id'],
                 "name": card_type['name'],
-                "preview_image": card_type.get('preview_image'),
+                "preview_image": preview_image_url,
                 "preview_enabled": card_type.get('preview_enabled', False),
                 "blur_level": card_type.get('blur_level', 8)
             }
@@ -1578,8 +1565,14 @@ async def create_card_type(card_type: CardTypeCreate):
             "created_at": datetime.now().isoformat()
         }
         
-        # 可选字段
-        if card_type.preview_image:
+        # 预览图片处理：优先使用 preview_image_id
+        if card_type.preview_image_id:
+            data["preview_image_id"] = card_type.preview_image_id
+            # 根据 ID 获取 image_key 存储到 preview_image 字段（兼容旧逻辑）
+            img_result = client.table('preview_images').select('image_key').eq('id', card_type.preview_image_id).execute()
+            if img_result.data:
+                data["preview_image"] = img_result.data[0].get('image_key', '')
+        elif card_type.preview_image:
             data["preview_image"] = card_type.preview_image
         
         response = client.table('card_types').insert(data).execute()
@@ -1606,6 +1599,23 @@ async def get_card_type(type_id: int):
             return {"success": False, "msg": "卡种不存在"}
         
         card_type = response.data[0]
+        
+        # 动态生成预览图 URL
+        preview_image_key = card_type.get('preview_image')
+        if preview_image_key and not preview_image_key.startswith('http') and not preview_image_key.startswith('data:'):
+            import os
+            from coze_coding_dev_sdk.s3 import S3SyncStorage
+            
+            storage = S3SyncStorage(
+                endpoint_url=os.getenv("COZE_BUCKET_ENDPOINT_URL"),
+                access_key="",
+                secret_key="",
+                bucket_name=os.getenv("COZE_BUCKET_NAME"),
+                region="cn-beijing",
+            )
+            card_type['preview_image_url'] = storage.generate_presigned_url(key=preview_image_key, expire_time=86400)
+        else:
+            card_type['preview_image_url'] = preview_image_key
         
         # 获取该卡种下的卡密统计
         stats_response = client.table('card_keys_table').select('id, status, devices, expire_at, expire_after_days, activated_at, sale_status', count='exact').eq('card_type_id', type_id).execute()
@@ -1712,8 +1722,17 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
                 return {"success": False, "msg": "卡种名称已存在"}
             update_data['name'] = card_type.name
         
-        # 预览设置
-        if card_type.preview_image is not None:
+        # 预览设置：优先使用 preview_image_id
+        if card_type.preview_image_id is not None:
+            update_data['preview_image_id'] = card_type.preview_image_id
+            # 根据 ID 获取 image_key 存储到 preview_image 字段
+            if card_type.preview_image_id:
+                img_result = client.table('preview_images').select('image_key').eq('id', card_type.preview_image_id).execute()
+                if img_result.data:
+                    update_data['preview_image'] = img_result.data[0].get('image_key', '')
+            else:
+                update_data['preview_image'] = None
+        elif card_type.preview_image is not None:
             update_data['preview_image'] = card_type.preview_image
         
         if card_type.preview_enabled is not None:
