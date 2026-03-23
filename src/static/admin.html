@@ -5622,6 +5622,9 @@
                         if (group.type === 'expired') {
                             value = 'expired';
                             label = `已过期 (${group.count}条)`;
+                        } else if (group.type === 'relative') {
+                            value = `relative:${group.days}`;
+                            label = `${group.label} (${group.count}条)`;
                         } else if (group.type === 'permanent') {
                             value = 'permanent';
                             label = `永久有效 (${group.count}条)`;
@@ -5711,6 +5714,10 @@
                     // 格式: date:2026-12-31
                     const date = expireDays.substring(5);
                     label = `${date} 到期`;
+                } else if (expireDays.startsWith('relative:')) {
+                    // 格式: relative:60
+                    const days = expireDays.substring(9);
+                    label = `激活后${days}天有效`;
                 } else {
                     label = `未来${expireDays}天`;
                 }

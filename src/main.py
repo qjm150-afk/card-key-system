@@ -1214,8 +1214,8 @@ async def get_card_keys(
                 # 已过期：过期时间不为空且小于当前时间
                 query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
             elif expire_days == 'permanent':
-                # 永久有效：过期时间为空
-                query = query.is_('expire_at', 'null')
+                # 永久有效：过期时间和激活后有效天数都为空
+                query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
             elif expire_days.startswith('date:'):
                 # 按具体日期筛选：date:2026-12-31
                 target_date = expire_days[5:]  # 去掉 'date:' 前缀
@@ -1223,6 +1223,10 @@ async def get_card_keys(
                 start_time = f"{target_date}T00:00:00"
                 end_time = f"{target_date}T23:59:59"
                 query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+            elif expire_days.startswith('relative:'):
+                # 激活后N天有效：relative:60
+                days = int(expire_days[9:])  # 去掉 'relative:' 前缀
+                query = query.eq('expire_after_days', days)
             else:
                 # 未来N天内过期：过期时间在当前时间和N天后之间
                 try:
@@ -1864,8 +1868,16 @@ async def get_card_type_cards(
             # 未过期
             query = query.or_('expire_at.is.null,expire_at.gte.' + now.isoformat())
         elif expire_filter == 'permanent':
-            # 永久有效
-            query = query.is_('expire_at', 'null')
+            # 永久有效（expire_at 和 expire_after_days 都为空）
+            query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
+        elif expire_filter and expire_filter.startswith('date:'):
+            # 指定日期到期
+            target_date = expire_filter.replace('date:', '')
+            query = query.gte('expire_at', f"{target_date}T00:00:00").lt('expire_at', f"{target_date}T23:59:59")
+        elif expire_filter and expire_filter.startswith('relative:'):
+            # 激活后N天有效
+            days = int(expire_filter.replace('relative:', ''))
+            query = query.eq('expire_after_days', days)
         
         # 如果需要应用层过滤（搜索或过期筛选），先获取所有数据
         if need_search_filter or expire_filter == 'expired':
@@ -2448,13 +2460,17 @@ async def batch_update_cards(request: BatchUpdateRequest):
                 if expire_days == 'expired':
                     query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
                 elif expire_days == 'permanent':
-                    query = query.is_('expire_at', 'null')
+                    query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
                 elif expire_days.startswith('date:'):
                     # 按具体日期筛选
                     target_date = expire_days[5:]
                     start_time = f"{target_date}T00:00:00"
                     end_time = f"{target_date}T23:59:59"
                     query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                elif expire_days.startswith('relative:'):
+                    # 激活后N天有效
+                    days = int(expire_days[9:])
+                    query = query.eq('expire_after_days', days)
                 else:
                     try:
                         days = int(expire_days)
@@ -2692,13 +2708,17 @@ async def count_by_filters(
             if expire_days == 'expired':
                 query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
             elif expire_days == 'permanent':
-                query = query.is_('expire_at', 'null')
+                query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
             elif expire_days.startswith('date:'):
                 # 按具体日期筛选
                 target_date = expire_days[5:]
                 start_time = f"{target_date}T00:00:00"
                 end_time = f"{target_date}T23:59:59"
                 query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+            elif expire_days.startswith('relative:'):
+                # 激活后N天有效
+                days = int(expire_days[9:])
+                query = query.eq('expire_after_days', days)
             else:
                 try:
                     days = int(expire_days)
@@ -2956,12 +2976,16 @@ async def get_filter_options(
                 if expire_days == 'expired':
                     query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
                 elif expire_days == 'permanent':
-                    query = query.is_('expire_at', 'null')
+                    query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
                 elif expire_days.startswith('date:'):
                     target_date = expire_days[5:]
                     start_time = f"{target_date}T00:00:00"
                     end_time = f"{target_date}T23:59:59"
                     query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                elif expire_days.startswith('relative:'):
+                    # 激活后N天有效
+                    days = int(expire_days[9:])
+                    query = query.eq('expire_after_days', days)
                 else:
                     try:
                         days = int(expire_days)
@@ -3317,29 +3341,39 @@ async def get_sales_channels():
 async def get_expire_groups():
     """
     获取过期时间分组统计（用于筛选下拉）
-    - 按过期日期分组统计
+    - 按过期日期分组统计（expire_at）
+    - 激活后N天有效分组统计（expire_after_days）
     - 永久有效单独分组
     返回：日期、数量、是否已过期
     """
     try:
         client = get_supabase_client()
         
-        # 获取所有记录的过期时间
-        response = client.table('card_keys_table').select('expire_at').execute()
+        # 获取所有记录的过期时间和激活后有效天数
+        response = client.table('card_keys_table').select('expire_at,expire_after_days', count='exact').execute()
         
         # 使用日期比较（不含时分秒）
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
         
         # 统计每个过期日期的数量
-        permanent_count = 0  # 永久有效（expire_at为None）
+        permanent_count = 0  # 永久有效（expire_at和expire_after_days都为None）
         expired_count = 0    # 已过期（过期日期小于今天）
         expire_groups = {}   # 未过期的具体日期（过期日期>=今天）
+        relative_groups = {} # 激活后N天有效（expire_after_days）
         
         for item in response.data:
             expire_at = item.get('expire_at')
+            expire_after_days = item.get('expire_after_days')
             
-            if expire_at is None:
-                # 永久有效：创建卡密时没有填写过期时间
+            # 优先处理激活后N天有效
+            if expire_after_days is not None:
+                # 激活后N天有效
+                days = expire_after_days
+                if days not in relative_groups:
+                    relative_groups[days] = 0
+                relative_groups[days] += 1
+            elif expire_at is None:
+                # 永久有效：创建卡密时没有填写过期时间，也没有设置激活后有效天数
                 permanent_count += 1
             else:
                 # 解析过期时间
@@ -3379,6 +3413,9 @@ async def get_expire_groups():
         groups = list(expire_groups.values())
         groups.sort(key=lambda x: x['date'])
         
+        # 激活后N天有效排序（按天数）
+        sorted_relative = sorted(relative_groups.items(), key=lambda x: x[0])
+        
         # 构建返回结果
         result = []
         
@@ -3391,7 +3428,18 @@ async def get_expire_groups():
             'is_expired': True
         })
         
-        # 2. 未过期的具体日期（按日期排序）
+        # 2. 激活后N天有效
+        for days, count in sorted_relative:
+            result.append({
+                'type': 'relative',
+                'value': f"relative:{days}",
+                'days': days,
+                'label': f"激活后{days}天有效",
+                'count': count,
+                'is_expired': False
+            })
+        
+        # 3. 未过期的具体日期（按日期排序）
         for group in groups:
             expire_date = datetime.strptime(group['date'], '%Y-%m-%d')
             # 计算距离过期的天数（用日期比较）
@@ -3408,7 +3456,7 @@ async def get_expire_groups():
                 'is_expired': False
             })
         
-        # 3. 永久有效（始终显示）
+        # 4. 永久有效（始终显示）
         result.append({
             'type': 'permanent',
             'value': 'permanent',
