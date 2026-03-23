@@ -8633,10 +8633,18 @@
                 const deviceCount = devices.length;
                 const maxDevices = card.max_devices || 5;
                 
-                // 状态
-                const statusBadge = card.status === 1 ? 
-                    '<span class="status-badge status-active">有效</span>' : 
-                    '<span class="status-badge status-inactive">已停用</span>';
+                // 状态判断（与后端统计逻辑一致）
+                let statusBadge;
+                if (card.status === 0 || card.sale_status === 'refunded' || card.sale_status === 'disputed') {
+                    // 已停用：status=0 或 销售状态异常
+                    statusBadge = '<span class="status-badge status-inactive">已停用</span>';
+                } else if (deviceCount > 0) {
+                    // 已激活：有设备绑定
+                    statusBadge = '<span class="status-badge status-active">已激活</span>';
+                } else {
+                    // 有效：未激活
+                    statusBadge = '<span class="status-badge status-valid">有效</span>';
+                }
                 
                 // 过期时间
                 let expireDisplay = '-';
