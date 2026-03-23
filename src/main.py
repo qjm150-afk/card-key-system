@@ -1105,7 +1105,8 @@ async def get_card_keys(
     sale_status: Optional[str] = None,
     device_filter: Optional[str] = None,
     sales_channel: Optional[str] = None,  # 销售渠道筛选
-    card_type_id: Optional[int] = None  # 卡种筛选
+    card_type_id: Optional[int] = None,  # 卡种筛选
+    key_value: Optional[str] = None  # 卡密值精确查询（用于设备管理弹窗）
 ):
     """获取卡密列表"""
     try:
@@ -1116,6 +1117,10 @@ async def get_card_keys(
             search = search.strip()
         
         query = client.table('card_keys_table').select('*', count='exact')
+        
+        # 卡密值精确查询（优先级最高，用于设备管理弹窗等场景）
+        if key_value:
+            query = query.eq('key_value', key_value.upper())
         
         # 卡种筛选
         if card_type_id:
