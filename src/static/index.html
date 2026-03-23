@@ -75,8 +75,8 @@
             height: 100%;
             background-size: cover;
             background-position: center;
-            filter: blur(3px);
-            transform: scale(1.02);
+            filter: blur(8px) brightness(0.7);
+            transform: scale(1.05);
         }
         
         .preview-overlay {
@@ -85,7 +85,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.15);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.25) 0%, rgba(255, 248, 245, 0.35) 100%);
         }
         
         .preview-content {
@@ -1947,11 +1947,6 @@
             if (previewData.preview_image) {
                 document.getElementById('previewBackground').style.backgroundImage = `url(${previewData.preview_image})`;
             }
-            
-            // 设置背景模糊效果（统一的轻微模糊）
-            const previewBackground = document.getElementById('previewBackground');
-            previewBackground.style.filter = 'blur(3px)';
-            previewBackground.style.transform = 'scale(1.03)';
             
             validatePage.style.display = 'none';
             successPage.style.display = 'none';
