@@ -1040,79 +1040,124 @@
         }
 
         /* 时段热力图 */
-        .hour-heatmap-container {
+        /* 时段分布柱状图样式 */
+        .hour-chart-container {
             padding: 16px;
             background: #fffbf5;
             border-radius: 12px;
-            overflow-x: auto;
+            position: relative;
         }
 
-        .hour-heatmap {
-            display: grid;
-            grid-template-columns: repeat(24, minmax(28px, 1fr));
-            gap: 3px;
-            min-width: fit-content;
-        }
-
-        .heatmap-cell {
-            aspect-ratio: 1;
-            border-radius: 4px;
+        .hour-chart {
+            height: 220px;
+            position: relative;
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            padding: 10px 30px 30px 45px;
+        }
+
+        /* Y轴刻度 */
+        .hour-y-axis {
+            position: absolute;
+            left: 0;
+            top: 10px;
+            bottom: 30px;
+            width: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-end;
+            padding-right: 8px;
+        }
+
+        .hour-y-label {
+            font-size: 11px;
+            color: #A89070;
+        }
+
+        /* X轴 */
+        .hour-x-axis {
+            position: absolute;
+            left: 45px;
+            right: 10px;
+            bottom: 0;
+            height: 30px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .hour-x-label {
             font-size: 10px;
-            color: white;
-            font-weight: 500;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            min-width: 28px;
-            min-height: 28px;
-        }
-
-        .heatmap-cell:hover {
-            transform: scale(1.1);
-            z-index: 1;
-        }
-
-        .heatmap-labels {
-            display: grid;
-            grid-template-columns: repeat(24, minmax(28px, 1fr));
-            gap: 3px;
-            margin-top: 6px;
-            min-width: fit-content;
-        }
-
-        .heatmap-label {
+            color: #A89070;
             text-align: center;
-            font-size: 10px;
-            color: #A89070;
-            min-width: 28px;
-        }
-
-        .heatmap-legend {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-top: 12px;
-            justify-content: flex-end;
-            font-size: 12px;
-            color: #A89070;
-        }
-
-        .heatmap-legend-color {
             width: 20px;
-            height: 12px;
-            border-radius: 2px;
         }
 
-        .heatmap-empty, .chart-empty {
+        /* 柱状图区域 */
+        .hour-bars-container {
             display: flex;
-            align-items: center;
-            justify-content: center;
+            align-items: flex-end;
+            gap: 4px;
+            flex: 1;
             height: 100%;
-            width: 100%;
-            color: #A89070;
-            font-size: 14px;
+            position: relative;
+        }
+
+        /* 网格线 */
+        .hour-grid-line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            border-top: 1px dashed #e5ddd0;
+        }
+
+        /* 单个柱子 */
+        .hour-bar {
+            flex: 1;
+            min-width: 12px;
+            max-width: 28px;
+            background: linear-gradient(180deg, #c94a4a 0%, #8B3a3a 100%);
+            border-radius: 3px 3px 0 0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .hour-bar:hover {
+            background: linear-gradient(180deg, #e05555 0%, #a04545 100%);
+            transform: scaleY(1.02);
+        }
+
+        /* 提示框 */
+        .hour-tooltip {
+            position: absolute;
+            background: #fff9f0;
+            border: 1px solid #e5ddd0;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 12px;
+            color: #5D4E37;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .hour-tooltip.visible {
+            opacity: 1;
+        }
+
+        .hour-tooltip-time {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .hour-tooltip-count {
+            color: #c94a4a;
+            font-weight: 500;
         }
 
         /* 响应式 */
@@ -1125,12 +1170,13 @@
                 grid-template-columns: repeat(2, 1fr);
             }
             
-            .hour-heatmap {
-                grid-template-columns: repeat(12, 1fr);
+            .hour-chart {
+                padding: 10px 20px 30px 35px;
             }
             
-            .heatmap-labels {
-                grid-template-columns: repeat(12, 1fr);
+            .hour-bar {
+                min-width: 8px;
+                max-width: 16px;
             }
         }
 
@@ -3198,22 +3244,11 @@
 
             <!-- 时段分布 -->
             <div class="analytics-section">
-                <h3 class="section-title">⏰ 时段分布（24小时访问热力图）</h3>
-                <div class="hour-heatmap-container">
-                    <div class="hour-heatmap" id="hourHeatmap">
-                        <div class="heatmap-empty">暂无时段数据</div>
+                <h3 class="section-title">⏰ 时段分布（24小时访问统计）</h3>
+                <div class="hour-chart-container" id="hourChartContainer">
+                    <div class="hour-chart" id="hourChart">
+                        <div class="chart-empty">暂无时段数据</div>
                     </div>
-                    <div class="heatmap-labels" id="heatmapLabels"></div>
-                </div>
-                <div class="heatmap-legend" id="heatmapLegend" style="display: none;">
-                    <span>访问量：</span>
-                    <span>少</span>
-                    <span class="heatmap-legend-color" style="background: #f5f0e8;"></span>
-                    <span class="heatmap-legend-color" style="background: #d4c4a8;"></span>
-                    <span class="heatmap-legend-color" style="background: #b8a088;"></span>
-                    <span class="heatmap-legend-color" style="background: #8B7355;"></span>
-                    <span class="heatmap-legend-color" style="background: #5D4E37;"></span>
-                    <span>多</span>
                 </div>
             </div>
 
@@ -5360,58 +5395,111 @@
             `).join('');
         }
         
-        // 渲染时段热力图
+        // 渲染时段柱状图
         function renderHourHeatmap(hourData) {
-            const container = document.getElementById('hourHeatmap');
-            const labelsContainer = document.getElementById('heatmapLabels');
-            const legend = document.getElementById('heatmapLegend');
+            const container = document.getElementById('hourChart');
             
             if (!hourData || Object.keys(hourData).length === 0) {
-                container.innerHTML = '<div class="heatmap-empty">暂无时段数据</div>';
-                labelsContainer.innerHTML = '';
-                legend.style.display = 'none';
+                container.innerHTML = '<div class="chart-empty">暂无时段数据</div>';
                 return;
             }
             
-            // 显示图例
-            legend.style.display = 'flex';
+            // 找出最大值用于计算高度比例
+            const values = Object.values(hourData);
+            const maxValue = Math.max(...values, 1);
             
-            // 找出最大值用于计算颜色深度
-            const maxValue = Math.max(...Object.values(hourData));
+            // 计算合适的Y轴刻度（向上取整到最近的50的倍数）
+            const niceMax = Math.ceil(maxValue / 50) * 50;
+            const chartHeight = 160; // 柱状图区域高度
             
-            // 生成24小时格子
-            let html = '';
+            // 生成Y轴刻度
+            const yTickCount = 4;
+            const yTicks = [];
+            for (let i = 0; i <= yTickCount; i++) {
+                yTicks.push(Math.round(niceMax * i / yTickCount));
+            }
+            
+            // 生成X轴标签（每3小时显示一个）
+            const xLabels = [0, 3, 6, 9, 12, 15, 18, 21, 24];
+            
+            // 构建HTML
+            let html = `
+                <div class="hour-tooltip" id="hourTooltip">
+                    <div class="hour-tooltip-time"></div>
+                    <div class="hour-tooltip-count"></div>
+                </div>
+                <!-- Y轴 -->
+                <div class="hour-y-axis">
+                    ${yTicks.reverse().map(v => `<span class="hour-y-label">${v}</span>`).join('')}
+                </div>
+                <!-- 柱状图区域 -->
+                <div class="hour-bars-container">
+                    <!-- 网格线 -->
+                    ${yTicks.reverse().map((v, i) => {
+                        const top = i === 0 ? 0 : (chartHeight * i / yTickCount);
+                        return `<div class="hour-grid-line" style="top: ${top}px;"></div>`;
+                    }).join('')}
+                    <!-- 柱子 -->
+            `;
+            
             for (let hour = 0; hour < 24; hour++) {
                 const count = hourData[hour] || 0;
-                const intensity = maxValue > 0 ? count / maxValue : 0;
-                const bgColor = getHeatmapColor(intensity);
-                const textColor = intensity > 0.5 ? 'white' : '#5D4E37';
+                const height = niceMax > 0 ? (count / niceMax * chartHeight) : 0;
                 
                 html += `
-                    <div class="heatmap-cell" style="background: ${bgColor}; color: ${textColor};" 
-                         title="${hour}:00 - ${count}次访问">
-                        ${count > 0 ? count : ''}
+                    <div class="hour-bar" 
+                         style="height: ${Math.max(height, 2)}px;" 
+                         data-hour="${hour}" 
+                         data-count="${count}"
+                         onmouseenter="showHourTooltip(event, ${hour}, ${count})"
+                         onmousemove="moveHourTooltip(event)"
+                         onmouseleave="hideHourTooltip()">
                     </div>
                 `;
             }
-            container.innerHTML = html;
             
-            // 生成小时标签
-            let labelsHtml = '';
-            for (let hour = 0; hour < 24; hour++) {
-                labelsHtml += `<div class="heatmap-label">${hour}</div>`;
-            }
-            labelsContainer.innerHTML = labelsHtml;
+            html += `
+                </div>
+                <!-- X轴 -->
+                <div class="hour-x-axis">
+                    ${xLabels.map(h => `<span class="hour-x-label">${h}</span>`).join('')}
+                </div>
+            `;
+            
+            container.innerHTML = html;
         }
         
-        // 获取热力图颜色
-        function getHeatmapColor(intensity) {
-            // 从浅到深的奶油色系
-            if (intensity === 0) return '#f5f0e8';
-            if (intensity < 0.25) return '#e8dcc8';
-            if (intensity < 0.5) return '#d4c4a8';
-            if (intensity < 0.75) return '#8B7355';
-            return '#5D4E37';
+        // 显示时段提示框
+        function showHourTooltip(event, hour, count) {
+            const tooltip = document.getElementById('hourTooltip');
+            if (!tooltip) return;
+            
+            const timeStr = `${hour.toString().padStart(2, '0')}:00-${(hour + 1).toString().padStart(2, '0')}:00`;
+            tooltip.querySelector('.hour-tooltip-time').textContent = timeStr;
+            tooltip.querySelector('.hour-tooltip-count').textContent = `${count}次访问`;
+            tooltip.classList.add('visible');
+        }
+        
+        // 移动时段提示框
+        function moveHourTooltip(event) {
+            const tooltip = document.getElementById('hourTooltip');
+            if (!tooltip) return;
+            
+            const container = document.getElementById('hourChart');
+            const rect = container.getBoundingClientRect();
+            const x = event.clientX - rect.left + 10;
+            const y = event.clientY - rect.top - 50;
+            
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+        }
+        
+        // 隐藏时段提示框
+        function hideHourTooltip() {
+            const tooltip = document.getElementById('hourTooltip');
+            if (tooltip) {
+                tooltip.classList.remove('visible');
+            }
         }
 
         // 加载统计
