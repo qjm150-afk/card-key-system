@@ -1741,6 +1741,14 @@
             transition: width 0.3s ease;
         }
 
+        .device-bar-unbound {
+            background: linear-gradient(90deg, #A89070, #8B7355);
+        }
+
+        .device-bar-bound {
+            background: linear-gradient(90deg, #10B981, #059669);
+        }
+
         .device-count {
             width: 40px;
             font-size: 12px;
@@ -3401,34 +3409,14 @@
                     <h3 class="section-title">📱 设备绑定分布</h3>
                     <div class="device-bars" id="deviceBars">
                         <div class="device-bar-item">
-                            <span class="device-label">0台</span>
-                            <div class="device-bar"><div class="device-bar-fill" id="device0" style="width: 0%;"></div></div>
-                            <span class="device-count" id="deviceCount0">0</span>
+                            <span class="device-label">未绑定</span>
+                            <div class="device-bar"><div class="device-bar-fill device-bar-unbound" id="deviceUnbound" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCountUnbound">0</span>
                         </div>
                         <div class="device-bar-item">
-                            <span class="device-label">1台</span>
-                            <div class="device-bar"><div class="device-bar-fill" id="device1" style="width: 0%;"></div></div>
-                            <span class="device-count" id="deviceCount1">0</span>
-                        </div>
-                        <div class="device-bar-item">
-                            <span class="device-label">2台</span>
-                            <div class="device-bar"><div class="device-bar-fill" id="device2" style="width: 0%;"></div></div>
-                            <span class="device-count" id="deviceCount2">0</span>
-                        </div>
-                        <div class="device-bar-item">
-                            <span class="device-label">3台</span>
-                            <div class="device-bar"><div class="device-bar-fill" id="device3" style="width: 0%;"></div></div>
-                            <span class="device-count" id="deviceCount3">0</span>
-                        </div>
-                        <div class="device-bar-item">
-                            <span class="device-label">4台</span>
-                            <div class="device-bar"><div class="device-bar-fill" id="device4" style="width: 0%;"></div></div>
-                            <span class="device-count" id="deviceCount4">0</span>
-                        </div>
-                        <div class="device-bar-item">
-                            <span class="device-label">5台</span>
-                            <div class="device-bar"><div class="device-bar-fill" id="device5" style="width: 0%;"></div></div>
-                            <span class="device-count" id="deviceCount5">0</span>
+                            <span class="device-label">已绑定</span>
+                            <div class="device-bar"><div class="device-bar-fill device-bar-bound" id="deviceBound" style="width: 0%;"></div></div>
+                            <span class="device-count" id="deviceCountBound">0</span>
                         </div>
                     </div>
                 </div>
@@ -5272,16 +5260,27 @@
             pieChart.style.setProperty('--sold', `${unsoldPct + soldPct}%`);
             pieChart.style.setProperty('--refunded', `${unsoldPct + soldPct + refundedPct}%`);
             
-            // 设备绑定分布
-            const devices = data.device_distribution;
-            const maxDevices = Math.max(...Object.values(devices), 1);
+            // 设备绑定分布（未绑定 vs 已绑定）
+            const devices = data.device_distribution || {};
             
-            for (let i = 0; i <= 5; i++) {
-                const count = devices[i] || 0;
-                const width = (count / maxDevices * 100);
-                document.getElementById(`device${i}`).style.width = `${width}%`;
-                document.getElementById(`deviceCount${i}`).textContent = count;
+            // 计算未绑定（0台）和已绑定（>=1台）
+            let unboundCount = devices['0'] || 0;
+            let boundCount = 0;
+            
+            // 累加所有已绑定的设备数（1台及以上）
+            for (const [key, value] of Object.entries(devices)) {
+                if (parseInt(key) >= 1) {
+                    boundCount += value;
+                }
             }
+            
+            const maxDevices = Math.max(unboundCount, boundCount, 1);
+            
+            document.getElementById('deviceUnbound').style.width = `${(unboundCount / maxDevices * 100)}%`;
+            document.getElementById('deviceCountUnbound').textContent = unboundCount;
+            
+            document.getElementById('deviceBound').style.width = `${(boundCount / maxDevices * 100)}%`;
+            document.getElementById('deviceCountBound').textContent = boundCount;
         }
         
         // 导出报表
