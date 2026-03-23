@@ -2235,7 +2235,9 @@ async def simple_generate_cards_for_type(type_id: int, req: SimpleGenerateReques
 @app.get("/api/admin/card-types/{type_id}/export")
 async def export_card_type_cards(
     type_id: int,
-    format: str = Query("xlsx", description="导出格式: xlsx 或 csv"),
+    format: str = Query("xlsx", description="导出格式: xlsx, csv 或 txt"),
+    fields: Optional[str] = Query(None, description="导出字段，逗号分隔"),
+    ids: Optional[str] = Query(None, description="指定导出的卡密ID，逗号分隔"),
     search: Optional[str] = None,
     activate_status: Optional[str] = None,
     sale_status: Optional[str] = None
@@ -2253,6 +2255,12 @@ async def export_card_type_cards(
         
         # 构建查询
         query = client.table('card_keys_table').select('*').eq('card_type_id', type_id)
+        
+        # 指定ID导出
+        if ids:
+            id_list = [int(id.strip()) for id in ids.split(',') if id.strip().isdigit()]
+            if id_list:
+                query = query.in_('id', id_list)
         
         # 搜索 - 改为应用层过滤
         need_search_filter = False
@@ -2299,65 +2307,113 @@ async def export_card_type_cards(
         if not cards:
             return {"success": False, "msg": "没有可导出的数据"}
         
-        # 生成Excel文件
-        import io
-        from openpyxl import Workbook
+        # 解析导出字段
+        if fields:
+            export_fields = [f.strip() for f in fields.split(',') if f.strip()]
+        else:
+            # 默认字段
+            export_fields = ['key_value', 'status', 'sale_status', 'expire_at', 'devices', 'bstudio_create_time']
         
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "卡密列表"
+        # 字段映射
+        field_map = {
+            'key_value': ('卡密', lambda c: c.get('key_value', '')),
+            'status': ('激活状态', lambda c: '有效' if c.get('status') == 1 else '已停用'),
+            'devices': ('绑定设备', lambda c: str(len(json.loads(c.get('devices', '[]'))))),
+            'expire_at': ('过期时间', lambda c: format_expire_time(c)),
+            'user_note': ('备注', lambda c: c.get('user_note', '')),
+            'link_name': ('链接名称', lambda c: c.get('link_name', '')),
+            'bstudio_create_time': ('创建时间', lambda c: format_create_time(c.get('bstudio_create_time'))),
+            'sale_status': ('销售状态', lambda c: {'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷'}.get(c.get('sale_status'), c.get('sale_status', '-'))),
+            'sales_channel': ('销售渠道', lambda c: c.get('sales_channel', '')),
+            'order_id': ('订单号', lambda c: c.get('order_id', '')),
+            'feishu_password': ('访问密码', lambda c: c.get('feishu_password', '')),
+            'feishu_url': ('飞书链接', lambda c: c.get('feishu_url', '')),
+            'max_devices': ('最大设备数', lambda c: c.get('max_devices', 5)),
+            'last_used_at': ('最后使用时间', lambda c: format_create_time(c.get('last_used_at'))),
+        }
         
-        # 表头
-        headers = ["卡密", "状态", "销售状态", "过期时间", "设备数", "创建时间"]
-        ws.append(headers)
-        
-        # 数据行
-        for card in cards:
-            devices = json.loads(card.get('devices', '[]'))
-            status_text = "有效" if card.get('status') == 1 else "已停用"
-            sale_status_map = {'unsold': '未售出', 'sold': '已售出', 'refunded': '已退款', 'disputed': '有纠纷'}
-            sale_status_text = sale_status_map.get(card.get('sale_status'), card.get('sale_status', '-'))
-            
-            # 过期时间
-            expire_text = "-"
+        def format_expire_time(card):
             if card.get('expire_at'):
                 expire_at_str = str(card['expire_at'])
-                expire_text = expire_at_str.split('T')[0] if 'T' in expire_at_str else expire_at_str
+                return expire_at_str.split('T')[0] if 'T' in expire_at_str else expire_at_str
             elif card.get('expire_after_days'):
-                if card.get('activated_at'):
-                    expire_text = f"激活后{card['expire_after_days']}天"
-                else:
-                    expire_text = f"激活后{card['expire_after_days']}天有效"
+                return f"激活后{card['expire_after_days']}天"
             else:
-                expire_text = "永久"
+                return "永久"
+        
+        def format_create_time(time_str):
+            if not time_str:
+                return '-'
+            time_str = str(time_str)
+            return time_str.replace('T', ' ').split('.')[0] if 'T' in time_str else time_str
+        
+        # 筛选有效字段
+        valid_fields = [(f, field_map[f]) for f in export_fields if f in field_map]
+        if not valid_fields:
+            valid_fields = [('key_value', field_map['key_value'])]
+        
+        # 根据格式生成文件
+        import io
+        
+        if format == 'xlsx':
+            from openpyxl import Workbook
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "卡密列表"
             
-            create_time = str(card.get('bstudio_create_time', ''))
-            if 'T' in create_time:
-                create_time = create_time.replace('T', ' ').split('.')[0]
+            # 表头
+            headers = [f[1][0] for f in valid_fields]
+            ws.append(headers)
             
-            ws.append([
-                card.get('key_value', ''),
-                status_text,
-                sale_status_text,
-                expire_text,
-                len(devices),
-                create_time
-            ])
-        
-        # 保存到内存
-        output = io.BytesIO()
-        wb.save(output)
-        output.seek(0)
-        
-        # 返回文件
-        from fastapi.responses import StreamingResponse
-        filename = f"card_type_{type_id}_cards.xlsx"
-        
-        return StreamingResponse(
-            output,
-            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
+            # 数据行
+            for card in cards:
+                row = [f[1][1](card) for f in valid_fields]
+                ws.append(row)
+            
+            output = io.BytesIO()
+            wb.save(output)
+            output.seek(0)
+            
+            from fastapi.responses import StreamingResponse
+            filename = f"卡种{type_id}_卡密导出.xlsx"
+            
+            return StreamingResponse(
+                output,
+                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
+        else:
+            # CSV 或 TXT
+            import csv
+            output = io.StringIO()
+            
+            if format == 'csv':
+                # CSV 带 BOM 头，兼容 Excel
+                output.write('\ufeff')
+            
+            writer = csv.writer(output, lineterminator='\n')
+            
+            # 表头
+            headers = [f[1][0] for f in valid_fields]
+            writer.writerow(headers)
+            
+            # 数据行
+            for card in cards:
+                row = [f[1][1](card) for f in valid_fields]
+                writer.writerow(row)
+            
+            output.seek(0)
+            
+            from fastapi.responses import StreamingResponse
+            ext = 'csv' if format == 'csv' else 'txt'
+            media_type = 'text/csv' if format == 'csv' else 'text/plain'
+            filename = f"卡种{type_id}_卡密导出.{ext}"
+            
+            return StreamingResponse(
+                io.BytesIO(output.getvalue().encode('utf-8')),
+                media_type=media_type,
+                headers={"Content-Disposition": f"attachment; filename={filename}"}
+            )
         
     except Exception as e:
         logger.error(f"导出卡密失败: {str(e)}")

@@ -7100,6 +7100,9 @@
 
         // 导出卡密 - 打开模态框
         function exportCards() {
+            // 重置卡种导出标志
+            window.exportFromCardType = false;
+            
             // 显示导出范围信息
             const rangeInfo = document.getElementById('exportRangeInfo');
             if (selectedIds.size > 0) {
@@ -7124,6 +7127,7 @@
         
         function closeExportCardsModal() {
             document.getElementById('exportCardsModalOverlay').classList.remove('active');
+            window.exportFromCardType = false;
         }
         
         // 执行导出
@@ -7140,16 +7144,25 @@
             }
             
             const format = document.getElementById('exportFormat').value;
-            const ids = selectedIds.size > 0 ? Array.from(selectedIds).join(',') : '';
             
-            let url = `/api/admin/cards/export?format=${format}&fields=${selectedFields.join(',')}`;
-            if (ids) url += `&ids=${ids}`;
+            let url;
+            if (window.exportFromCardType && currentCardTypeId) {
+                // 从卡种卡密管理导出
+                const ids = cardTypeCardsSelectedIds.size > 0 ? Array.from(cardTypeCardsSelectedIds).join(',') : '';
+                url = `/api/admin/card-types/${currentCardTypeId}/export?format=${format}&fields=${selectedFields.join(',')}`;
+                if (ids) url += `&ids=${ids}`;
+            } else {
+                // 从主卡密管理导出
+                const ids = selectedIds.size > 0 ? Array.from(selectedIds).join(',') : '';
+                url = `/api/admin/cards/export?format=${format}&fields=${selectedFields.join(',')}`;
+                if (ids) url += `&ids=${ids}`;
+            }
             
             // 记录操作日志
             logOperation('export_cards', {
                 field_count: selectedFields.length,
                 fields: selectedFields,
-                card_count: selectedIds.size > 0 ? selectedIds.size : 'all',
+                card_count: window.exportFromCardType ? (cardTypeCardsSelectedIds.size > 0 ? cardTypeCardsSelectedIds.size : 'all') : (selectedIds.size > 0 ? selectedIds.size : 'all'),
                 format: format
             });
             
@@ -7167,7 +7180,8 @@
                 const a = document.createElement('a');
                 a.href = blobUrl;
                 const ext = format === 'xlsx' ? 'xlsx' : (format === 'txt' ? 'txt' : 'csv');
-                a.download = `卡密导出_${new Date().toISOString().slice(0,10)}.${ext}`;
+                const prefix = window.exportFromCardType ? `卡种${currentCardTypeId}_卡密` : '卡密导出';
+                a.download = `${prefix}_${new Date().toISOString().slice(0,10)}.${ext}`;
                 document.body.appendChild(a);
                 a.click();
                 document.body.removeChild(a);
@@ -9372,28 +9386,29 @@
         async function exportCardTypeCards() {
             if (!currentCardTypeId) return;
             
-            try {
-                const search = document.getElementById('cardTypeCardsSearch')?.value || '';
-                const statusFilter = document.getElementById('cardTypeCardsStatusFilter')?.value || '';
-                const saleStatusFilter = document.getElementById('cardTypeCardsSaleStatusFilter')?.value || '';
-                
-                const params = new URLSearchParams({ format: 'xlsx' });
-                if (search) params.append('search', search);
-                if (statusFilter) params.append('activate_status', statusFilter);
-                if (saleStatusFilter) params.append('sale_status', saleStatusFilter);
-                
-                const response = await fetch(`/api/admin/card-types/${currentCardTypeId}/export?${params.toString()}`);
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `card_type_${currentCardTypeId}_cards.xlsx`;
-                a.click();
-                window.URL.revokeObjectURL(url);
-                showToast('导出成功', 'success');
-            } catch (error) {
-                showToast('导出失败: ' + error.message, 'error');
+            // 设置卡种导出标志
+            window.exportFromCardType = true;
+            
+            // 显示导出范围信息
+            const rangeInfo = document.getElementById('exportRangeInfo');
+            if (cardTypeCardsSelectedIds.size > 0) {
+                rangeInfo.innerHTML = `<span style="color: #ff7b00; font-weight: 500;">📋 已选中 ${cardTypeCardsSelectedIds.size} 条卡密</span>（将导出选中的卡密）`;
+            } else {
+                rangeInfo.innerHTML = `<span style="color: #666;">📁 将导出当前筛选条件下的全部卡密</span>`;
             }
+            
+            // 重置字段选择（默认选中卡密值和密码）
+            document.querySelectorAll('.export-field-checkbox').forEach(cb => {
+                cb.checked = (cb.value === 'key_value' || cb.value === 'feishu_password');
+            });
+            
+            // 重置全选状态
+            document.getElementById('exportSelectAllFields').checked = false;
+            
+            // 重置格式选择
+            document.getElementById('exportFormat').value = 'csv';
+            
+            document.getElementById('exportCardsModalOverlay').classList.add('active');
         }
         
         // 辅助函数：格式化时间
