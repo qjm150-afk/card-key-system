@@ -1352,8 +1352,10 @@
                     feishuFrame.src = '';
                     // 切换回验证页面
                     document.body.classList.remove('success-mode');
+                    document.body.classList.remove('preview-mode');
                     document.body.classList.add('validate-mode');
                     successPage.style.display = 'none';
+                    previewPage.style.display = 'none';
                     validatePage.style.display = 'block';
                     // 清空输入
                     cardKeyInput.value = '';
