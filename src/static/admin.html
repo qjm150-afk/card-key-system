@@ -3864,6 +3864,10 @@
                         <span style="color: #666;">已激活：</span>
                         <span id="cardTypeCardsActivated" style="font-weight: bold; color: #5D4E37;">0</span>
                     </div>
+                    <div style="background: linear-gradient(135deg, #F59E0B, #D97706); padding: 12px 20px; border-radius: 8px;">
+                        <span style="color: rgba(255,255,255,0.9);">已过期：</span>
+                        <span id="cardTypeCardsExpired" style="font-weight: bold; color: white;">0</span>
+                    </div>
                     <div style="background: #f5f5f5; padding: 12px 20px; border-radius: 8px;">
                         <span style="color: #666;">已停用：</span>
                         <span id="cardTypeCardsDisabled" style="font-weight: bold; color: #5D4E37;">0</span>
@@ -9025,6 +9029,7 @@
                 if (result.success) {
                     document.getElementById('cardTypeCardsStock').textContent = result.data.stock;
                     document.getElementById('cardTypeCardsActivated').textContent = result.data.activated;
+                    document.getElementById('cardTypeCardsExpired').textContent = result.data.expired || 0;
                     document.getElementById('cardTypeCardsDisabled').textContent = result.data.disabled;
                     document.getElementById('cardTypeCardsTotal').textContent = result.data.total;
                 }

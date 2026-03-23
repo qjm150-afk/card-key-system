@@ -1856,7 +1856,7 @@ async def delete_card_type(type_id: int):
 
 @app.get("/api/admin/card-types/{type_id}/stats")
 async def get_card_type_stats(type_id: int):
-    """获取卡种统计数据：库存、已激活、已停用、总数"""
+    """获取卡种统计数据：库存、已激活、已过期、已停用、总数"""
     try:
         client = get_supabase_client()
         
@@ -1865,34 +1865,79 @@ async def get_card_type_stats(type_id: int):
         if not type_response.data:
             return {"success": False, "msg": "卡种不存在"}
         
-        # 获取该卡种下所有卡密的统计
-        # 只需要统计关键字段
-        response = client.table('card_keys_table').select('status, devices, sale_status').eq('card_type_id', type_id).execute()
+        # 获取该卡种下所有卡密的统计（包含过期判断所需字段）
+        response = client.table('card_keys_table').select('status, devices, sale_status, expire_at, expire_after_days, activated_at').eq('card_type_id', type_id).execute()
         
         cards = response.data or []
         total = len(cards)
         
-        # 库存（未激活）：status=1 且 devices为空 且 销售状态正常
-        stock = sum(1 for c in cards if 
-            c.get('status') == 1 and 
-            c.get('devices') in ['[]', None, ''] and
-            c.get('sale_status') not in ['refunded', 'disputed'])
+        # 库存（未激活）：status=1 且 devices为空 且 销售状态正常 且 未过期
+        stock = 0
+        activated = 0
+        expired = 0
+        disabled = 0
+        now = datetime.now()
         
-        # 已激活：devices不为空 且 销售状态正常
-        activated = sum(1 for c in cards if 
-            c.get('devices') not in ['[]', None, ''] and 
-            c.get('sale_status') not in ['refunded', 'disputed'])
-        
-        # 已停用：status=0 或 销售状态为refunded/disputed
-        disabled = sum(1 for c in cards if 
-            c.get('status') == 0 or 
-            c.get('sale_status') in ['refunded', 'disputed'])
+        for c in cards:
+            sale_status = c.get('sale_status')
+            status = c.get('status')
+            devices = c.get('devices')
+            
+            # 计算是否已过期
+            is_expired = False
+            if status == 1:  # 只有有效状态的卡密才计算过期
+                expire_at = c.get('expire_at')
+                expire_after_days = c.get('expire_after_days')
+                activated_at = c.get('activated_at')
+                
+                if expire_at:
+                    try:
+                        expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00')) if isinstance(expire_at, str) else expire_at
+                        if expire_time.tzinfo:
+                            expire_time = expire_time.replace(tzinfo=None)
+                        if expire_time < now:
+                            is_expired = True
+                    except:
+                        pass
+                elif expire_after_days and activated_at:
+                    try:
+                        activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00')) if isinstance(activated_at, str) else activated_at
+                        if activated_time.tzinfo:
+                            activated_time = activated_time.replace(tzinfo=None)
+                        expire_time = activated_time + timedelta(days=expire_after_days)
+                        if expire_time < now:
+                            is_expired = True
+                    except:
+                        pass
+            
+            # 排除销售状态为退款/纠纷的
+            if sale_status in ['refunded', 'disputed']:
+                disabled += 1
+                continue
+            
+            # 已过期
+            if is_expired:
+                expired += 1
+                continue
+            
+            # 已停用
+            if status == 0:
+                disabled += 1
+                continue
+            
+            # 已激活：devices不为空
+            if devices not in ['[]', None, '']:
+                activated += 1
+            else:
+                # 库存（未激活）
+                stock += 1
         
         return {
             "success": True,
             "data": {
                 "stock": stock,
                 "activated": activated,
+                "expired": expired,
                 "disabled": disabled,
                 "total": total
             }
