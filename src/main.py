@@ -202,6 +202,7 @@ class CardKeyUpdate(BaseModel):
     feishu_password: Optional[str] = None
     link_name: Optional[str] = None
     expire_at: Optional[str] = None
+    expire_after_days: Optional[int] = None  # 激活后有效天数
     max_uses: Optional[int] = None
     max_devices: Optional[int] = None  # 最大设备数
     sale_status: Optional[str] = None  # 销售状态
@@ -216,7 +217,9 @@ class BatchGenerateRequest(BaseModel):
     feishu_url: str = ""  # 飞书链接
     feishu_password: str = ""  # 飞书密码
     link_name: str = ""  # 链接名称
+    expire_type: Optional[str] = None  # 过期类型：fixed=固定日期, relative=按激活天数, permanent=永久
     expire_at: Optional[str] = None  # 过期时间（ISO格式）
+    expire_after_days: Optional[int] = None  # 激活后有效天数
     max_uses: int = 1  # 最大使用次数
     user_note: str = ""  # 备注
     sales_channel: str = ""  # 销售渠道
@@ -4704,8 +4707,24 @@ async def batch_generate_cards(req: BatchGenerateRequest):
         
         client = get_supabase_client()
         
-        # 直接使用传入的过期时间（兼容旧版）
+        # 确定过期方式
+        expire_type = req.expire_type
         expire_at = req.expire_at
+        expire_after_days = req.expire_after_days
+        
+        # 兼容旧版：如果没传 expire_type 但有 expire_at，当作固定日期处理
+        if not expire_type and expire_at:
+            expire_type = 'fixed'
+        
+        # 如果都没设置，默认永久有效
+        if not expire_type:
+            expire_type = 'permanent'
+        
+        # 验证过期方式
+        if expire_type == 'fixed' and not expire_at:
+            return {"success": False, "msg": "固定日期过期必须指定过期时间"}
+        if expire_type == 'relative' and not expire_after_days:
+            return {"success": False, "msg": "按激活天数过期必须指定有效天数"}
         
         # 批量生成卡密
         cards = []
@@ -4719,7 +4738,7 @@ async def batch_generate_cards(req: BatchGenerateRequest):
                     generated_keys.add(key)
                     break
             
-            cards.append({
+            card_data = {
                 "key_value": key,
                 "status": 1,
                 "user_note": req.user_note,
@@ -4729,13 +4748,21 @@ async def batch_generate_cards(req: BatchGenerateRequest):
                 "sys_platform": "卡密系统",
                 "uuid": str(uuid.uuid4()),
                 "bstudio_create_time": datetime.now().isoformat(),
-                "expire_at": expire_at,
                 "max_devices": 5,
                 "used_count": 0,
                 "devices": "[]",
                 "sales_channel": req.sales_channel,
                 "sale_status": "unsold"
-            })
+            }
+            
+            # 设置过期方式
+            if expire_type == 'fixed':
+                card_data["expire_at"] = expire_at
+            elif expire_type == 'relative':
+                card_data["expire_after_days"] = expire_after_days
+            # permanent 类型不设置过期时间
+            
+            cards.append(card_data)
         
         # 批量插入
         response = client.table('card_keys_table').insert(cards).execute()
@@ -4804,6 +4831,8 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
             update_data["link_name"] = card.link_name
         if card.expire_at is not None:
             update_data["expire_at"] = card.expire_at
+        if card.expire_after_days is not None:
+            update_data["expire_after_days"] = card.expire_after_days
         if card.max_uses is not None:
             update_data["max_uses"] = card.max_uses
         if card.max_devices is not None:
