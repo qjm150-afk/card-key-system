@@ -7190,14 +7190,6 @@
                 if (ids) url += `&ids=${ids}`;
             }
             
-            // 记录操作日志
-            logOperation('export_cards', {
-                field_count: selectedFields.length,
-                fields: selectedFields,
-                card_count: window.exportFromCardType ? (cardTypeCardsSelectedIds.size > 0 ? cardTypeCardsSelectedIds.size : 'all') : (selectedIds.size > 0 ? selectedIds.size : 'all'),
-                format: format
-            });
-            
             closeExportCardsModal();
             
             // 使用 fetch + blob 方式下载，避免页面跳转
@@ -7223,22 +7215,6 @@
             }
         }
         
-        // 记录操作日志
-        async function logOperation(operationType, details) {
-            try {
-                await fetch('/api/admin/operation-logs', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        operation_type: operationType,
-                        details: details
-                    })
-                });
-            } catch (error) {
-                console.error('记录操作日志失败:', error);
-            }
-        }
-
         // 打开导入销售状态模态框
         function openImportSaleStatusModal() {
             document.getElementById('saleStatusFile').value = '';
