@@ -9239,21 +9239,22 @@
             }
             
             try {
-                const response = await fetch(`/api/cards/${cardId}`, {
+                const response = await fetch(`/api/admin/cards/${cardId}`, {
                     method: 'DELETE'
                 });
                 
-                if (!response.ok) {
-                    const result = await response.json();
-                    alert(result.detail || '删除失败');
-                    return;
-                }
+                const result = await response.json();
                 
-                alert('删除成功');
-                loadCardTypeCards();
+                if (result.success) {
+                    showToast(result.msg || '删除成功', 'success');
+                    loadCardTypeCards();
+                    loadCardTypeCardsStats();
+                } else {
+                    showToast(getErrorMsg(result), 'error');
+                }
             } catch (error) {
                 console.error('删除卡密失败:', error);
-                alert('删除失败');
+                showToast('删除失败', 'error');
             }
         }
         
