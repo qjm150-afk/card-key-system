@@ -1060,16 +1060,19 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             logger.info(f"[Validate] 添加新设备: {device_id}")
             bound_devices.append(device_id)
             
-            # 更新数据：设备绑定 + 最后使用时间 + 首次激活时间（如果是首次激活且有按天过期设置）
+            # 更新数据：设备绑定 + 最后使用时间 + 首次激活时间（如果是首次激活）
             update_data = {
                 "devices": json.dumps(bound_devices),
                 "last_used_at": now.isoformat()
             }
             
-            # 如果设置了按激活天数过期，且尚未设置激活时间，则设置激活时间
-            if expire_after_days and not activated_at:
+            # 首次绑定设备时，始终记录激活时间（用于判断"已激活"状态）
+            # 即使后续设备全部退出，activated_at 仍存在，状态仍为"已激活"
+            if not activated_at:
                 update_data["activated_at"] = now.isoformat()
-                logger.info(f"[Validate] 设置首次激活时间，{expire_after_days}天后过期")
+                logger.info(f"[Validate] 设置首次激活时间")
+                if expire_after_days:
+                    logger.info(f"[Validate] 按激活天数过期，{expire_after_days}天后过期")
             
             client.table('card_keys_table').update(update_data).eq('id', card_id).execute()
             logger.info(f"[Validate] 设备绑定成功")
@@ -1487,35 +1490,30 @@ async def get_card_types(
             expired_count = 0
             
             # 激活状态统计
-            activated_count = 0  # 已激活：devices不为空 且 销售状态正常
+            activated_count = 0  # 已激活：activated_at 不为空（曾经绑定过设备）
             deactivated_count = 0  # 已停用：status=0 或 销售状态为refunded/disputed
-            stock_count = 0  # 库存：status=1 且 devices为空 且 销售状态正常
+            stock_count = 0  # 库存：从未激活过
             
             now = datetime.now()
             
             for card in (stats_response.data or []):
                 # 统计卡密状态（激活/停用）
                 card_status = card.get('status', 1)
-                devices = card.get('devices', '[]')
                 sale_status = card.get('sale_status', 'unsold')
-                
-                try:
-                    device_list = json.loads(devices) if devices else []
-                except:
-                    device_list = []
+                card_activated_at = card.get('activated_at')
                 
                 # 判断销售状态是否正常
                 is_sale_normal = sale_status not in ['refunded', 'disputed']
-                has_devices = len(device_list) > 0
                 
                 # 统计已停用：status=0 或 销售状态为refunded/disputed
                 if card_status == 0 or not is_sale_normal:
                     deactivated_count += 1
-                elif has_devices:
-                    # 已激活（有设备绑定）
+                elif card_activated_at:
+                    # 已激活：曾经绑定过设备（activated_at 不为空）
+                    # 这符合业务逻辑：一旦激活过，状态就应该保持
                     activated_count += 1
                 else:
-                    # 库存：status=1 且 devices为空 且 销售状态正常
+                    # 库存：从未激活过
                     stock_count += 1
                 
                 # 统计销售状态
@@ -1691,23 +1689,19 @@ async def get_card_type(type_id: int):
         for card in (stats_response.data or []):
             # 统计状态
             card_status = card.get('status', 1)
-            devices = card.get('devices', '[]')
             sale_status = card.get('sale_status', 'unsold')
-            
-            try:
-                device_list = json.loads(devices) if devices else []
-                has_devices = len(device_list) > 0
-            except:
-                has_devices = False
+            card_activated_at = card.get('activated_at')
             
             is_sale_normal = sale_status not in ['refunded', 'disputed']
             
             # 统计已停用：status=0 或 销售状态为refunded/disputed
             if card_status == 0 or not is_sale_normal:
                 deactivated_count += 1
-            elif has_devices:
+            elif card_activated_at:
+                # 已激活：曾经绑定过设备（activated_at 不为空）
                 activated_count += 1
             else:
+                # 库存：从未激活过
                 stock_count += 1
             
             # 统计已过期
@@ -1925,11 +1919,12 @@ async def get_card_type_stats(type_id: int):
                 disabled += 1
                 continue
             
-            # 已激活：devices不为空
-            if devices not in ['[]', None, '']:
+            # 已激活：曾经绑定过设备（activated_at 不为空）
+            # 这符合业务逻辑：一旦激活过，状态就应该保持，除非卡密到期或手动停用
+            if c.get('activated_at'):
                 activated += 1
             else:
-                # 库存（未激活）
+                # 库存（从未激活过）
                 stock += 1
         
         return {
@@ -3448,13 +3443,15 @@ async def get_card_stats():
                     expired += 1
                     continue  # 已过期的不计入已激活
                 
-                # 检查是否已激活（有设备绑定）
-                try:
-                    devices = json.loads(card.get('devices', '[]'))
-                    if len(devices) > 0:
-                        activated += 1
-                except:
+                # 检查是否已激活（曾经绑定过设备，activated_at 不为空）
+                # 这符合业务逻辑：一旦激活过，状态就应该保持，除非卡密到期或手动停用
+                if card.get('activated_at'):
+                    activated += 1
+                else:
+                    # 库存（从未激活过）
                     pass
+            except:
+                pass
         except Exception as e:
             logger.warning(f"计算已激活/已过期数量失败: {str(e)}")
         

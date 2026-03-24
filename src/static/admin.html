@@ -6257,21 +6257,14 @@
                 return 'status-expired';  // 新增过期状态样式
             }
             
-            // status=1且未过期，检查是否已激活（有绑定设备）
-            let hasDevices = false;
-            try {
-                const devices = JSON.parse(card.devices || '[]');
-                hasDevices = devices.length > 0;
-            } catch (e) {
-                hasDevices = false;
+            // status=1且未过期，检查是否已激活
+            // 已激活：曾经绑定过设备（activated_at 不为空），即使当前设备数为0也保持"已激活"
+            // 这符合业务逻辑：一旦激活过，状态就应该保持，除非卡密到期或手动停用
+            if (card.activated_at) {
+                return 'status-active';  // 已激活
             }
             
-            // 已激活：有设备绑定
-            if (hasDevices) {
-                return 'status-active';
-            }
-            
-            // 有效：未激活
+            // 有效：从未激活过
             return 'status-valid';
         }
 
@@ -6292,21 +6285,14 @@
                 return '已过期';
             }
             
-            // status=1且未过期，检查是否已激活（有绑定设备）
-            let hasDevices = false;
-            try {
-                const devices = JSON.parse(card.devices || '[]');
-                hasDevices = devices.length > 0;
-            } catch (e) {
-                hasDevices = false;
-            }
-            
-            // 已激活：有设备绑定
-            if (hasDevices) {
+            // status=1且未过期，检查是否已激活
+            // 已激活：曾经绑定过设备（activated_at 不为空），即使当前设备数为0也保持"已激活"
+            // 这符合业务逻辑：一旦激活过，状态就应该保持，除非卡密到期或手动停用
+            if (card.activated_at) {
                 return '已激活';
             }
             
-            // 有效：未激活
+            // 有效：从未激活过
             return '有效';
         }
 
@@ -9083,11 +9069,12 @@
                 } else if (card.is_expired === true) {
                     // 已过期：实时计算的过期状态
                     statusBadge = '<span class="status-badge status-expired">已过期</span>';
-                } else if (deviceCount > 0) {
-                    // 已激活：有设备绑定
+                } else if (card.activated_at) {
+                    // 已激活：曾经绑定过设备（activated_at 不为空）
+                    // 即使当前设备数为0也保持"已激活"，符合业务逻辑
                     statusBadge = '<span class="status-badge status-active">已激活</span>';
                 } else {
-                    // 有效：未激活
+                    // 有效：从未激活过
                     statusBadge = '<span class="status-badge status-valid">有效</span>';
                 }
                 
