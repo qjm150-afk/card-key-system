@@ -182,8 +182,12 @@ class CardKeyCreate(BaseModel):
     feishu_url: Optional[str] = ""
     feishu_password: Optional[str] = ""
     link_name: Optional[str] = ""
-    expire_days: Optional[int] = None  # 有效期天数
+    expire_days: Optional[int] = None  # 有效期天数（旧字段，兼容）
+    expire_type: Optional[str] = None  # 过期类型：fixed, relative, permanent
+    expire_at: Optional[str] = None  # 固定过期时间
+    expire_after_days: Optional[int] = None  # 激活后有效天数
     max_uses: int = 1  # 最大使用次数
+    max_devices: int = 5  # 最大设备数
     sale_status: Optional[str] = "unsold"  # 销售状态
     order_id: Optional[str] = ""  # 订单号
     sales_channel: Optional[str] = ""  # 销售渠道
@@ -4634,14 +4638,30 @@ async def create_card_key(card: CardKeyCreate):
         if existing.data:
             return {"success": False, "msg": "卡密已存在"}
         
-        # 计算过期时间
+        # 处理过期时间
         expire_at = None
-        if card.expire_days:
+        expire_after_days = None
+        
+        # 新版：根据 expire_type 设置
+        if card.expire_type == 'fixed' and card.expire_at:
+            # 固定日期
+            try:
+                expire_at = datetime.fromisoformat(card.expire_at.replace('Z', '+00:00')).isoformat()
+            except:
+                pass
+        elif card.expire_type == 'relative' and card.expire_after_days:
+            # 激活后N天
+            expire_after_days = card.expire_after_days
+        elif card.expire_type == 'permanent':
+            # 永久有效
+            pass
+        elif card.expire_days:
+            # 旧版兼容：从当前时间计算
             expire_at = (datetime.now() + timedelta(days=card.expire_days)).isoformat()
         
         data = {
             "key_value": card.key_value.upper(),
-            "card_type_id": card.card_type_id,  # 支持关联卡种
+            "card_type_id": card.card_type_id,
             "status": card.status,
             "user_note": card.user_note or "",
             "feishu_url": card.feishu_url or "",
@@ -4651,7 +4671,9 @@ async def create_card_key(card: CardKeyCreate):
             "uuid": str(uuid.uuid4()),
             "bstudio_create_time": datetime.now().isoformat(),
             "expire_at": expire_at,
+            "expire_after_days": expire_after_days,
             "max_uses": card.max_uses,
+            "max_devices": card.max_devices,
             "used_count": 0,
             "sale_status": card.sale_status or "unsold",
             "order_id": card.order_id or None,

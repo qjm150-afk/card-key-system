@@ -6795,16 +6795,22 @@
                     formValues.expire_at = new Date(expireAt).toISOString();
                 }
                 formValues.expire_after_days = null;
+                formValues.expire_type = 'fixed';
             } else if (expireType === 'relative') {
                 const expireDays = document.getElementById('cardExpireDays').value;
-                if (expireDays) {
+                if (expireDays && parseInt(expireDays) > 0) {
                     formValues.expire_after_days = parseInt(expireDays);
+                } else {
+                    showToast('请输入有效的天数', 'error');
+                    return;
                 }
                 formValues.expire_at = null;
+                formValues.expire_type = 'relative';
             } else {
                 // permanent 永久有效
                 formValues.expire_at = null;
                 formValues.expire_after_days = null;
+                formValues.expire_type = 'permanent';
             }
 
             if (!formValues.key_value) {
@@ -6817,7 +6823,7 @@
             if (id && originalCardData) {
                 // 编辑模式：只发送有变化的字段
                 data = {};
-                const fieldsToCheck = ['key_value', 'status', 'sale_status', 'sales_channel', 'order_id', 'max_devices', 'user_note', 'link_name', 'feishu_url', 'feishu_password', 'expire_at', 'expire_after_days'];
+                const fieldsToCheck = ['key_value', 'status', 'sale_status', 'sales_channel', 'order_id', 'max_devices', 'user_note', 'link_name', 'feishu_url', 'feishu_password', 'expire_at', 'expire_after_days', 'expire_type'];
                 
                 for (const field of fieldsToCheck) {
                     const currentValue = formValues[field];
