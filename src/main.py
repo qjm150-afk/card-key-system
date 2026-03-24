@@ -1328,20 +1328,16 @@ async def get_card_keys(
                         continue
                     
                     card_status = card.get('status', 1)
-                    try:
-                        devices = json.loads(card.get('devices', '[]'))
-                        has_devices = len(devices) > 0
-                    except:
-                        has_devices = False
+                    card_activated_at = card.get('activated_at')
                     
                     if activate_status == 'valid':
-                        # 有效：status=1 且 未使用过（无绑定设备）
-                        if card_status == 0 or has_devices:
+                        # 有效：status=1 且 从未激活过（activated_at 为空）
+                        if card_status == 0 or card_activated_at:
                             continue
                     
                     elif activate_status == 'activated':
-                        # 已激活：有绑定设备
-                        if not has_devices:
+                        # 已激活：曾经绑定过设备（activated_at 不为空）
+                        if not card_activated_at:
                             continue
                     
                     elif activate_status == 'disabled':
@@ -1981,15 +1977,15 @@ async def get_card_type_cards(
                 # 已停用：status=0 或 退款或有纠纷
                 query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
-                # 有效：status=1 且 未使用过（devices为空）且销售状态正常
+                # 有效：status=1 且 从未激活过（activated_at 为空）且销售状态正常
                 query = query.eq('status', 1)
-                query = query.eq('devices', '[]')
+                query = query.is_('activated_at', 'null')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
-                # 已激活：status=1 且 已使用过（devices不为空）且销售状态正常
+                # 已激活：曾经绑定过设备（activated_at 不为空）且销售状态正常
                 query = query.eq('status', 1)
+                query = query.not_().is_('activated_at', 'null')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                query = query.neq('devices', '[]')
         
         # 状态筛选（兼容旧参数）
         if status is not None:
@@ -2373,13 +2369,15 @@ async def export_card_type_cards(
             if activate_status == 'disabled':
                 query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
+                # 有效：status=1 且 从未激活过（activated_at 为空）
                 query = query.eq('status', 1)
-                query = query.eq('devices', '[]')
+                query = query.is_('activated_at', 'null')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
+                # 已激活：曾经绑定过设备（activated_at 不为空）
                 query = query.eq('status', 1)
+                query = query.not_().is_('activated_at', 'null')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                query = query.neq('devices', '[]')
         
         # 销售状态筛选
         if sale_status:
@@ -2593,15 +2591,15 @@ async def batch_update_cards(request: BatchUpdateRequest):
                     # 已停用：status=0 或 退款或有纠纷
                     query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
                 elif activate_status == 'valid':
-                    # 有效：status=1 且 未使用过（devices为空）且销售状态正常
+                    # 有效：status=1 且 从未激活过（activated_at 为空）
                     query = query.eq('status', 1)
-                    query = query.eq('devices', '[]')
+                    query = query.is_('activated_at', 'null')
                     query = query.not_().in_('sale_status', ['refunded', 'disputed'])
                 elif activate_status == 'activated':
-                    # 已激活：status=1 且 已使用过（devices不为空）且销售状态正常
+                    # 已激活：曾经绑定过设备（activated_at 不为空）
                     query = query.eq('status', 1)
+                    query = query.not_().is_('activated_at', 'null')
                     query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                    query = query.neq('devices', '[]')
             
             if filters.get('sale_status') and filters.get('sale_status') != '':
                 sale_status_value = filters['sale_status']
@@ -2857,15 +2855,15 @@ async def count_by_filters(
                 # 已停用：status=0 或 退款或有纠纷
                 query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
             elif activate_status == 'valid':
-                # 有效：status=1 且 未使用过（devices为空）且销售状态正常
+                # 有效：status=1 且 从未激活过（activated_at 为空）
                 query = query.eq('status', 1)
-                query = query.eq('devices', '[]')
+                query = query.is_('activated_at', 'null')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
             elif activate_status == 'activated':
-                # 已激活：status=1 且 已使用过（devices不为空）且销售状态正常
+                # 已激活：曾经绑定过设备（activated_at 不为空）
                 query = query.eq('status', 1)
+                query = query.not_().is_('activated_at', 'null')
                 query = query.not_().in_('sale_status', ['refunded', 'disputed'])
-                query = query.neq('devices', '[]')
         
         if sale_status and sale_status != '':
             if sale_status == '__none__':
@@ -3447,11 +3445,7 @@ async def get_card_stats():
                 # 这符合业务逻辑：一旦激活过，状态就应该保持，除非卡密到期或手动停用
                 if card.get('activated_at'):
                     activated += 1
-                else:
-                    # 库存（从未激活过）
-                    pass
-            except:
-                pass
+                # else: 库存（从未激活过），不需要单独计数
         except Exception as e:
             logger.warning(f"计算已激活/已过期数量失败: {str(e)}")
         

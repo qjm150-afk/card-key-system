@@ -6564,18 +6564,9 @@
                     let activateStatus = 'valid';
                     if (card.status === 0 || card.sale_status === 'refunded' || card.sale_status === 'disputed') {
                         activateStatus = 'disabled';
-                    } else {
-                        // 检查是否有设备绑定
-                        let hasDevices = false;
-                        try {
-                            const devices = JSON.parse(card.devices || '[]');
-                            hasDevices = devices.length > 0;
-                        } catch (e) {
-                            hasDevices = false;
-                        }
-                        if (hasDevices) {
-                            activateStatus = 'activated';
-                        }
+                    } else if (card.activated_at) {
+                        // 已激活：曾经绑定过设备（activated_at 不为空）
+                        activateStatus = 'activated';
                     }
                     document.getElementById('cardStatus').value = activateStatus;
                     
