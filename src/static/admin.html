@@ -3051,6 +3051,7 @@
                             <th style="width: 80px;">已过期</th>
                             <th style="width: 80px;">已停用</th>
                             <th style="width: 80px;">已售</th>
+                            <th style="width: 80px;">库存</th>
                             <th style="width: 150px;">创建时间</th>
                             <th style="width: 180px;">操作</th>
                         </tr>
@@ -8695,7 +8696,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="9" class="empty-row">
+                        <td colspan="10" class="empty-row">
                             <div class="empty-content">
                                 <svg width="48" height="48" fill="none" stroke="#D4C4A8" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -8716,16 +8717,22 @@
                 const rowNum = startNum + index + 1;
                 const displayName = escapeHtml(type.name);
                 const expiredCount = type.expired_count || 0;
+                const totalCount = type.total_count || 0;
+                const activatedCount = type.activated_count || 0;
+                const deactivatedCount = type.deactivated_count || 0;
+                // 库存 = 总数 - 已激活 - 已过期 - 已停用
+                const stockCount = totalCount - activatedCount - expiredCount - deactivatedCount;
                 
                 return `
                 <tr>
                     <td style="text-align: center;"><span class="row-number">${rowNum}</span></td>
                     <td style="text-align: left;"><span class="card-type-name" title="${displayName}">${displayName}</span></td>
-                    <td style="text-align: center;"><span class="stat-number total">${type.total_count || 0}</span></td>
-                    <td style="text-align: center;"><span class="stat-number activated">${type.activated_count || 0}</span></td>
+                    <td style="text-align: center;"><span class="stat-number total">${totalCount}</span></td>
+                    <td style="text-align: center;"><span class="stat-number activated">${activatedCount}</span></td>
                     <td style="text-align: center;"><span class="stat-number expired" style="color: ${expiredCount > 0 ? '#D97706' : '#9CA3AF'};">${expiredCount}</span></td>
-                    <td style="text-align: center;"><span class="stat-number deactivated">${type.deactivated_count || 0}</span></td>
+                    <td style="text-align: center;"><span class="stat-number deactivated">${deactivatedCount}</span></td>
                     <td style="text-align: center;"><span class="stat-number sold">${type.sold_count || 0}</span></td>
+                    <td style="text-align: center;"><span class="stat-number stock" style="color: ${stockCount > 0 ? '#059669' : '#9CA3AF'};">${stockCount}</span></td>
                     <td style="text-align: center; color: #A89070; font-size: 13px;">${formatTime(type.created_at)}</td>
                     <td>
                         <div class="actions-cell">
