@@ -1545,7 +1545,7 @@ async def get_card_types(
             stats = stats_by_type[type_id]
             stats['total_count'] += 1
             
-            # 统计卡密状态（激活/停用）
+            # 统计卡密状态（激活/停用/过期）
             card_status = card.get('status', 1)
             sale_status = card.get('sale_status', 'unsold')
             card_activated_at = card.get('activated_at')
@@ -1553,18 +1553,7 @@ async def get_card_types(
             # 判断销售状态是否正常
             is_sale_normal = sale_status not in ['refunded', 'disputed']
             
-            # 统计已停用：status=0 或 销售状态为refunded/disputed
-            if card_status == 0 or not is_sale_normal:
-                stats['deactivated_count'] += 1
-            elif card_activated_at:
-                # 已激活：曾经绑定过设备（activated_at 不为空）
-                stats['activated_count'] += 1
-            else:
-                # 库存：从未激活过
-                stats['stock_count'] += 1
-            
-            # 统计销售状态
-            sale_status = card.get('sale_status', 'unsold')
+            # 统计销售状态（独立的统计维度）
             if sale_status == 'unsold':
                 stats['unsold_count'] += 1
             elif sale_status == 'sold':
@@ -1574,7 +1563,8 @@ async def get_card_types(
             elif sale_status == 'disputed':
                 stats['disputed_count'] += 1
             
-            # 统计已过期
+            # 计算是否已过期（用于状态统计）
+            is_expired = False
             expire_at = card.get('expire_at')
             expire_after_days = card.get('expire_after_days')
             activated_at = card.get('activated_at')
@@ -1588,6 +1578,7 @@ async def get_card_types(
                     if expire_time.tzinfo:
                         expire_time = expire_time.replace(tzinfo=None)
                     if expire_time < now:
+                        is_expired = True
                         stats['expired_count'] += 1
                 except:
                     pass
@@ -1601,9 +1592,26 @@ async def get_card_types(
                         activated_time = activated_time.replace(tzinfo=None)
                     expire_time = activated_time + timedelta(days=expire_after_days)
                     if expire_time < now:
+                        is_expired = True
                         stats['expired_count'] += 1
                 except:
                     pass
+            
+            # 状态统计（互斥）：已停用 > 已过期 > 已激活 > 库存
+            # 这与 get_card_type_stats API 保持一致
+            if card_status == 0 or not is_sale_normal:
+                # 已停用：status=0 或 销售状态为refunded/disputed
+                stats['deactivated_count'] += 1
+            elif is_expired:
+                # 已过期：单独统计，不计入其他状态
+                # 注意：这里不累加，因为上面已经累加过了
+                pass
+            elif card_activated_at:
+                # 已激活：曾经绑定过设备（activated_at 不为空）
+                stats['activated_count'] += 1
+            else:
+                # 库存：从未激活过
+                stats['stock_count'] += 1
         
         # 将统计数据合并到卡种列表中
         for card_type in card_types:
@@ -1743,17 +1751,12 @@ async def get_card_type(type_id: int):
             
             is_sale_normal = sale_status not in ['refunded', 'disputed']
             
-            # 统计已停用：status=0 或 销售状态为refunded/disputed
-            if card_status == 0 or not is_sale_normal:
-                deactivated_count += 1
-            elif card_activated_at:
-                # 已激活：曾经绑定过设备（activated_at 不为空）
-                activated_count += 1
-            else:
-                # 库存：从未激活过
-                stock_count += 1
+            # 统计已售出（独立维度）
+            if sale_status == 'sold':
+                sold_count += 1
             
-            # 统计已过期
+            # 计算是否已过期
+            is_expired = False
             expire_at = card.get('expire_at')
             expire_after_days = card.get('expire_after_days')
             activated_at = card.get('activated_at')
@@ -1767,6 +1770,7 @@ async def get_card_type(type_id: int):
                     if expire_time.tzinfo:
                         expire_time = expire_time.replace(tzinfo=None)
                     if expire_time < now:
+                        is_expired = True
                         expired_count += 1
                 except:
                     pass
@@ -1780,13 +1784,25 @@ async def get_card_type(type_id: int):
                         activated_time = activated_time.replace(tzinfo=None)
                     expire_time = activated_time + timedelta(days=expire_after_days)
                     if expire_time < now:
+                        is_expired = True
                         expired_count += 1
                 except:
                     pass
             
-            # 统计已售出
-            if card.get('sale_status') == 'sold':
-                sold_count += 1
+            # 状态统计（互斥）：已停用 > 已过期 > 已激活 > 库存
+            # 这与 get_card_type_stats API 保持一致
+            if card_status == 0 or not is_sale_normal:
+                # 已停用：status=0 或 销售状态为refunded/disputed
+                deactivated_count += 1
+            elif is_expired:
+                # 已过期：单独统计，不计入其他状态
+                pass
+            elif card_activated_at:
+                # 已激活：曾经绑定过设备（activated_at 不为空）
+                activated_count += 1
+            else:
+                # 库存：从未激活过
+                stock_count += 1
         
         card_type['stats'] = {
             'total_count': total_count,
