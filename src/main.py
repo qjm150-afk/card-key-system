@@ -1415,7 +1415,8 @@ async def get_card_keys(
         start = (page - 1) * page_size
         end = start + page_size - 1
         
-        response = query.range(start, end).order('id', desc=True).execute()
+        # 按 sort_order 升序排序（支持拖拽排序），相同时按 ID 降序
+        response = query.range(start, end).order('sort_order').order('id', desc=True).execute()
         
         # 为每条记录添加 is_expired 字段（实时计算）
         for card in response.data:
@@ -1654,6 +1655,35 @@ async def get_card_types_options():
         
     except Exception as e:
         logger.error(f"获取卡种选项失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+class CardTypeReorderRequest(BaseModel):
+    """卡种排序请求"""
+    orders: List[dict]  # [{"id": 1, "sort_order": 0}, {"id": 2, "sort_order": 1}, ...]
+
+
+@app.put("/api/admin/card-types/reorder")
+async def reorder_card_types(req: CardTypeReorderRequest):
+    """更新卡种排序"""
+    try:
+        client = get_supabase_client()
+        
+        # 批量更新排序
+        for item in req.orders:
+            type_id = item.get('id')
+            sort_order = item.get('sort_order')
+            if type_id is not None and sort_order is not None:
+                client.table('card_types').update({
+                    'sort_order': sort_order,
+                    'updated_at': beijing_time_iso()
+                }).eq('id', type_id).execute()
+        
+        logger.info(f"更新卡种排序成功，共 {len(req.orders)} 条")
+        return {"success": True, "msg": "排序更新成功"}
+        
+    except Exception as e:
+        logger.error(f"更新卡种排序失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 

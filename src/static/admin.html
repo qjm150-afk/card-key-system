@@ -8,6 +8,8 @@
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%235D4E37'/%3E%3Cpath d='M50 28 L55 28 L57 35 C59 36 61 37 63 38 L70 35 L73 40 L68 46 C69 48 69 50 69 52 C69 54 69 56 68 58 L73 64 L70 69 L63 66 C61 67 59 68 57 69 L55 76 L45 76 L43 69 C41 68 39 67 37 66 L30 69 L27 64 L32 58 C31 56 31 54 31 52 C31 50 31 48 32 46 L27 40 L30 35 L37 38 C39 37 41 36 43 35 L45 28 Z M50 42 C44 42 39 47 39 53 C39 59 44 64 50 64 C56 64 61 59 61 53 C61 47 56 42 50 42 Z' fill='%23D4A574'/%3E%3Ccircle cx='50' cy='53' r='8' fill='%23D4A574' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
     <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='20' fill='%235D4E37'/%3E%3Cpath d='M50 28 L55 28 L57 35 C59 36 61 37 63 38 L70 35 L73 40 L68 46 C69 48 69 50 69 52 C69 54 69 56 68 58 L73 64 L70 69 L63 66 C61 67 59 68 57 69 L55 76 L45 76 L43 69 C41 68 39 67 37 66 L30 69 L27 64 L32 58 C31 56 31 54 31 52 C31 50 31 48 32 46 L27 40 L30 35 L37 38 C39 37 41 36 43 35 L45 28 Z M50 42 C44 42 39 47 39 53 C39 59 44 64 50 64 C56 64 61 59 61 53 C61 47 56 42 50 42 Z' fill='%23D4A574'/%3E%3Ccircle cx='50' cy='53' r='8' fill='%23D4A574' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
     <meta name="theme-color" content="#5D4E37">
+    <!-- SortableJS - 拖拽排序库 -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -2556,6 +2558,39 @@
             text-decoration: underline;
         }
 
+        /* 拖拽排序样式 */
+        .card-types-table .drag-handle {
+            cursor: grab;
+            color: #9CA3AF;
+            font-size: 16px;
+            padding: 4px;
+            transition: color 0.2s;
+        }
+
+        .card-types-table .drag-handle:hover {
+            color: #5D4E37;
+        }
+
+        .card-types-table tbody tr.sortable-ghost {
+            background: #FEF3C7 !important;
+            opacity: 0.8;
+        }
+
+        .card-types-table tbody tr.sortable-chosen {
+            background: #FEF3C7 !important;
+        }
+
+        .card-types-table tbody tr.sortable-drag {
+            background: #FFFFFF !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .card-types-table .drag-hint {
+            font-size: 11px;
+            color: #9CA3AF;
+            margin-top: 4px;
+        }
+
         .card-types-table .preview-badge .copy-btn:hover {
             color: #B45309;
         }
@@ -3041,6 +3076,7 @@
                 <table class="card-types-table">
                     <thead>
                         <tr>
+                            <th style="width: 40px;"></th>
                             <th style="width: 50px;">序号</th>
                             <th style="white-space: nowrap;">卡种名称</th>
                             <th style="width: 55px;">总数</th>
@@ -8655,12 +8691,70 @@
                     renderCardTypesTable(result.data);
                     renderCardTypesPagination(result.total, result.total_pages);
                     updateCardTypesStats(result.data, result.total);
+                    // 初始化拖拽排序
+                    initCardTypesSortable();
                 } else {
                     showToast(getErrorMsg(result), 'error');
                 }
             } catch (error) {
                 showToast('加载卡种列表失败: ' + error.message, 'error');
             }
+        }
+        
+        // 初始化卡种拖拽排序
+        let cardTypesSortableInstance = null;
+        function initCardTypesSortable() {
+            const tbody = document.getElementById('cardTypesTableBody');
+            if (!tbody) return;
+            
+            // 销毁旧实例
+            if (cardTypesSortableInstance) {
+                cardTypesSortableInstance.destroy();
+            }
+            
+            // 检查是否有数据
+            const rows = tbody.querySelectorAll('tr[data-id]');
+            if (rows.length === 0) return;
+            
+            // 创建新实例
+            cardTypesSortableInstance = new Sortable(tbody, {
+                handle: '.drag-handle',
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                chosenClass: 'sortable-chosen',
+                dragClass: 'sortable-drag',
+                onEnd: async function(evt) {
+                    // 获取新的排序
+                    const rows = tbody.querySelectorAll('tr[data-id]');
+                    const orders = [];
+                    rows.forEach((row, index) => {
+                        const id = parseInt(row.getAttribute('data-id'));
+                        if (id) {
+                            orders.push({ id: id, sort_order: index });
+                        }
+                    });
+                    
+                    // 保存到后端
+                    if (orders.length > 0) {
+                        try {
+                            const response = await fetch('/api/admin/card-types/reorder', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ orders: orders })
+                            });
+                            const result = await response.json();
+                            if (!result.success) {
+                                showToast('排序保存失败: ' + result.msg, 'error');
+                                // 重新加载恢复原顺序
+                                loadCardTypes();
+                            }
+                        } catch (error) {
+                            showToast('排序保存失败: ' + error.message, 'error');
+                            loadCardTypes();
+                        }
+                    }
+                }
+            });
         }
         
         // 更新统计概览
@@ -8701,7 +8795,7 @@
             if (!data || data.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="10" class="empty-row">
+                        <td colspan="11" class="empty-row">
                             <div class="empty-content">
                                 <svg width="48" height="48" fill="none" stroke="#D4C4A8" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
@@ -8729,7 +8823,10 @@
                 const stockCount = totalCount - activatedCount - expiredCount - deactivatedCount;
                 
                 return `
-                <tr>
+                <tr data-id="${type.id}">
+                    <td style="text-align: center;">
+                        <span class="drag-handle" title="拖拽排序">⋮⋮</span>
+                    </td>
                     <td style="text-align: center;"><span class="row-number">${rowNum}</span></td>
                     <td style="text-align: left;"><span class="card-type-name" title="${displayName}">${displayName}</span></td>
                     <td style="text-align: center;"><span class="stat-number total">${totalCount}</span></td>
