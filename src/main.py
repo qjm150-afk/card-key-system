@@ -1877,12 +1877,12 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
 
 @app.delete("/api/admin/card-types/{type_id}")
 async def delete_card_type(type_id: int):
-    """删除卡种（软删除，同时删除关联卡密）"""
+    """删除卡种（硬删除，同时删除关联的卡密和访问日志）"""
     try:
         client = get_supabase_client()
         
         # 检查卡种是否存在
-        existing = client.table('card_types').select('id, name').eq('id', type_id).is_('deleted_at', 'null').execute()
+        existing = client.table('card_types').select('id, name').eq('id', type_id).execute()
         if not existing.data:
             return {"success": False, "msg": "卡种不存在"}
         
@@ -1898,11 +1898,8 @@ async def delete_card_type(type_id: int):
             # 删除卡密
             client.table('card_keys_table').delete().eq('card_type_id', type_id).execute()
         
-        # 软删除卡种
-        client.table('card_types').update({
-            'deleted_at': beijing_time_iso(),
-            'status': 0
-        }).eq('id', type_id).execute()
+        # 硬删除卡种
+        client.table('card_types').delete().eq('id', type_id).execute()
         
         logger.info(f"删除卡种成功: {type_name}, 删除卡密数量: {len(card_ids)}")
         
