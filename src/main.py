@@ -40,7 +40,7 @@ import csv
 import io
 import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile, Form
@@ -48,6 +48,20 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+
+# 北京时区 (UTC+8)
+BEIJING_TZ = timezone(timedelta(hours=8))
+
+
+def get_beijing_time() -> datetime:
+    """获取当前北京时间（带时区信息）"""
+    return datetime.now(BEIJING_TZ)
+
+
+def beijing_time_iso() -> str:
+    """获取当前北京时间的 ISO 格式字符串（带时区信息）"""
+    return datetime.now(BEIJING_TZ).isoformat()
+
 
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -1619,7 +1633,7 @@ async def create_card_type(card_type: CardTypeCreate):
             "name": card_type.name,
             "preview_enabled": card_type.preview_enabled,
             "status": 1,
-            "created_at": datetime.now().isoformat()
+            "created_at": beijing_time_iso()
         }
         
         # 预览图片处理：根据 preview_image_id 获取 image_key 存储到 preview_image 字段
@@ -1800,7 +1814,7 @@ async def update_card_type(type_id: int, card_type: CardTypeUpdate):
         if not update_data:
             return {"success": True, "msg": "没有需要更新的字段"}
         
-        update_data['updated_at'] = datetime.now().isoformat()
+        update_data['updated_at'] = beijing_time_iso()
         
         response = client.table('card_types').update(update_data).eq('id', type_id).execute()
         
@@ -1838,7 +1852,7 @@ async def delete_card_type(type_id: int):
         
         # 软删除卡种
         client.table('card_types').update({
-            'deleted_at': datetime.now().isoformat(),
+            'deleted_at': beijing_time_iso(),
             'status': 0
         }).eq('id', type_id).execute()
         
@@ -2226,7 +2240,7 @@ async def batch_generate_cards_for_type(type_id: int, req: BatchGenerateRequestV
                 "link_name": link_name,
                 "sys_platform": "卡密系统",
                 "uuid": str(uuid.uuid4()),
-                "bstudio_create_time": datetime.now().isoformat(),
+                "bstudio_create_time": beijing_time_iso(),
                 "max_devices": req.max_devices,
                 "used_count": 0,
                 "devices": "[]",
@@ -2312,7 +2326,7 @@ async def simple_generate_cards_for_type(type_id: int, req: SimpleGenerateReques
                 "status": 1,
                 "sys_platform": "卡密系统",
                 "uuid": str(uuid.uuid4()),
-                "bstudio_create_time": datetime.now().isoformat(),
+                "bstudio_create_time": beijing_time_iso(),
                 "max_devices": 5,
                 "used_count": 0,
                 "devices": "[]",
@@ -2752,7 +2766,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
         if 'sale_status' in updates and updates['sale_status']:
             update_data['sale_status'] = updates['sale_status']
             if updates['sale_status'] == 'sold':
-                update_data['sold_at'] = datetime.now().isoformat()
+                update_data['sold_at'] = beijing_time_iso()
             # 已退款/有纠纷时自动停用（如果没有明确设置status）
             if updates['sale_status'] in ['refunded', 'disputed'] and 'status' not in updates:
                 update_data['status'] = 0
@@ -4160,7 +4174,7 @@ async def import_sale_status(file: UploadFile = File(...)):
                 
                 # 已售出时记录时间
                 if sale_status == 'sold':
-                    update_data['sold_at'] = datetime.now().isoformat()
+                    update_data['sold_at'] = beijing_time_iso()
                 
                 # 已退款/有纠纷时自动停用
                 if sale_status in ['refunded', 'disputed'] and current_status == 1:
@@ -4218,7 +4232,7 @@ async def import_sale_status(file: UploadFile = File(...)):
                 
                 # 已售出时记录时间
                 if sale_status == 'sold':
-                    update_data['sold_at'] = datetime.now().isoformat()
+                    update_data['sold_at'] = beijing_time_iso()
                 
                 # 已退款/有纠纷时自动停用
                 if sale_status in ['refunded', 'disputed'] and current_status == 1:
@@ -4474,7 +4488,7 @@ async def import_cards(file: UploadFile = File(...)):
                                 update_data['status'] = 0
                             # 已售出记录时间
                             if sale_status_map[val] == 'sold':
-                                update_data['sold_at'] = datetime.now().isoformat()
+                                update_data['sold_at'] = beijing_time_iso()
                         else:
                             error_list.append(f"第{row_num}行: 销售状态'{val}'无效，已跳过该字段")
                 
@@ -4549,7 +4563,7 @@ async def import_cards(file: UploadFile = File(...)):
                         'max_devices': update_data.get('max_devices', 5),
                         'sys_platform': '卡密系统',
                         'uuid': str(uuid.uuid4()),
-                        'bstudio_create_time': datetime.now().isoformat(),
+                        'bstudio_create_time': beijing_time_iso(),
                         'used_count': 0,
                         'devices': '[]'
                     }
@@ -4672,7 +4686,7 @@ async def create_card_key(card: CardKeyCreate):
             "link_name": card.link_name or "",
             "sys_platform": "卡密系统",
             "uuid": str(uuid.uuid4()),
-            "bstudio_create_time": datetime.now().isoformat(),
+            "bstudio_create_time": beijing_time_iso(),
             "expire_at": expire_at,
             "expire_after_days": expire_after_days,
             "max_uses": card.max_uses,
@@ -4747,7 +4761,7 @@ async def batch_generate_cards(req: BatchGenerateRequest):
                 "link_name": req.link_name,
                 "sys_platform": "卡密系统",
                 "uuid": str(uuid.uuid4()),
-                "bstudio_create_time": datetime.now().isoformat(),
+                "bstudio_create_time": beijing_time_iso(),
                 "max_devices": 5,
                 "used_count": 0,
                 "devices": "[]",
@@ -4841,7 +4855,7 @@ async def update_card_key(card_id: int, card: CardKeyUpdate):
             update_data["sale_status"] = card.sale_status
             # 已售出时记录时间
             if card.sale_status == 'sold':
-                update_data["sold_at"] = datetime.now().isoformat()
+                update_data["sold_at"] = beijing_time_iso()
         if card.order_id is not None:
             # 空字符串转为 None，用于清空订单号
             update_data["order_id"] = card.order_id if card.order_id else None
