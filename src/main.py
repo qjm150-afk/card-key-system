@@ -1909,10 +1909,12 @@ async def get_card_type_stats(type_id: int):
             return {"success": False, "msg": "卡种不存在"}
         
         # 获取该卡种下所有卡密的统计（包含过期判断所需字段）
-        response = client.table('card_keys_table').select('status, devices, sale_status, expire_at, expire_after_days, activated_at').eq('card_type_id', type_id).execute()
+        # 使用 count='exact' 确保总数统计与 get_card_types API 一致
+        response = client.table('card_keys_table').select('id, status, devices, sale_status, expire_at, expire_after_days, activated_at', count='exact').eq('card_type_id', type_id).execute()
         
         cards = response.data or []
-        total = len(cards)
+        # 使用数据库返回的精确计数，确保与 get_card_types API 的统计一致
+        total = response.count or 0
         
         # 库存（未激活）：status=1 且 devices为空 且 销售状态正常 且 未过期
         stock = 0

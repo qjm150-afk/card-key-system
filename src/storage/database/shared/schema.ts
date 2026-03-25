@@ -1,4 +1,4 @@
-import { pgTable, serial, timestamp, uniqueIndex, varchar, integer, text, index, boolean, date, jsonb, unique } from "drizzle-orm/pg-core"
+import { pgTable, serial, timestamp, uniqueIndex, index, varchar, integer, text, boolean, date, jsonb, unique } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -29,8 +29,12 @@ export const cardKeysTable = pgTable("card_keys_table", {
 	soldAt: timestamp("sold_at", { withTimezone: true, mode: 'string' }),
 	salesChannel: varchar("sales_channel", { length: 50 }).default('),
 	linkName: varchar("link_name", { length: 100 }).default('),
+	expireAfterDays: integer("expire_after_days"),
+	cardTypeId: integer("card_type_id"),
+	activatedAt: timestamp("activated_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	uniqueIndex("card_keys_table_key_value_idx").using("btree", table.keyValue.asc().nullsLast().op("text_ops")),
+	index("ix_card_keys_card_type_id").using("btree", table.cardTypeId.asc().nullsLast().op("int4_ops")),
 ]);
 
 export const accessLogs = pgTable("access_logs", {
@@ -74,6 +78,32 @@ export const batchOperationLogs = pgTable("batch_operation_logs", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 });
 
+export const adminSettings = pgTable("admin_settings", {
+	id: serial().primaryKey().notNull(),
+	key: varchar({ length: 50 }).notNull(),
+	value: text().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	unique("admin_settings_key_key").on(table.key),
+]);
+
+export const cardTypes = pgTable("card_types", {
+	id: serial().primaryKey().notNull(),
+	name: varchar({ length: 200 }).notNull(),
+	previewImage: text("preview_image"),
+	previewEnabled: boolean("preview_enabled").default(false),
+	status: integer().default(1),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	previewImageId: integer("preview_image_id"),
+	blurLevel: integer("blur_level").default(8),
+}, (table) => [
+	index("ix_card_types_name").using("btree", table.name.asc().nullsLast().op("text_ops")),
+	index("ix_card_types_status").using("btree", table.status.asc().nullsLast().op("int4_ops")),
+]);
+
 export const linkHealthTable = pgTable("link_health_table", {
 	id: serial().primaryKey().notNull(),
 	feishuUrl: text("feishu_url").notNull(),
@@ -90,4 +120,14 @@ export const linkHealthTable = pgTable("link_health_table", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	unique("link_health_table_feishu_url_key").on(table.feishuUrl),
+]);
+
+export const previewImages = pgTable("preview_images", {
+	id: serial().primaryKey().notNull(),
+	name: varchar({ length: 100 }).notNull(),
+	url: text().notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	imageKey: text("image_key"),
+}, (table) => [
+	index("ix_preview_images_name").using("btree", table.name.asc().nullsLast().op("text_ops")),
 ]);
