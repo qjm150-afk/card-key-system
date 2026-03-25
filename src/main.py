@@ -1698,11 +1698,18 @@ async def create_card_type(card_type: CardTypeCreate):
         if existing.data:
             return {"success": False, "msg": "卡种名称已存在"}
         
+        # 获取当前最大的 sort_order，新卡种排在最后
+        max_order_response = client.table('card_types').select('sort_order').is_('deleted_at', 'null').order('sort_order', desc=True).limit(1).execute()
+        max_sort_order = 0
+        if max_order_response.data and len(max_order_response.data) > 0:
+            max_sort_order = max_order_response.data[0].get('sort_order', 0) or 0
+        
         # 创建卡种 - 只包含数据库中确定存在的字段
         data = {
             "name": card_type.name,
             "preview_enabled": card_type.preview_enabled,
             "status": 1,
+            "sort_order": max_sort_order + 1,  # 新卡种排在最后
             "created_at": beijing_time_iso()
         }
         
