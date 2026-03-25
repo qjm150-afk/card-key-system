@@ -1286,11 +1286,14 @@ async def get_card_keys(
                     pass
         
         # 过期时间筛选
+        need_expire_filter = False  # 是否需要在应用层过滤过期状态
         if expire_days:
             now = datetime.now()
             if expire_days == 'expired':
-                # 已过期：过期时间不为空且小于当前时间
-                query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                # 已过期：需要在应用层过滤（包括固定日期过期和激活后N天过期）
+                need_expire_filter = True
+                # 查询所有可能过期的记录（有 expire_at 或 expire_after_days）
+                query = query.or_('expire_at.not.is.null,expire_after_days.not.is.null')
             elif expire_days == 'permanent':
                 # 永久有效：过期时间和激活后有效天数都为空
                 query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
@@ -1314,8 +1317,8 @@ async def get_card_keys(
                 except ValueError:
                     pass
         
-        # 如果需要在应用层过滤设备数量、激活状态或搜索，先获取所有数据再过滤
-        if need_device_filter or need_activate_filter or need_search_filter:
+        # 如果需要在应用层过滤设备数量、激活状态、过期状态或搜索，先获取所有数据再过滤
+        if need_device_filter or need_activate_filter or need_expire_filter or need_search_filter:
             # 获取所有匹配的数据
             response = query.order('id', desc=True).execute()
             all_data = response.data
@@ -1365,6 +1368,12 @@ async def get_card_keys(
                         # 已停用：status=0 或 销售状态为refunded/disputed
                         if card_status != 0 and sale_status not in ['refunded', 'disputed']:
                             continue
+                
+                # 过期状态过滤
+                if need_expire_filter:
+                    # 使用统一的过期判断函数
+                    if not calculate_is_expired(card):
+                        continue
                 
                 # 搜索过滤（模糊匹配多个字段）
                 if need_search_filter:
@@ -2674,10 +2683,14 @@ async def batch_update_cards(request: BatchUpdateRequest):
             
             # 过期时间筛选
             expire_days = filters.get('expire_days')
+            need_expire_filter = False  # 是否需要在应用层过滤过期状态
             if expire_days and expire_days != '':
                 now = get_beijing_time()
                 if expire_days == 'expired':
-                    query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                    # 已过期：需要在应用层过滤（包括固定日期过期和激活后N天过期）
+                    need_expire_filter = True
+                    # 查询所有可能过期的记录（有 expire_at 或 expire_after_days）
+                    query = query.or_('expire_at.not.is.null,expire_after_days.not.is.null')
                 elif expire_days == 'permanent':
                     query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
                 elif expire_days.startswith('date:'):
@@ -2713,8 +2726,8 @@ async def batch_update_cards(request: BatchUpdateRequest):
             # 获取符合条件的记录
             response = query.execute()
             
-            # 如果需要在应用层过滤设备数量或搜索
-            if need_device_filter or need_search_filter:
+            # 如果需要在应用层过滤设备数量、过期状态或搜索
+            if need_device_filter or need_expire_filter or need_search_filter:
                 filtered_data = []
                 for card in response.data:
                     # 设备数量过滤
@@ -2729,6 +2742,12 @@ async def batch_update_cards(request: BatchUpdateRequest):
                             elif device_len != device_count_filter:
                                 continue
                         except:
+                            continue
+                    
+                    # 过期状态过滤
+                    if need_expire_filter:
+                        # 使用统一的过期判断函数
+                        if not calculate_is_expired(card):
                             continue
                     
                     # 搜索过滤
@@ -2925,10 +2944,14 @@ async def count_by_filters(
                     pass
         
         # 过期时间筛选
+        need_expire_filter = False  # 是否需要在应用层过滤过期状态
         if expire_days and expire_days != '':
             now = datetime.now()
             if expire_days == 'expired':
-                query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                # 已过期：需要在应用层过滤（包括固定日期过期和激活后N天过期）
+                need_expire_filter = True
+                # 查询所有可能过期的记录（有 expire_at 或 expire_after_days）
+                query = query.or_('expire_at.not.is.null,expire_after_days.not.is.null')
             elif expire_days == 'permanent':
                 query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
             elif expire_days.startswith('date:'):
@@ -2961,8 +2984,8 @@ async def count_by_filters(
         if created_end and created_end != '':
             query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
         
-        # 如果需要在应用层过滤设备数量或搜索
-        if need_device_filter or need_search_filter:
+        # 如果需要在应用层过滤设备数量、过期状态或搜索
+        if need_device_filter or need_expire_filter or need_search_filter:
             response = query.execute()
             count = 0
             for card in response.data:
@@ -2978,6 +3001,12 @@ async def count_by_filters(
                         elif device_len != device_count_filter:
                             continue
                     except:
+                        continue
+                
+                # 过期状态过滤
+                if need_expire_filter:
+                    # 使用统一的过期判断函数
+                    if not calculate_is_expired(card):
                         continue
                 
                 # 搜索过滤
