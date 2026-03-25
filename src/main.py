@@ -1471,7 +1471,7 @@ async def get_card_types(
     search: Optional[str] = None,
     status: Optional[int] = None
 ):
-    """获取卡种列表（包含销售统计信息）"""
+    """获取卡种列表（包含销售统计信息）- 优化版：避免N+1查询"""
     try:
         client = get_supabase_client()
         
@@ -1497,104 +1497,127 @@ async def get_card_types(
         
         response = query.range(start, end).order('id', desc=True).execute()
         
-        # 获取每个卡种的销售统计信息
+        # 获取卡种列表
         card_types = response.data or []
         
+        if not card_types:
+            return {
+                "success": True,
+                "data": [],
+                "total": 0,
+                "page": page,
+                "page_size": page_size,
+                "total_pages": 0
+            }
+        
+        # 【优化】一次性获取所有相关卡种的统计数据，避免N+1查询
+        card_type_ids = [ct['id'] for ct in card_types]
+        
+        # 一次性查询所有卡密的统计数据
+        all_cards_response = client.table('card_keys_table').select(
+            'id, card_type_id, status, sale_status, devices, expire_at, expire_after_days, activated_at'
+        ).in_('card_type_id', card_type_ids).execute()
+        
+        # 在内存中按卡种ID分组统计
+        now = datetime.now()
+        
+        # 初始化每个卡种的统计容器
+        stats_by_type = {}
+        for type_id in card_type_ids:
+            stats_by_type[type_id] = {
+                'total_count': 0,
+                'unsold_count': 0,
+                'sold_count': 0,
+                'refunded_count': 0,
+                'disputed_count': 0,
+                'stock_count': 0,
+                'activated_count': 0,
+                'deactivated_count': 0,
+                'expired_count': 0
+            }
+        
+        # 遍历所有卡密，按卡种ID分组统计
+        for card in (all_cards_response.data or []):
+            type_id = card.get('card_type_id')
+            if type_id not in stats_by_type:
+                continue
+            
+            stats = stats_by_type[type_id]
+            stats['total_count'] += 1
+            
+            # 统计卡密状态（激活/停用）
+            card_status = card.get('status', 1)
+            sale_status = card.get('sale_status', 'unsold')
+            card_activated_at = card.get('activated_at')
+            
+            # 判断销售状态是否正常
+            is_sale_normal = sale_status not in ['refunded', 'disputed']
+            
+            # 统计已停用：status=0 或 销售状态为refunded/disputed
+            if card_status == 0 or not is_sale_normal:
+                stats['deactivated_count'] += 1
+            elif card_activated_at:
+                # 已激活：曾经绑定过设备（activated_at 不为空）
+                stats['activated_count'] += 1
+            else:
+                # 库存：从未激活过
+                stats['stock_count'] += 1
+            
+            # 统计销售状态
+            sale_status = card.get('sale_status', 'unsold')
+            if sale_status == 'unsold':
+                stats['unsold_count'] += 1
+            elif sale_status == 'sold':
+                stats['sold_count'] += 1
+            elif sale_status == 'refunded':
+                stats['refunded_count'] += 1
+            elif sale_status == 'disputed':
+                stats['disputed_count'] += 1
+            
+            # 统计已过期
+            expire_at = card.get('expire_at')
+            expire_after_days = card.get('expire_after_days')
+            activated_at = card.get('activated_at')
+            
+            if expire_at:
+                try:
+                    if isinstance(expire_at, str):
+                        expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
+                    else:
+                        expire_time = expire_at
+                    if expire_time.tzinfo:
+                        expire_time = expire_time.replace(tzinfo=None)
+                    if expire_time < now:
+                        stats['expired_count'] += 1
+                except:
+                    pass
+            elif expire_after_days and activated_at:
+                try:
+                    if isinstance(activated_at, str):
+                        activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                    else:
+                        activated_time = activated_at
+                    if activated_time.tzinfo:
+                        activated_time = activated_time.replace(tzinfo=None)
+                    expire_time = activated_time + timedelta(days=expire_after_days)
+                    if expire_time < now:
+                        stats['expired_count'] += 1
+                except:
+                    pass
+        
+        # 将统计数据合并到卡种列表中
         for card_type in card_types:
             type_id = card_type['id']
-            
-            # 统计该卡种下的卡密数量和销售状态
-            stats_response = client.table('card_keys_table').select('id, status, sale_status, devices, expire_at, expire_after_days, activated_at', count='exact').eq('card_type_id', type_id).execute()
-            
-            total_count = stats_response.count or 0
-            
-            # 计算各销售状态数量
-            unsold_count = 0
-            sold_count = 0
-            refunded_count = 0
-            disputed_count = 0
-            expired_count = 0
-            
-            # 激活状态统计
-            activated_count = 0  # 已激活：activated_at 不为空（曾经绑定过设备）
-            deactivated_count = 0  # 已停用：status=0 或 销售状态为refunded/disputed
-            stock_count = 0  # 库存：从未激活过
-            
-            now = datetime.now()
-            
-            for card in (stats_response.data or []):
-                # 统计卡密状态（激活/停用）
-                card_status = card.get('status', 1)
-                sale_status = card.get('sale_status', 'unsold')
-                card_activated_at = card.get('activated_at')
-                
-                # 判断销售状态是否正常
-                is_sale_normal = sale_status not in ['refunded', 'disputed']
-                
-                # 统计已停用：status=0 或 销售状态为refunded/disputed
-                if card_status == 0 or not is_sale_normal:
-                    deactivated_count += 1
-                elif card_activated_at:
-                    # 已激活：曾经绑定过设备（activated_at 不为空）
-                    # 这符合业务逻辑：一旦激活过，状态就应该保持
-                    activated_count += 1
-                else:
-                    # 库存：从未激活过
-                    stock_count += 1
-                
-                # 统计销售状态
-                sale_status = card.get('sale_status', 'unsold')
-                if sale_status == 'unsold':
-                    unsold_count += 1
-                elif sale_status == 'sold':
-                    sold_count += 1
-                elif sale_status == 'refunded':
-                    refunded_count += 1
-                elif sale_status == 'disputed':
-                    disputed_count += 1
-                
-                # 统计已过期
-                expire_at = card.get('expire_at')
-                expire_after_days = card.get('expire_after_days')
-                activated_at = card.get('activated_at')
-                
-                if expire_at:
-                    try:
-                        if isinstance(expire_at, str):
-                            expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
-                        else:
-                            expire_time = expire_at
-                        if expire_time.tzinfo:
-                            expire_time = expire_time.replace(tzinfo=None)
-                        if expire_time < now:
-                            expired_count += 1
-                    except:
-                        pass
-                elif expire_after_days and activated_at:
-                    try:
-                        if isinstance(activated_at, str):
-                            activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
-                        else:
-                            activated_time = activated_at
-                        if activated_time.tzinfo:
-                            activated_time = activated_time.replace(tzinfo=None)
-                        expire_time = activated_time + timedelta(days=expire_after_days)
-                        if expire_time < now:
-                            expired_count += 1
-                    except:
-                        pass
-            
-            # 更新卡种统计数据
-            card_type['total_count'] = total_count
-            card_type['unsold_count'] = unsold_count
-            card_type['sold_count'] = sold_count
-            card_type['refunded_count'] = refunded_count
-            card_type['disputed_count'] = disputed_count
-            card_type['stock_count'] = stock_count  # 库存：未激活且正常
-            card_type['expired_count'] = expired_count
-            # 激活状态统计
-            card_type['activated_count'] = activated_count  # 已激活
-            card_type['deactivated_count'] = deactivated_count  # 已停用
+            stats = stats_by_type.get(type_id, {})
+            card_type['total_count'] = stats.get('total_count', 0)
+            card_type['unsold_count'] = stats.get('unsold_count', 0)
+            card_type['sold_count'] = stats.get('sold_count', 0)
+            card_type['refunded_count'] = stats.get('refunded_count', 0)
+            card_type['disputed_count'] = stats.get('disputed_count', 0)
+            card_type['stock_count'] = stats.get('stock_count', 0)
+            card_type['expired_count'] = stats.get('expired_count', 0)
+            card_type['activated_count'] = stats.get('activated_count', 0)
+            card_type['deactivated_count'] = stats.get('deactivated_count', 0)
         
         return {
             "success": True,
@@ -3154,10 +3177,11 @@ async def get_filter_options(
     exclude_field: Optional[str] = None
 ):
     """
-    获取基于当前筛选条件的各字段可选值
-    - 每个字段返回的选项都会排除该字段自身的筛选条件
-    - 例如：status 字段的选项会排除 status 筛选条件，但保留其他筛选条件
-    - status: 支持 'valid'、'activated'、'disabled' 或数字 '1'、'0'
+    获取基于当前筛选条件的各字段可选值 - 优化版：合并多次查询
+    
+    性能优化：
+    - 原来：每个字段单独查询一次（共7次数据库查询）
+    - 现在：一次查询获取所有数据，在内存中计算各字段统计
     """
     try:
         client = get_supabase_client()
@@ -3166,127 +3190,254 @@ async def get_filter_options(
         if search:
             search = search.strip()
         
-        # 定义一个辅助函数来构建带筛选条件的查询
-        def build_query(exclude: str = None):
-            """构建查询，exclude 指定要排除的筛选字段"""
-            query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, expire_after_days, sales_channel, activated_at')
-            
-            # 应用筛选条件（排除指定字段）
+        # 【优化】一次查询获取所有需要的数据
+        # 包含所有筛选选项需要的字段
+        all_response = client.table('card_keys_table').select(
+            'status, sale_status, feishu_url, link_name, devices, expire_at, expire_after_days, sales_channel, activated_at, card_type_id, bstudio_create_time'
+        ).execute()
+        
+        all_data = all_response.data or []
+        
+        # 定义筛选条件判断函数（在内存中判断记录是否满足条件）
+        def matches_filter(item: dict, exclude: str = None) -> bool:
+            """判断记录是否满足当前筛选条件（可排除指定字段）"""
+            # 状态筛选
             if status is not None and status != '' and exclude != 'status':
+                item_status = item.get('status', 1)
+                devices = item.get('devices', '[]')
+                item_sale_status = item.get('sale_status')
+                
                 if status == 'valid':
-                    query = query.eq('status', 1).eq('devices', '[]')
+                    if item_status != 1 or devices != '[]':
+                        return False
                 elif status == 'activated':
-                    query = query.eq('status', 1).neq('devices', '[]')
+                    if item_status != 1 or devices == '[]':
+                        return False
                 elif status == 'disabled':
-                    query = query.or_("status.eq.0,sale_status.in.(refunded,disputed)")
+                    if item_status != 0 and item_sale_status not in ['refunded', 'disputed']:
+                        return False
                 else:
                     try:
-                        query = query.eq('status', int(status))
+                        if item_status != int(status):
+                            return False
                     except ValueError:
                         pass
             
+            # 销售状态筛选
             if sale_status and sale_status != '' and exclude != 'sale_status':
+                item_sale_status = item.get('sale_status') or ''
                 if sale_status == '__none__':
-                    # 特殊值：筛选未设置销售状态的记录
-                    query = query.or_('sale_status.is.null,sale_status.eq.')
-                else:
-                    query = query.eq('sale_status', sale_status)
+                    if item_sale_status not in ['', None]:
+                        return False
+                elif item_sale_status != sale_status:
+                    return False
             
+            # 飞书链接筛选
             if feishu_url and feishu_url != '' and exclude != 'feishu_url':
+                item_feishu_url = item.get('feishu_url') or ''
                 if feishu_url == '__none__':
-                    query = query.or_('feishu_url.is.null,feishu_url.eq.')
-                else:
-                    query = query.eq('feishu_url', feishu_url)
+                    if item_feishu_url != '':
+                        return False
+                elif item_feishu_url != feishu_url:
+                    return False
             
-            if search and search != '' and exclude != 'search':
-                # 搜索筛选 - 由于筛选选项API的特殊性，这里不进行搜索过滤
-                # 筛选选项主要用于下拉框，搜索功能由主列表API处理
-                pass
-            
+            # 创建时间筛选
             if created_start and created_start != '' and exclude != 'created_start':
-                query = query.gte('bstudio_create_time', created_start)
+                create_time = item.get('bstudio_create_time', '')
+                if create_time < created_start:
+                    return False
             if created_end and created_end != '' and exclude != 'created_end':
-                query = query.lte('bstudio_create_time', created_end + 'T23:59:59')
+                create_time = item.get('bstudio_create_time', '')
+                if create_time > created_end + 'T23:59:59':
+                    return False
             
+            # 设备筛选
             if device_filter and device_filter != '' and exclude != 'device_filter':
+                devices = item.get('devices', '[]')
+                try:
+                    device_list = json.loads(devices) if isinstance(devices, str) else devices
+                    device_count = len(device_list)
+                except:
+                    device_count = 0
+                
                 if device_filter == '0':
-                    query = query.eq('devices', '[]')
+                    if device_count != 0:
+                        return False
                 elif device_filter == '1+':
-                    # 已绑定需要应用层过滤，这里跳过
-                    pass
+                    if device_count == 0:
+                        return False
                 else:
                     try:
-                        device_count = int(device_filter)
-                        if device_count == 0:
-                            query = query.eq('devices', '[]')
+                        if device_count != int(device_filter):
+                            return False
                     except ValueError:
                         pass
             
+            # 过期时间筛选
             if expire_days and expire_days != '' and exclude != 'expire_days':
+                item_expire_at = item.get('expire_at')
+                item_expire_after_days = item.get('expire_after_days')
+                item_activated_at = item.get('activated_at')
+                
                 now = datetime.now()
+                
                 if expire_days == 'expired':
-                    query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
+                    # 已过期（需要在内存中判断）
+                    is_expired = False
+                    if item_expire_at:
+                        try:
+                            expire_time = datetime.fromisoformat(str(item_expire_at).replace('Z', '+00:00'))
+                            if expire_time.tzinfo:
+                                expire_time = expire_time.replace(tzinfo=None)
+                            if expire_time < now:
+                                is_expired = True
+                        except:
+                            pass
+                    elif item_expire_after_days and item_activated_at:
+                        try:
+                            activated_time = datetime.fromisoformat(str(item_activated_at).replace('Z', '+00:00'))
+                            if activated_time.tzinfo:
+                                activated_time = activated_time.replace(tzinfo=None)
+                            expire_time = activated_time + timedelta(days=item_expire_after_days)
+                            if expire_time < now:
+                                is_expired = True
+                        except:
+                            pass
+                    if not is_expired:
+                        return False
                 elif expire_days == 'permanent':
-                    query = query.is_('expire_at', 'null').is_('expire_after_days', 'null')
+                    if item_expire_at is not None or item_expire_after_days is not None:
+                        return False
                 elif expire_days.startswith('date:'):
                     target_date = expire_days[5:]
-                    start_time = f"{target_date}T00:00:00"
-                    end_time = f"{target_date}T23:59:59"
-                    query = query.not_().is_('expire_at', 'null').gte('expire_at', start_time).lte('expire_at', end_time)
+                    if not item_expire_at or not str(item_expire_at).startswith(target_date):
+                        return False
                 elif expire_days.startswith('relative:'):
-                    # 激活后N天有效
                     days = int(expire_days[9:])
-                    query = query.eq('expire_after_days', days)
+                    if item_expire_after_days != days:
+                        return False
+            
+            # 销售渠道筛选
+            if sales_channel and sales_channel != '' and exclude != 'sales_channel':
+                item_channel = item.get('sales_channel') or ''
+                if sales_channel == '未设置':
+                    if item_channel != '':
+                        return False
+                elif item_channel != sales_channel:
+                    return False
+            
+            # 卡种筛选
+            if card_type_id is not None and exclude != 'card_type_id':
+                if item.get('card_type_id') != card_type_id:
+                    return False
+            
+            return True
+        
+        # 初始化统计容器
+        status_count = {}
+        sale_status_count = {}
+        feishu_url_groups = {}
+        sales_channel_count = {}
+        expire_groups = {}
+        relative_groups = {}
+        permanent_count = 0
+        expired_count = 0
+        card_type_count = {}
+        no_card_type_count = 0
+        
+        now = datetime.now()
+        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        # 遍历所有数据，分别计算各字段的统计（排除对应字段的筛选条件）
+        for item in all_data:
+            # 1. 状态统计（排除 status 筛选）
+            if matches_filter(item, exclude='status'):
+                s = item.get('status')
+                key = str(s) if s is not None else '0'
+                status_count[key] = status_count.get(key, 0) + 1
+            
+            # 2. 销售状态统计（排除 sale_status 筛选）
+            if matches_filter(item, exclude='sale_status'):
+                s = item.get('sale_status') or '__none__'
+                sale_status_count[s] = sale_status_count.get(s, 0) + 1
+            
+            # 3. 飞书链接统计（排除 feishu_url 筛选）
+            if matches_filter(item, exclude='feishu_url'):
+                url = item.get('feishu_url') or ''
+                name = item.get('link_name') or ''
+                url_key = url.strip() if url.strip() else ''
+                if url_key not in feishu_url_groups:
+                    feishu_url_groups[url_key] = {"url": url_key, "count": 0, "names": []}
+                feishu_url_groups[url_key]["count"] += 1
+                if name and name not in feishu_url_groups[url_key]["names"]:
+                    feishu_url_groups[url_key]["names"].append(name)
+            
+            # 4. 销售渠道统计（排除 sales_channel 筛选）
+            if matches_filter(item, exclude='sales_channel'):
+                channel = item.get('sales_channel') or '未设置'
+                sales_channel_count[channel] = sales_channel_count.get(channel, 0) + 1
+            
+            # 5. 过期时间统计（排除 expire_days 筛选）
+            if matches_filter(item, exclude='expire_days'):
+                item_expire_at = item.get('expire_at')
+                item_expire_after_days = item.get('expire_after_days')
+                item_activated_at = item.get('activated_at')
+                
+                # 优先处理激活后N天有效
+                if item_expire_after_days is not None:
+                    days = item_expire_after_days
+                    
+                    # 检查是否已过期
+                    if item_activated_at:
+                        try:
+                            if isinstance(item_activated_at, str):
+                                activated_time = datetime.fromisoformat(item_activated_at.replace('Z', '+00:00'))
+                                if activated_time.tzinfo:
+                                    activated_time = activated_time.replace(tzinfo=None)
+                            else:
+                                activated_time = item_activated_at
+                                if activated_time.tzinfo is not None:
+                                    activated_time = activated_time.replace(tzinfo=None)
+                            
+                            expire_time = activated_time + timedelta(days=days)
+                            if expire_time < now:
+                                expired_count += 1
+                            else:
+                                relative_groups[days] = relative_groups.get(days, 0) + 1
+                        except:
+                            relative_groups[days] = relative_groups.get(days, 0) + 1
+                    else:
+                        relative_groups[days] = relative_groups.get(days, 0) + 1
+                elif item_expire_at is None:
+                    permanent_count += 1
                 else:
                     try:
-                        days = int(expire_days)
-                        future_date = (now + timedelta(days=days)).isoformat()
-                        query = query.not_().is_('expire_at', 'null').gte('expire_at', now.isoformat()).lte('expire_at', future_date)
-                    except ValueError:
+                        if isinstance(item_expire_at, str):
+                            expire_date = datetime.fromisoformat(item_expire_at.replace('Z', '+00:00'))
+                            expire_date = expire_date.replace(tzinfo=None)
+                        else:
+                            expire_date = item_expire_at
+                            if expire_date.tzinfo is not None:
+                                expire_date = expire_date.replace(tzinfo=None)
+                        expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
+                        date_key = expire_date_only.strftime('%Y-%m-%d')
+                        
+                        if expire_date_only < today:
+                            expired_count += 1
+                        else:
+                            expire_groups[date_key] = expire_groups.get(date_key, 0) + 1
+                    except:
                         pass
             
-            if sales_channel and sales_channel != '' and exclude != 'sales_channel':
-                if sales_channel == '未设置':
-                    # 特殊值：筛选未设置销售渠道的记录
-                    query = query.or_('sales_channel.is.null,sales_channel.eq.')
+            # 6. 卡种统计（排除 card_type_id 筛选）
+            if matches_filter(item, exclude='card_type_id'):
+                ct_id = item.get('card_type_id')
+                if ct_id:
+                    card_type_count[ct_id] = card_type_count.get(ct_id, 0) + 1
                 else:
-                    query = query.eq('sales_channel', sales_channel)
-            
-            if card_type_id is not None and exclude != 'card_type_id':
-                query = query.eq('card_type_id', card_type_id)
-            
-            return query
+                    no_card_type_count += 1
         
-        # 为每个字段分别执行查询（排除该字段自身的筛选条件）
-        
-        # 1. 状态统计（排除 status 筛选）
-        status_response = build_query(exclude='status').execute()
-        status_count = {}
-        for item in status_response.data:
-            s = item.get('status')
-            key = str(s) if s is not None else '0'
-            status_count[key] = status_count.get(key, 0) + 1
-        
-        # 2. 销售状态统计（排除 sale_status 筛选）
-        sale_status_response = build_query(exclude='sale_status').execute()
-        sale_status_count = {}
-        for item in sale_status_response.data:
-            s = item.get('sale_status') or '__none__'  # 空值使用特殊标记
-            sale_status_count[s] = sale_status_count.get(s, 0) + 1
-        
-        # 3. 飞书链接统计（排除 feishu_url 筛选）
-        feishu_response = build_query(exclude='feishu_url').execute()
-        feishu_url_groups = {}
-        for item in feishu_response.data:
-            url = item.get('feishu_url') or ''
-            name = item.get('link_name') or ''
-            url_key = url.strip() if url.strip() else ''
-            if url_key not in feishu_url_groups:
-                feishu_url_groups[url_key] = {"url": url_key, "count": 0, "names": []}
-            feishu_url_groups[url_key]["count"] += 1
-            if name and name not in feishu_url_groups[url_key]["names"]:
-                feishu_url_groups[url_key]["names"].append(name)
-        
+        # 构建飞书链接列表
         feishu_url_list = []
         for url_key, data in feishu_url_groups.items():
             if url_key:
@@ -3296,122 +3447,22 @@ async def get_filter_options(
                 feishu_url_list.append({"url": "__none__", "name": "未设置", "count": data["count"]})
         feishu_url_list.sort(key=lambda x: x['count'], reverse=True)
         
-        # 4. 销售渠道统计（排除 sales_channel 筛选）
-        sales_channel_response = build_query(exclude='sales_channel').execute()
-        sales_channel_count = {}
-        for item in sales_channel_response.data:
-            channel = item.get('sales_channel') or '未设置'
-            sales_channel_count[channel] = sales_channel_count.get(channel, 0) + 1
-        
+        # 构建销售渠道列表
         sales_channel_list = [{"channel": k, "count": v} for k, v in sales_channel_count.items()]
         sales_channel_list.sort(key=lambda x: x['count'], reverse=True)
         
-        # 5. 过期时间统计（排除 expire_days 筛选）
-        expire_response = build_query(exclude='expire_days').execute()
-        now = datetime.now()
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        expired_count = 0
-        expire_groups = {}
-        permanent_count = 0
-        relative_groups = {}  # 激活后N天有效（未过期）
-        
-        for item in expire_response.data:
-            expire_at = item.get('expire_at')
-            expire_after_days = item.get('expire_after_days')
-            activated_at = item.get('activated_at')
-            
-            # 优先处理激活后N天有效
-            if expire_after_days is not None:
-                days = expire_after_days
-                
-                # 检查是否已过期（需要已激活才能判断）
-                if activated_at:
-                    try:
-                        if isinstance(activated_at, str):
-                            activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
-                            if activated_time.tzinfo:
-                                activated_time = activated_time.replace(tzinfo=None)
-                        else:
-                            activated_time = activated_at
-                            if activated_time.tzinfo is not None:
-                                activated_time = activated_time.replace(tzinfo=None)
-                        
-                        # 计算过期时间
-                        expire_time = activated_time + timedelta(days=days)
-                        if expire_time < now:
-                            # 已过期
-                            expired_count += 1
-                        else:
-                            # 未过期，按天数分组
-                            if days not in relative_groups:
-                                relative_groups[days] = 0
-                            relative_groups[days] += 1
-                    except Exception as e:
-                        logger.warning(f"解析激活时间失败: {activated_at}, {str(e)}")
-                        # 解析失败，仍按天数分组显示
-                        if days not in relative_groups:
-                            relative_groups[days] = 0
-                        relative_groups[days] += 1
-                else:
-                    # 未激活，按天数分组显示
-                    if days not in relative_groups:
-                        relative_groups[days] = 0
-                    relative_groups[days] += 1
-            elif expire_at is None:
-                # 永久有效：expire_at 和 expire_after_days 都为空
-                permanent_count += 1
-            else:
-                try:
-                    if isinstance(expire_at, str):
-                        # 解析带时区的时间字符串
-                        expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
-                        # 转换为不带时区的本地时间进行比较
-                        expire_date = expire_date.replace(tzinfo=None)
-                    else:
-                        expire_date = expire_at
-                        if expire_date.tzinfo is not None:
-                            expire_date = expire_date.replace(tzinfo=None)
-                    expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
-                    date_key = expire_date_only.strftime('%Y-%m-%d')
-                    
-                    if expire_date_only < today:
-                        expired_count += 1
-                    else:
-                        if date_key not in expire_groups:
-                            expire_groups[date_key] = {'date': date_key, 'count': 0}
-                        expire_groups[date_key]['count'] += 1
-                except Exception as e:
-                    logger.warning(f"解析过期时间失败: {expire_at}, {str(e)}")
-                    pass
-        
-        # 构建过期时间分组列表（始终显示所有选项，即使数量为 0）
+        # 构建过期时间分组列表
         expire_groups_list = []
-        # 已过期（始终显示）
         expire_groups_list.append({"value": "expired", "label": "已过期", "count": expired_count})
-        # 激活后N天有效
         for days in sorted(relative_groups.keys()):
             expire_groups_list.append({"value": f"relative:{days}", "label": f"激活后{days}天有效", "count": relative_groups[days]})
-        # 具体日期
-        for group in sorted(expire_groups.values(), key=lambda x: x['date']):
-            expire_groups_list.append({"value": f"date:{group['date']}", "label": f"{group['date']} 到期", "count": group['count']})
-        # 永久有效（始终显示）
+        for date_key in sorted(expire_groups.keys()):
+            expire_groups_list.append({"value": f"date:{date_key}", "label": f"{date_key} 到期", "count": expire_groups[date_key]})
         expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
         
-        # 6. 卡种统计（排除 card_type_id 筛选）
-        # 先获取所有卡种
+        # 获取卡种名称映射
         card_types_response = client.table('card_types').select('id, name').is_('deleted_at', 'null').execute()
         card_types_map = {ct['id']: ct['name'] for ct in card_types_response.data}
-        
-        # 统计每个卡种下的卡密数量
-        card_type_response = build_query(exclude='card_type_id').select('card_type_id').execute()
-        card_type_count = {}
-        no_card_type_count = 0
-        for item in card_type_response.data:
-            ct_id = item.get('card_type_id')
-            if ct_id:
-                card_type_count[ct_id] = card_type_count.get(ct_id, 0) + 1
-            else:
-                no_card_type_count += 1
         
         # 构建卡种列表
         card_type_list = []
@@ -3423,7 +3474,6 @@ async def get_filter_options(
             })
         card_type_list.sort(key=lambda x: x['count'], reverse=True)
         
-        # 添加未分配卡种的选项
         if no_card_type_count > 0:
             card_type_list.append({
                 "id": None,
@@ -3440,7 +3490,7 @@ async def get_filter_options(
                 "sales_channel_list": sales_channel_list,
                 "expire_groups_list": expire_groups_list,
                 "card_type_list": card_type_list,
-                "total": len(status_response.data)
+                "total": len(all_data)
             }
         }
         
