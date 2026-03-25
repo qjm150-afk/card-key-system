@@ -2675,7 +2675,7 @@ async def batch_update_cards(request: BatchUpdateRequest):
             # 过期时间筛选
             expire_days = filters.get('expire_days')
             if expire_days and expire_days != '':
-                now = datetime.now()
+                now = get_beijing_time()
                 if expire_days == 'expired':
                     query = query.not_().is_('expire_at', 'null').lt('expire_at', now.isoformat())
                 elif expire_days == 'permanent':
@@ -4674,7 +4674,7 @@ async def create_card_key(card: CardKeyCreate):
             pass
         elif card.expire_days:
             # 旧版兼容：从当前时间计算
-            expire_at = (datetime.now() + timedelta(days=card.expire_days)).isoformat()
+            expire_at = (get_beijing_time() + timedelta(days=card.expire_days)).isoformat()
         
         data = {
             "key_value": card.key_value.upper(),
@@ -5074,7 +5074,7 @@ async def get_access_logs(
             query = query.ilike('key_value', f'%{search}%')
         if days and days > 0:
             # 筛选最近N天的日志
-            cutoff_time = (datetime.now() - timedelta(days=days)).isoformat()
+            cutoff_time = (get_beijing_time() - timedelta(days=days)).isoformat()
             query = query.gte('access_time', cutoff_time)
         # 销售状态筛选：使用预先获取的卡密列表
         if sale_status_key_values is not None:
@@ -5178,7 +5178,7 @@ async def preview_clean_logs(request: CleanLogsRequest):
         
         # 应用时间筛选
         if request.days > 0:
-            cutoff_time = (datetime.now() - timedelta(days=request.days)).isoformat()
+            cutoff_time = (get_beijing_time() - timedelta(days=request.days)).isoformat()
             query = query.lt('access_time', cutoff_time)
         
         response = query.execute()
@@ -5242,7 +5242,7 @@ async def clean_logs(request: CleanLogsRequest):
         
         # 应用时间筛选
         if request.days > 0:
-            cutoff_time = (datetime.now() - timedelta(days=request.days)).isoformat()
+            cutoff_time = (get_beijing_time() - timedelta(days=request.days)).isoformat()
             query = query.lt('access_time', cutoff_time)
         
         response = query.execute()
@@ -6605,7 +6605,7 @@ async def get_online_users():
         total_cards = total_response.count or 0
         
         # 获取最近5分钟内有访问记录的唯一卡密数
-        five_min_ago = (datetime.now() - timedelta(minutes=5)).isoformat()
+        five_min_ago = (get_beijing_time() - timedelta(minutes=5)).isoformat()
         
         # 查询最近访问日志中的唯一卡密
         logs_response = client.table('access_logs').select('key_value').gte('access_time', five_min_ago).eq('success', True).execute()
