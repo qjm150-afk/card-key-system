@@ -3140,7 +3140,7 @@ async def get_filter_options(
         # 定义一个辅助函数来构建带筛选条件的查询
         def build_query(exclude: str = None):
             """构建查询，exclude 指定要排除的筛选字段"""
-            query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, expire_after_days, sales_channel')
+            query = client.table('card_keys_table').select('status, sale_status, feishu_url, link_name, devices, expire_at, expire_after_days, sales_channel, activated_at')
             
             # 应用筛选条件（排除指定字段）
             if status is not None and status != '' and exclude != 'status':
@@ -3284,18 +3284,50 @@ async def get_filter_options(
         expired_count = 0
         expire_groups = {}
         permanent_count = 0
-        relative_groups = {}  # 激活后N天有效
+        relative_groups = {}  # 激活后N天有效（未过期）
         
         for item in expire_response.data:
             expire_at = item.get('expire_at')
             expire_after_days = item.get('expire_after_days')
+            activated_at = item.get('activated_at')
             
             # 优先处理激活后N天有效
             if expire_after_days is not None:
                 days = expire_after_days
-                if days not in relative_groups:
-                    relative_groups[days] = 0
-                relative_groups[days] += 1
+                
+                # 检查是否已过期（需要已激活才能判断）
+                if activated_at:
+                    try:
+                        if isinstance(activated_at, str):
+                            activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                            if activated_time.tzinfo:
+                                activated_time = activated_time.replace(tzinfo=None)
+                        else:
+                            activated_time = activated_at
+                            if activated_time.tzinfo is not None:
+                                activated_time = activated_time.replace(tzinfo=None)
+                        
+                        # 计算过期时间
+                        expire_time = activated_time + timedelta(days=days)
+                        if expire_time < now:
+                            # 已过期
+                            expired_count += 1
+                        else:
+                            # 未过期，按天数分组
+                            if days not in relative_groups:
+                                relative_groups[days] = 0
+                            relative_groups[days] += 1
+                    except Exception as e:
+                        logger.warning(f"解析激活时间失败: {activated_at}, {str(e)}")
+                        # 解析失败，仍按天数分组显示
+                        if days not in relative_groups:
+                            relative_groups[days] = 0
+                        relative_groups[days] += 1
+                else:
+                    # 未激活，按天数分组显示
+                    if days not in relative_groups:
+                        relative_groups[days] = 0
+                    relative_groups[days] += 1
             elif expire_at is None:
                 # 永久有效：expire_at 和 expire_after_days 都为空
                 permanent_count += 1
@@ -3591,29 +3623,62 @@ async def get_expire_groups():
     try:
         client = get_supabase_client()
         
-        # 获取所有记录的过期时间和激活后有效天数
-        response = client.table('card_keys_table').select('expire_at,expire_after_days', count='exact').execute()
+        # 获取所有记录的过期时间、激活后有效天数、激活时间
+        response = client.table('card_keys_table').select('expire_at,expire_after_days,activated_at', count='exact').execute()
         
         # 使用日期比较（不含时分秒）
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        now = datetime.now()
         
         # 统计每个过期日期的数量
         permanent_count = 0  # 永久有效（expire_at和expire_after_days都为None）
-        expired_count = 0    # 已过期（过期日期小于今天）
+        expired_count = 0    # 已过期（过期日期小于今天，或激活后N天已过期）
         expire_groups = {}   # 未过期的具体日期（过期日期>=今天）
-        relative_groups = {} # 激活后N天有效（expire_after_days）
+        relative_groups = {} # 激活后N天有效（expire_after_days），未过期
         
         for item in response.data:
             expire_at = item.get('expire_at')
             expire_after_days = item.get('expire_after_days')
+            activated_at = item.get('activated_at')
             
             # 优先处理激活后N天有效
             if expire_after_days is not None:
                 # 激活后N天有效
                 days = expire_after_days
-                if days not in relative_groups:
-                    relative_groups[days] = 0
-                relative_groups[days] += 1
+                
+                # 检查是否已过期（需要已激活才能判断）
+                if activated_at:
+                    try:
+                        if isinstance(activated_at, str):
+                            activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
+                            if activated_time.tzinfo:
+                                activated_time = activated_time.replace(tzinfo=None)
+                        else:
+                            activated_time = activated_at
+                            if activated_time.tzinfo is not None:
+                                activated_time = activated_time.replace(tzinfo=None)
+                        
+                        # 计算过期时间
+                        expire_time = activated_time + timedelta(days=days)
+                        if expire_time < now:
+                            # 已过期
+                            expired_count += 1
+                        else:
+                            # 未过期，按天数分组
+                            if days not in relative_groups:
+                                relative_groups[days] = 0
+                            relative_groups[days] += 1
+                    except Exception as e:
+                        logger.warning(f"解析激活时间失败: {activated_at}, {str(e)}")
+                        # 解析失败，仍按天数分组显示
+                        if days not in relative_groups:
+                            relative_groups[days] = 0
+                        relative_groups[days] += 1
+                else:
+                    # 未激活，按天数分组显示
+                    if days not in relative_groups:
+                        relative_groups[days] = 0
+                    relative_groups[days] += 1
             elif expire_at is None:
                 # 永久有效：创建卡密时没有填写过期时间，也没有设置激活后有效天数
                 permanent_count += 1
