@@ -43,7 +43,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 from urllib.parse import quote
-from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile, Form
+from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile, Form, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -5442,7 +5442,7 @@ async def clean_logs(request: CleanLogsRequest):
 # ==================== 管理员登录 API ====================
 
 @app.post("/api/admin/login")
-async def admin_login(request: LoginRequest, response: JSONResponse):
+async def admin_login(request: LoginRequest, response: Response):
     """管理员登录"""
     current_password = get_admin_password()
     if request.password != current_password:
@@ -5453,12 +5453,14 @@ async def admin_login(request: LoginRequest, response: JSONResponse):
     logger.info(f"管理员登录成功, token={token[:10]}...")
     
     # 设置 cookie
-    # 注意：生产环境 HTTPS 需要设置 secure=True
+    # 生产环境 HTTPS 需要 secure=True
+    is_production = os.environ.get("COZE_PROJECT_ENV") == "PROD"
     response.set_cookie(
         key="admin_token",
         value=token,
         max_age=TOKEN_EXPIRE_HOURS * 3600,
         httponly=True,
+        secure=is_production,  # 生产环境启用 secure
         samesite="lax",
         path="/"  # 确保 cookie 在所有路径下都可用
     )
@@ -5467,7 +5469,7 @@ async def admin_login(request: LoginRequest, response: JSONResponse):
 
 
 @app.post("/api/admin/logout")
-async def admin_logout(response: JSONResponse):
+async def admin_logout(response: Response):
     """管理员登出"""
     response.delete_cookie("admin_token")
     return {"success": True}

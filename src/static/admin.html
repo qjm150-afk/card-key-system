@@ -7957,7 +7957,9 @@
         // 检查登录状态
         async function checkAuth() {
             try {
-                const response = await fetch('/api/admin/check-auth');
+                const response = await fetch('/api/admin/check-auth', {
+                    credentials: 'same-origin'
+                });
                 const data = await response.json();
                 
                 if (data.authenticated) {
@@ -8038,7 +8040,9 @@
                     }
                     
                     // 登录成功后，重新检查认证状态，确保 cookie 已正确设置
-                    const authCheck = await fetch('/api/admin/check-auth');
+                    const authCheck = await fetch('/api/admin/check-auth', {
+                        credentials: 'same-origin'
+                    });
                     const authData = await authCheck.json();
                     if (authData.authenticated) {
                         // 进入主内容页面（isLoggingIn 会在 showMainContent 完成后清除）
@@ -8066,7 +8070,10 @@
         // 登出
         async function handleLogout() {
             try {
-                await fetch('/api/admin/logout', { method: 'POST' });
+                await fetch('/api/admin/logout', { 
+                    method: 'POST',
+                    credentials: 'same-origin'
+                });
             } catch (error) {
                 // 忽略错误
             }
