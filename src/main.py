@@ -6267,7 +6267,7 @@ import asyncio
 
 @app.get("/api/admin/link-health")
 async def get_link_health():
-    """获取所有链接健康状态列表"""
+    """获取所有链接健康状态列表（含泄露检测数据）"""
     try:
         client = get_supabase_client()
         
@@ -6279,7 +6279,7 @@ async def get_link_health():
             # 表不存在，返回空数据
             health_data = []
         
-        # 获取所有唯一的飞书链接
+        # 获取所有唯一的飞书链接，同时收集每个链接的所有名称（去重）
         cards_response = client.table('card_keys_table').select('feishu_url, link_name').execute()
         cards = cards_response.data or []
         
@@ -6305,7 +6305,15 @@ async def get_link_health():
                         'status': 'unknown',
                         'last_check_time': None,
                         'http_code': None,
-                        'error_message': None
+                        'error_message': None,
+                        # 泄露检测数据
+                        'feishu_visitor_count': None,  # 飞书访问人数
+                        'feishu_access_count': None,   # 飞书访问次数
+                        'system_visitor_count': 0,     # 系统验证人数
+                        'system_access_count': 0,      # 系统验证次数
+                        'visitor_diff': None,          # 人数差异
+                        'leak_risk': 'unknown',        # 泄露风险等级
+                        'feishu_recorded_at': None     # 飞书数据录入时间
                     }
         
         # 处理名称：优先使用非空名称，多个名称用逗号分隔
@@ -6330,13 +6338,97 @@ async def get_link_health():
                     'consecutive_failures': health.get('consecutive_failures', 0)
                 })
         
+        # ========== 泄露检测数据 ==========
+        
+        # 1. 查询飞书访问记录（每条链接最新的一条记录）
+        try:
+            feishu_response = client.table('feishu_access_records').select('*').order('created_at', desc=True).execute()
+            feishu_data = feishu_response.data or []
+            
+            # 按 URL 去重，只保留最新记录
+            feishu_by_url = {}
+            for record in feishu_data:
+                url = record.get('feishu_url')
+                if url and url not in feishu_by_url:
+                    feishu_by_url[url] = record
+        except Exception as e:
+            logger.warning(f"查询飞书访问记录失败: {str(e)}")
+            feishu_by_url = {}
+        
+        # 2. 查询系统验证数据（按飞书链接分组统计）
+        # 获取所有卡密的验证数据
+        try:
+            cards_with_validation = client.table('card_keys_table').select(
+                'feishu_url, link_name, devices, activated_at'
+            ).execute()
+            cards_data = cards_with_validation.data or []
+            
+            # 按链接分组统计
+            for card in cards_data:
+                url = card.get('feishu_url')
+                if url and url in unique_links:
+                    # 统计验证次数（从devices字段解析）
+                    devices_str = card.get('devices', '[]')
+                    try:
+                        if isinstance(devices_str, str):
+                            devices = json.loads(devices_str) if devices_str else []
+                        else:
+                            devices = devices_str if devices_str else []
+                        
+                        # 系统验证人数（去重）
+                        unique_links[url]['system_visitor_count'] += len(devices) if devices else 0
+                        
+                        # 系统验证次数（每个设备的访问次数总和）
+                        for device in devices:
+                            unique_links[url]['system_access_count'] += device.get('access_count', 1) if isinstance(device, dict) else 1
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f"查询系统验证数据失败: {str(e)}")
+        
+        # 3. 合并飞书访问数据并计算泄露风险
+        for url, record in feishu_by_url.items():
+            if url in unique_links:
+                link_data = unique_links[url]
+                link_data['feishu_visitor_count'] = record.get('visitor_count')
+                link_data['feishu_access_count'] = record.get('access_count')
+                link_data['feishu_recorded_at'] = record.get('created_at')
+                
+                # 计算差异和风险
+                if link_data['feishu_visitor_count'] is not None:
+                    diff = link_data['feishu_visitor_count'] - link_data['system_visitor_count']
+                    link_data['visitor_diff'] = diff
+                    
+                    # 判断风险等级
+                    if diff <= 0:
+                        link_data['leak_risk'] = 'normal'
+                    elif diff <= 3:
+                        link_data['leak_risk'] = 'low'
+                    elif diff <= 10:
+                        link_data['leak_risk'] = 'medium'
+                    else:
+                        link_data['leak_risk'] = 'high'
+                else:
+                    link_data['leak_risk'] = 'not_recorded'
+        
+        # 4. 标记未录入数据的链接
+        for url, link_data in unique_links.items():
+            if link_data['feishu_visitor_count'] is None:
+                link_data['leak_risk'] = 'not_recorded'
+        
         # 统计汇总
         links_list = list(unique_links.values())
         summary = {
             'total': len(links_list),
             'healthy': len([l for l in links_list if l['status'] == 'healthy']),
             'unhealthy': len([l for l in links_list if l['status'] == 'unhealthy']),
-            'unknown': len([l for l in links_list if l['status'] == 'unknown'])
+            'unknown': len([l for l in links_list if l['status'] == 'unknown']),
+            # 泄露风险统计
+            'leak_high': len([l for l in links_list if l['leak_risk'] == 'high']),
+            'leak_medium': len([l for l in links_list if l['leak_risk'] == 'medium']),
+            'leak_low': len([l for l in links_list if l['leak_risk'] == 'low']),
+            'leak_normal': len([l for l in links_list if l['leak_risk'] == 'normal']),
+            'leak_not_recorded': len([l for l in links_list if l['leak_risk'] == 'not_recorded'])
         }
         
         return {
@@ -6593,6 +6685,84 @@ async def get_link_health_summary():
         
     except Exception as e:
         logger.error(f"获取链接健康汇总失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+# ==================== 飞书访问数据录入 API ====================
+
+class FeishuAccessRecord(BaseModel):
+    """飞书访问数据录入请求"""
+    feishu_url: str                     # 飞书链接URL
+    link_name: Optional[str] = None     # 链接名称（可选，自动从卡密获取）
+    visitor_count: int                  # 访问人数
+    access_count: int                   # 访问次数
+
+
+@app.post("/api/admin/link-health/feishu-record")
+async def record_feishu_access(request: Request, req: FeishuAccessRecord):
+    """录入飞书访问数据"""
+    try:
+        client = get_supabase_client()
+        
+        # 获取链接名称（如果未提供，从卡密表获取）
+        link_name = req.link_name
+        if not link_name:
+            cards_response = client.table('card_keys_table').select('link_name').eq('feishu_url', req.feishu_url).execute()
+            if cards_response.data:
+                names = set()
+                for card in cards_response.data:
+                    name = card.get('link_name') or ''
+                    if name:
+                        names.add(name)
+                link_name = ', '.join(sorted(names)) if names else ''
+        
+        # 插入记录
+        now = beijing_time_iso()
+        record_data = {
+            'feishu_url': req.feishu_url,
+            'link_name': link_name,
+            'visitor_count': req.visitor_count,
+            'access_count': req.access_count,
+            'source': 'manual',
+            'created_at': now,
+            'updated_at': now
+        }
+        
+        result = client.table('feishu_access_records').insert(record_data).execute()
+        
+        logger.info(f"[FeishuRecord] 录入飞书访问数据: {link_name}, 人数={req.visitor_count}, 次数={req.access_count}")
+        
+        return {
+            "success": True,
+            "msg": "录入成功",
+            "data": result.data[0] if result.data else record_data
+        }
+        
+    except Exception as e:
+        logger.error(f"录入飞书访问数据失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/admin/link-health/feishu-record")
+async def get_feishu_records(feishu_url: Optional[str] = None):
+    """获取飞书访问数据记录"""
+    try:
+        client = get_supabase_client()
+        
+        query = client.table('feishu_access_records').select('*').order('created_at', desc=True)
+        
+        if feishu_url:
+            query = query.eq('feishu_url', feishu_url)
+        
+        response = query.limit(100).execute()
+        
+        return {
+            "success": True,
+            "data": response.data or []
+        }
+        
+    except Exception as e:
+        logger.error(f"获取飞书访问记录失败: {str(e)}")
         return {"success": False, "msg": str(e)}
 
 

@@ -844,20 +844,23 @@
             background-color: #FFF8F0;
         }
         
+        /* 新表格列宽：链接名称、链接状态、飞书人数、系统人数、差异、泄露风险、最后检测、操作 */
         .link-health-table th:nth-child(1),
-        .link-health-table td:nth-child(1) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .link-health-table td:nth-child(1) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
         .link-health-table th:nth-child(2),
-        .link-health-table td:nth-child(2) { min-width: 200px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #8B7355; }
+        .link-health-table td:nth-child(2) { width: 80px; text-align: center; }
         .link-health-table th:nth-child(3),
         .link-health-table td:nth-child(3) { width: 70px; text-align: center; }
         .link-health-table th:nth-child(4),
-        .link-health-table td:nth-child(4) { width: 90px; text-align: center; }
+        .link-health-table td:nth-child(4) { width: 70px; text-align: center; }
         .link-health-table th:nth-child(5),
-        .link-health-table td:nth-child(5) { min-width: 100px; max-width: 150px; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .link-health-table td:nth-child(5) { width: 60px; text-align: center; }
         .link-health-table th:nth-child(6),
-        .link-health-table td:nth-child(6) { min-width: 140px; font-size: 13px; color: #8B7355; }
+        .link-health-table td:nth-child(6) { width: 90px; text-align: center; }
         .link-health-table th:nth-child(7),
-        .link-health-table td:nth-child(7) { width: 80px; text-align: center; }
+        .link-health-table td:nth-child(7) { width: 100px; text-align: center; font-size: 12px; color: #8B7355; }
+        .link-health-table th:nth-child(8),
+        .link-health-table td:nth-child(8) { width: 120px; text-align: center; }
         
         .col-narrow {
             max-width: 120px;
@@ -3232,6 +3235,10 @@
                     <h3 style="color: rgba(255,255,255,0.9);">未检测</h3>
                     <div class="value" id="linkHealthUnknown" style="color: white;">0</div>
                 </div>
+                <div class="stat-card" style="background: linear-gradient(135deg, #F59E0B, #D97706); color: white;">
+                    <h3 style="color: rgba(255,255,255,0.9);">泄露风险</h3>
+                    <div class="value" id="linkHealthLeakRisk" style="color: white; font-size: 18px;">🚨 0 高<br>⚠️ 0 中</div>
+                </div>
             </div>
             
             <!-- 操作区域 -->
@@ -3243,6 +3250,14 @@
                         <option value="healthy">正常</option>
                         <option value="unhealthy">异常</option>
                         <option value="unknown">未检测</option>
+                    </select>
+                    <select class="filter-select" id="linkHealthLeakFilter" onchange="filterLinkHealth()">
+                        <option value="">泄露风险</option>
+                        <option value="normal">✅ 正常</option>
+                        <option value="low">⚠️ 低风险</option>
+                        <option value="medium">⚠️ 中风险</option>
+                        <option value="high">🚨 高风险</option>
+                        <option value="not_recorded">❓ 未录入</option>
                     </select>
                     <div class="filter-actions">
                         <button class="btn btn-primary" onclick="checkAllLinks()">检测全部链接</button>
@@ -3258,20 +3273,54 @@
                         <thead>
                             <tr>
                                 <th>链接名称</th>
-                                <th>链接URL</th>
-                                <th>状态</th>
-                                <th>HTTP状态码</th>
-                                <th>错误信息</th>
-                                <th>最后检测时间</th>
+                                <th>链接状态</th>
+                                <th>飞书人数</th>
+                                <th>系统人数</th>
+                                <th>差异</th>
+                                <th>泄露风险</th>
+                                <th>最后检测</th>
                                 <th>操作</th>
                             </tr>
                         </thead>
                         <tbody id="linkHealthTableBody">
                             <tr>
-                                <td colspan="7" style="text-align: center; color: #999;">暂无链接数据</td>
+                                <td colspan="8" style="text-align: center; color: #999;">暂无链接数据</td>
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 录入飞书访问数据弹窗 -->
+        <div id="feishuRecordModal" class="modal" style="display: none;">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h3>录入飞书访问数据</h3>
+                    <button class="modal-close" onclick="closeFeishuRecordModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>链接名称</label>
+                        <input type="text" id="feishuRecordLinkName" readonly style="background: #f5f5f5;">
+                    </div>
+                    <div class="form-group">
+                        <label>飞书访问人数 <span style="color: #999; font-size: 12px;">（来自飞书互动统计）</span></label>
+                        <input type="number" id="feishuRecordVisitorCount" placeholder="输入访问人数" min="0">
+                    </div>
+                    <div class="form-group">
+                        <label>飞书访问次数 <span style="color: #999; font-size: 12px;">（来自飞书互动统计）</span></label>
+                        <input type="number" id="feishuRecordAccessCount" placeholder="输入访问次数" min="0">
+                    </div>
+                    <div style="background: #FFF8F0; padding: 12px; border-radius: 8px; margin-top: 16px;">
+                        <p style="font-size: 13px; color: #8B7355; margin: 0;">
+                            💡 <strong>数据来源：</strong>飞书文档 → 右上角「···」→ 文档信息 → 互动统计
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeFeishuRecordModal()">取消</button>
+                    <button class="btn btn-primary" onclick="saveFeishuRecord()">保存</button>
                 </div>
             </div>
         </div>
@@ -4970,51 +5019,92 @@
             const linkHealthHealthy = document.getElementById('linkHealthHealthy');
             const linkHealthUnhealthy = document.getElementById('linkHealthUnhealthy');
             const linkHealthUnknown = document.getElementById('linkHealthUnknown');
+            const linkHealthLeakRisk = document.getElementById('linkHealthLeakRisk');
             
             if (linkHealthTotal) linkHealthTotal.textContent = summary.total || 0;
             if (linkHealthHealthy) linkHealthHealthy.textContent = summary.healthy || 0;
             if (linkHealthUnhealthy) linkHealthUnhealthy.textContent = summary.unhealthy || 0;
             if (linkHealthUnknown) linkHealthUnknown.textContent = summary.unknown || 0;
+            if (linkHealthLeakRisk) {
+                const highCount = summary.leak_high || 0;
+                const mediumCount = summary.leak_medium || 0;
+                linkHealthLeakRisk.innerHTML = `🚨 ${highCount} 高<br>⚠️ ${mediumCount} 中`;
+            }
             
             // 更新链接健康检测tab的表格
             const tableContainer = document.getElementById('linkHealthTableBody');
             
             if (!links || links.length === 0) {
                 if (tableContainer) {
-                    tableContainer.innerHTML = '<tr><td colspan="7" style="text-align: center; color: #999;">暂无链接数据，点击"检测全部链接"开始检测</td></tr>';
+                    tableContainer.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">暂无链接数据，点击"检测全部链接"开始检测</td></tr>';
                 }
                 return;
             }
             
-            // 按状态排序：异常 > 未知 > 正常
+            // 缓存链接数据用于筛选
+            window.linkHealthData = links;
+            
+            // 按泄露风险和状态排序：高风险 > 中风险 > 低风险 > 正常 > 未录入
+            const riskOrder = { 'high': 0, 'medium': 1, 'low': 2, 'normal': 3, 'not_recorded': 4, 'unknown': 5 };
             const sortedLinks = [...links].sort((a, b) => {
-                const order = { 'unhealthy': 0, 'unknown': 1, 'healthy': 2 };
-                return (order[a.status] || 1) - (order[b.status] || 1);
+                const riskA = riskOrder[a.leak_risk] ?? 5;
+                const riskB = riskOrder[b.leak_risk] ?? 5;
+                if (riskA !== riskB) return riskA - riskB;
+                // 同风险等级，按状态排序
+                const statusOrder = { 'unhealthy': 0, 'unknown': 1, 'healthy': 2 };
+                return (statusOrder[a.status] || 1) - (statusOrder[b.status] || 1);
             });
             
-            // 渲染表格（链接健康检测tab）
+            // 渲染表格
             if (tableContainer) {
                 tableContainer.innerHTML = sortedLinks.map(link => {
+                    // 链接状态
                     const statusClass = link.status || 'unknown';
-                    const statusText = statusClass === 'healthy' ? '正常' : statusClass === 'unhealthy' ? '异常' : '未检测';
+                    const statusText = statusClass === 'healthy' ? '✅正常' : statusClass === 'unhealthy' ? '❌异常' : '❓未检测';
                     const statusColor = statusClass === 'healthy' ? '#10B981' : statusClass === 'unhealthy' ? '#EF4444' : '#9CA3AF';
-                    const checkTime = link.last_check_time ? formatCheckTime(link.last_check_time) : '未检测';
+                    
+                    // 泄露风险
+                    const leakRisk = link.leak_risk || 'not_recorded';
+                    const leakInfo = getLeakRiskDisplay(leakRisk, link.visitor_diff);
+                    
+                    // 飞书数据
+                    const feishuVisitors = link.feishu_visitor_count !== null ? link.feishu_visitor_count : '-';
+                    const systemVisitors = link.system_visitor_count || 0;
+                    const visitorDiff = link.visitor_diff !== null ? (link.visitor_diff > 0 ? `+${link.visitor_diff}` : link.visitor_diff) : '-';
+                    
+                    // 检测时间
+                    const checkTime = link.last_check_time ? formatCheckTime(link.last_check_time) : '-';
                     
                     return `
-                        <tr>
-                            <td>${link.name || '未命名链接'}</td>
-                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis;" title="${link.url}">${link.url}</td>
+                        <tr data-url="${link.url}" data-status="${statusClass}" data-leak-risk="${leakRisk}">
+                            <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${link.name || '未命名链接'}">${link.name || '未命名链接'}</td>
                             <td><span style="color: ${statusColor}; font-weight: 500;">${statusText}</span></td>
-                            <td>${link.http_code || '-'}</td>
-                            <td style="color: #EF4444; font-size: 12px;">${link.error_message || '-'}</td>
-                            <td>${checkTime}</td>
+                            <td style="text-align: center;">${feishuVisitors}</td>
+                            <td style="text-align: center;">${systemVisitors}</td>
+                            <td style="text-align: center; font-weight: 500; color: ${link.visitor_diff > 0 ? '#EF4444' : link.visitor_diff < 0 ? '#10B981' : '#6B7280'};">${visitorDiff}</td>
+                            <td><span style="color: ${leakInfo.color}; font-weight: 500;">${leakInfo.text}</span></td>
+                            <td style="font-size: 12px; color: #8B7355;">${checkTime}</td>
                             <td>
-                                <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测">检测</button>
+                                <button class="btn btn-sm btn-secondary" onclick="openFeishuRecordModal('${encodeURIComponent(link.url)}', '${encodeURIComponent(link.name || '')}')" title="录入飞书数据">录入</button>
+                                <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测" style="margin-left: 4px;">检测</button>
                             </td>
                         </tr>
                     `;
                 }).join('');
             }
+        }
+        
+        // 获取泄露风险显示信息
+        function getLeakRiskDisplay(risk, diff) {
+            const riskMap = {
+                'normal': { text: '✅ 正常', color: '#10B981' },
+                'low': { text: '⚠️ 低风险', color: '#F59E0B' },
+                'medium': { text: '⚠️ 中风险', color: '#F97316' },
+                'high': { text: '🚨 高风险', color: '#EF4444' },
+                'not_recorded': { text: '❓ 未录入', color: '#9CA3AF' },
+                'unknown': { text: '❓ 未知', color: '#9CA3AF' }
+            };
+            return riskMap[risk] || riskMap['unknown'];
         }
         
         // 获取状态图标
@@ -5097,22 +5187,81 @@
         function filterLinkHealth() {
             const searchValue = document.getElementById('linkHealthSearchInput')?.value?.toLowerCase() || '';
             const statusFilter = document.getElementById('linkHealthStatusFilter')?.value || '';
+            const leakFilter = document.getElementById('linkHealthLeakFilter')?.value || '';
             
             const rows = document.querySelectorAll('#linkHealthTableBody tr');
             
             rows.forEach(row => {
                 const name = row.cells[0]?.textContent?.toLowerCase() || '';
-                const url = row.cells[1]?.textContent?.toLowerCase() || '';
-                const status = row.cells[2]?.textContent?.trim() || '';
+                const status = row.dataset.status || '';
+                const leakRisk = row.dataset.leakRisk || '';
                 
-                const matchSearch = !searchValue || name.includes(searchValue) || url.includes(searchValue);
-                const matchStatus = !statusFilter || 
-                    (statusFilter === 'healthy' && status === '正常') ||
-                    (statusFilter === 'unhealthy' && status === '异常') ||
-                    (statusFilter === 'unknown' && status === '未检测');
+                const matchSearch = !searchValue || name.includes(searchValue);
+                const matchStatus = !statusFilter || status === statusFilter;
+                const matchLeak = !leakFilter || leakRisk === leakFilter;
                 
-                row.style.display = matchSearch && matchStatus ? '' : 'none';
+                row.style.display = matchSearch && matchStatus && matchLeak ? '' : 'none';
             });
+        }
+        
+        // ==================== 飞书访问数据录入功能 ====================
+        
+        let currentFeishuRecordUrl = '';
+        
+        // 打开录入弹窗
+        function openFeishuRecordModal(encodedUrl, encodedName) {
+            const url = decodeURIComponent(encodedUrl);
+            const name = decodeURIComponent(encodedName);
+            
+            currentFeishuRecordUrl = url;
+            
+            document.getElementById('feishuRecordLinkName').value = name || '未命名链接';
+            document.getElementById('feishuRecordVisitorCount').value = '';
+            document.getElementById('feishuRecordAccessCount').value = '';
+            
+            document.getElementById('feishuRecordModal').style.display = 'flex';
+        }
+        
+        // 关闭录入弹窗
+        function closeFeishuRecordModal() {
+            document.getElementById('feishuRecordModal').style.display = 'none';
+            currentFeishuRecordUrl = '';
+        }
+        
+        // 保存飞书访问数据
+        async function saveFeishuRecord() {
+            const visitorCount = parseInt(document.getElementById('feishuRecordVisitorCount').value) || 0;
+            const accessCount = parseInt(document.getElementById('feishuRecordAccessCount').value) || 0;
+            
+            if (visitorCount < 0 || accessCount < 0) {
+                showToast('请输入有效的数值', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/link-health/feishu-record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        feishu_url: currentFeishuRecordUrl,
+                        visitor_count: visitorCount,
+                        access_count: accessCount
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast('录入成功', 'success');
+                    closeFeishuRecordModal();
+                    await loadLinkHealth();
+                } else {
+                    showToast('录入失败: ' + getErrorMsg(result), 'error');
+                }
+            } catch (e) {
+                console.error('保存飞书访问数据失败', e);
+                showToast('保存失败', 'error');
+            }
         }
 
         // ==================== 统计报表功能 ====================
