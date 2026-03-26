@@ -1415,8 +1415,8 @@ async def get_card_keys(
         start = (page - 1) * page_size
         end = start + page_size - 1
         
-        # 按 sort_order 升序排序（支持拖拽排序）
-        response = query.range(start, end).order('sort_order').execute()
+        # 卡密列表按 ID 降序排序
+        response = query.range(start, end).order('id', desc=True).execute()
         
         # 为每条记录添加 is_expired 字段（实时计算）
         for card in response.data:
