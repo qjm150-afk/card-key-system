@@ -6328,17 +6328,32 @@ async def get_link_health():
             else:
                 unique_links[url]['name'] = ''
         
-        # 合并健康状态数据
+        # 合并健康状态数据（URL 不区分大小写匹配）
         for health in health_data:
             url = health.get('feishu_url')
-            if url in unique_links:
-                unique_links[url].update({
-                    'status': health.get('status', 'unknown'),
-                    'last_check_time': health.get('last_check_time'),
-                    'http_code': health.get('http_code'),
-                    'error_message': health.get('error_message'),
-                    'consecutive_failures': health.get('consecutive_failures', 0)
-                })
+            if url:
+                # 尝试精确匹配
+                if url in unique_links:
+                    unique_links[url].update({
+                        'status': health.get('status', 'unknown'),
+                        'last_check_time': health.get('last_check_time'),
+                        'http_code': health.get('http_code'),
+                        'error_message': health.get('error_message'),
+                        'consecutive_failures': health.get('consecutive_failures', 0)
+                    })
+                else:
+                    # 尝试忽略大小写匹配
+                    url_lower = url.lower()
+                    for link_url in unique_links:
+                        if link_url.lower() == url_lower:
+                            unique_links[link_url].update({
+                                'status': health.get('status', 'unknown'),
+                                'last_check_time': health.get('last_check_time'),
+                                'http_code': health.get('http_code'),
+                                'error_message': health.get('error_message'),
+                                'consecutive_failures': health.get('consecutive_failures', 0)
+                            })
+                            break
         
         # ========== 泄露检测数据 ==========
         
