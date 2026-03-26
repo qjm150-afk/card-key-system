@@ -1650,8 +1650,8 @@ async def get_card_types_options():
     try:
         client = get_supabase_client()
         
-        # 获取所有有效的卡种
-        response = client.table('card_types').select('id, name').eq('status', 1).is_('deleted_at', 'null').order('name').execute()
+        # 获取所有有效的卡种，按 sort_order 排序（与列表顺序一致）
+        response = client.table('card_types').select('id, name').eq('status', 1).is_('deleted_at', 'null').order('sort_order').execute()
         
         return {"success": True, "data": response.data or []}
         
