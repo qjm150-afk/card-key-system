@@ -7261,6 +7261,50 @@
             }
         }
 
+        // 批量操作
+        async function batchAction(action) {
+            if (selectedIds.size === 0) {
+                showToast('请先选择要操作的卡密', 'error');
+                return;
+            }
+
+            const actionNames = {
+                'activate': '激活',
+                'deactivate': '停用',
+                'delete': '删除'
+            };
+
+            if (!confirm(`确定要批量${actionNames[action]} ${selectedIds.size} 条记录吗？`)) return;
+
+            try {
+                const response = await fetch('/api/admin/cards/batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        ids: Array.from(selectedIds),
+                        action
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showToast(result.msg, 'success');
+                    selectedIds.clear();
+                    updateSelectedInfo();
+                    loadCards();
+                    loadStats();
+                    loadCardTypes();  // 刷新卡种列表（可能影响多种统计数据）
+                    // 刷新下拉列表
+                    loadFilterOptions(null);
+                } else {
+                    showToast(getErrorMsg(result), 'error');
+                }
+            } catch (error) {
+                showToast('操作失败: ' + error.message, 'error');
+            }
+        }
+
         // 导出卡密 - 全选/取消全选字段
         function toggleExportSelectAll() {
             const selectAllCheckbox = document.getElementById('exportSelectAllFields');
