@@ -7182,6 +7182,8 @@
                     closeBatchGenerateModal();
                     loadCards();
                     loadStats();
+                    // 刷新卡种列表（更新总数、库存等统计数据）
+                    loadCardTypes();
                     // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
                     loadSalesChannelDatalist();
                     // 刷新筛选选项
@@ -7522,6 +7524,7 @@
                     closeImportCardsModal();
                     loadCards();
                     loadStats();
+                    loadCardTypes();  // 刷新卡种列表
                     loadFilterOptions(null);
                 } else {
                     showToast(getErrorMsg(result), 'error');
@@ -9474,6 +9477,7 @@
                     showToast(result.msg || '删除成功', 'success');
                     loadCardTypeCards();
                     loadCardTypeCardsStats();
+                    loadCardTypes();  // 刷新卡种列表（更新总数、库存等统计数据）
                 } else {
                     showToast(getErrorMsg(result), 'error');
                 }
@@ -9552,6 +9556,7 @@
                     showToast(`已${action} ${result.affected_count || cardTypeCardsSelectedIds.size} 张卡密`, 'success');
                     clearCardTypeCardsSelection();
                     loadCardTypeCards();
+                    loadCardTypes();  // 刷新卡种列表（更新已停用数量）
                 } else {
                     showToast(getErrorMsg(result), 'error');
                 }
@@ -9613,6 +9618,8 @@
                     showToast(`已删除 ${result.data.deleted_count} 张卡密`, 'success');
                     clearCardTypeCardsSelection();
                     loadCardTypeCards();
+                    // 刷新卡种列表（更新总数、库存等统计数据）
+                    loadCardTypes();
                 } else {
                     showToast(getErrorMsg(result), 'error');
                 }
