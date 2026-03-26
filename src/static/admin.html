@@ -844,23 +844,25 @@
             background-color: #FFF8F0;
         }
         
-        /* 新表格列宽：链接名称、链接状态、飞书人数、系统人数、差异、泄露风险、最后检测、操作 */
+        /* 新表格列宽：链接名称、链接URL、链接状态、飞书人数、系统人数、差异、泄露风险、最后检测、操作 */
         .link-health-table th:nth-child(1),
-        .link-health-table td:nth-child(1) { min-width: 120px; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+        .link-health-table td:nth-child(1) { min-width: 100px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
         .link-health-table th:nth-child(2),
-        .link-health-table td:nth-child(2) { width: 80px; text-align: center; }
+        .link-health-table td:nth-child(2) { min-width: 180px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
         .link-health-table th:nth-child(3),
-        .link-health-table td:nth-child(3) { width: 70px; text-align: center; }
+        .link-health-table td:nth-child(3) { width: 80px; text-align: center; }
         .link-health-table th:nth-child(4),
         .link-health-table td:nth-child(4) { width: 70px; text-align: center; }
         .link-health-table th:nth-child(5),
-        .link-health-table td:nth-child(5) { width: 60px; text-align: center; }
+        .link-health-table td:nth-child(5) { width: 70px; text-align: center; }
         .link-health-table th:nth-child(6),
-        .link-health-table td:nth-child(6) { width: 90px; text-align: center; }
+        .link-health-table td:nth-child(6) { width: 60px; text-align: center; }
         .link-health-table th:nth-child(7),
-        .link-health-table td:nth-child(7) { width: 100px; text-align: center; font-size: 12px; color: #8B7355; }
+        .link-health-table td:nth-child(7) { width: 90px; text-align: center; }
         .link-health-table th:nth-child(8),
-        .link-health-table td:nth-child(8) { width: 120px; text-align: center; }
+        .link-health-table td:nth-child(8) { width: 90px; text-align: center; font-size: 12px; color: #8B7355; }
+        .link-health-table th:nth-child(9),
+        .link-health-table td:nth-child(9) { width: 120px; text-align: center; }
         
         .col-narrow {
             max-width: 120px;
@@ -3273,6 +3275,7 @@
                         <thead>
                             <tr>
                                 <th>链接名称</th>
+                                <th>链接URL</th>
                                 <th>链接状态</th>
                                 <th>飞书人数</th>
                                 <th>系统人数</th>
@@ -3284,7 +3287,7 @@
                         </thead>
                         <tbody id="linkHealthTableBody">
                             <tr>
-                                <td colspan="8" style="text-align: center; color: #999;">暂无链接数据</td>
+                                <td colspan="9" style="text-align: center; color: #999;">暂无链接数据</td>
                             </tr>
                         </tbody>
                     </table>
@@ -3294,7 +3297,7 @@
         
         <!-- 录入飞书访问数据弹窗 -->
         <div id="feishuRecordModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); align-items: center; justify-content: center; z-index: 1000;">
-            <div class="modal-content" style="max-width: 450px; background: white; border-radius: 20px; max-height: 90vh; overflow-y: auto;">
+            <div class="modal-content" style="width: 500px; max-width: 90vw; background: white; border-radius: 20px; max-height: 90vh; overflow-y: auto;">
                 <div class="modal-header">
                     <h3>录入飞书访问数据</h3>
                     <button class="modal-close" onclick="closeFeishuRecordModal()">&times;</button>
@@ -3302,15 +3305,15 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label>链接名称</label>
-                        <input type="text" id="feishuRecordLinkName" readonly style="background: #f5f5f5;">
+                        <input type="text" id="feishuRecordLinkName" readonly style="background: #f5f5f5; width: 100%; padding: 10px 12px; border: 1px solid #E8D5C4; border-radius: 8px; font-size: 14px;">
                     </div>
                     <div class="form-group">
                         <label>飞书访问人数 <span style="color: #999; font-size: 12px;">（来自飞书互动统计）</span></label>
-                        <input type="number" id="feishuRecordVisitorCount" placeholder="输入访问人数" min="0">
+                        <input type="number" id="feishuRecordVisitorCount" placeholder="输入访问人数" min="0" style="width: 100%; padding: 10px 12px; border: 1px solid #E8D5C4; border-radius: 8px; font-size: 14px;">
                     </div>
                     <div class="form-group">
                         <label>飞书访问次数 <span style="color: #999; font-size: 12px;">（来自飞书互动统计）</span></label>
-                        <input type="number" id="feishuRecordAccessCount" placeholder="输入访问次数" min="0">
+                        <input type="number" id="feishuRecordAccessCount" placeholder="输入访问次数" min="0" style="width: 100%; padding: 10px 12px; border: 1px solid #E8D5C4; border-radius: 8px; font-size: 14px;">
                     </div>
                     <div style="background: #FFF8F0; padding: 12px; border-radius: 8px; margin-top: 16px;">
                         <p style="font-size: 13px; color: #8B7355; margin: 0;">
@@ -5036,7 +5039,7 @@
             
             if (!links || links.length === 0) {
                 if (tableContainer) {
-                    tableContainer.innerHTML = '<tr><td colspan="8" style="text-align: center; color: #999;">暂无链接数据，点击"检测全部链接"开始检测</td></tr>';
+                    tableContainer.innerHTML = '<tr><td colspan="9" style="text-align: center; color: #999;">暂无链接数据，点击"检测全部链接"开始检测</td></tr>';
                 }
                 return;
             }
@@ -5075,16 +5078,20 @@
                     // 检测时间
                     const checkTime = link.last_check_time ? formatCheckTime(link.last_check_time) : '-';
                     
+                    // 截取URL显示
+                    const shortUrl = link.url ? (link.url.length > 40 ? link.url.substring(0, 40) + '...' : link.url) : '-';
+                    
                     return `
                         <tr data-url="${link.url}" data-status="${statusClass}" data-leak-risk="${leakRisk}">
-                            <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" title="${link.name || '未命名链接'}">${link.name || '未命名链接'}</td>
-                            <td><span style="color: ${statusColor}; font-weight: 500;">${statusText}</span></td>
+                            <td style="max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${link.name || '未命名链接'}">${link.name || '未命名链接'}</td>
+                            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: #8B7355;" title="${link.url}"><a href="${link.url}" target="_blank" style="color: #8B7355; text-decoration: none;">${shortUrl}</a></td>
+                            <td style="text-align: center;"><span style="color: ${statusColor}; font-weight: 500;">${statusText}</span></td>
                             <td style="text-align: center;">${feishuVisitors}</td>
                             <td style="text-align: center;">${systemVisitors}</td>
                             <td style="text-align: center; font-weight: 500; color: ${link.visitor_diff > 0 ? '#EF4444' : link.visitor_diff < 0 ? '#10B981' : '#6B7280'};">${visitorDiff}</td>
-                            <td><span style="color: ${leakInfo.color}; font-weight: 500;">${leakInfo.text}</span></td>
-                            <td style="font-size: 12px; color: #8B7355;">${checkTime}</td>
-                            <td>
+                            <td style="text-align: center;"><span style="color: ${leakInfo.color}; font-weight: 500;">${leakInfo.text}</span></td>
+                            <td style="font-size: 12px; color: #8B7355; text-align: center;">${checkTime}</td>
+                            <td style="text-align: center;">
                                 <button class="btn btn-sm btn-secondary" onclick="openFeishuRecordModal('${encodeURIComponent(link.url)}', '${encodeURIComponent(link.name || '')}')" title="录入飞书数据">录入</button>
                                 <button class="btn btn-sm btn-secondary" onclick="checkSingleLink('${encodeURIComponent(link.url)}')" title="重新检测" style="margin-left: 4px;">检测</button>
                             </td>
@@ -5193,10 +5200,11 @@
             
             rows.forEach(row => {
                 const name = row.cells[0]?.textContent?.toLowerCase() || '';
+                const url = row.dataset.url?.toLowerCase() || '';
                 const status = row.dataset.status || '';
                 const leakRisk = row.dataset.leakRisk || '';
                 
-                const matchSearch = !searchValue || name.includes(searchValue);
+                const matchSearch = !searchValue || name.includes(searchValue) || url.includes(searchValue);
                 const matchStatus = !statusFilter || status === statusFilter;
                 const matchLeak = !leakFilter || leakRisk === leakFilter;
                 
