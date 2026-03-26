@@ -1496,7 +1496,8 @@ async def get_card_types(
         start = (page - 1) * page_size
         end = start + page_size - 1
         
-        response = query.range(start, end).order('id', desc=True).execute()
+        # 按 sort_order 升序排序（支持拖拽排序），相同时按 ID 降序
+        response = query.range(start, end).order('sort_order').order('id', desc=True).execute()
         
         # 获取卡种列表
         card_types = response.data or []
