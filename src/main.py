@@ -6525,8 +6525,21 @@ async def check_single_link_api(request: Request):
         
         client = get_supabase_client()
         
-        # 获取该URL的所有链接名称（去重）
-        cards_response = client.table('card_keys_table').select('link_name').eq('feishu_url', url).execute()
+        # 获取该URL的所有链接名称和原始URL（处理大小写问题）
+        # 先精确匹配
+        cards_response = client.table('card_keys_table').select('feishu_url, link_name').eq('feishu_url', url).execute()
+        
+        # 如果精确匹配没找到，尝试忽略大小写匹配
+        if not cards_response.data:
+            all_cards = client.table('card_keys_table').select('feishu_url, link_name').execute()
+            url_lower = url.lower()
+            for card in (all_cards.data or []):
+                if card.get('feishu_url', '').lower() == url_lower:
+                    # 使用数据库中存储的原始 URL
+                    url = card.get('feishu_url')
+                    cards_response.data = [card]
+                    break
+        
         names = set()
         if cards_response.data:
             for card in cards_response.data:
@@ -6624,8 +6637,19 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
     
     # 更新数据库
     try:
-        # 检查记录是否存在
-        existing = db_client.table('link_health_table').select('id').eq('feishu_url', url).execute()
+        # 检查记录是否存在（精确匹配）
+        existing = db_client.table('link_health_table').select('id, feishu_url').eq('feishu_url', url).execute()
+        
+        # 如果精确匹配没找到，尝试忽略大小写匹配
+        if not existing.data:
+            all_records = db_client.table('link_health_table').select('id, feishu_url').execute()
+            url_lower = url.lower()
+            for record in (all_records.data or []):
+                if record.get('feishu_url', '').lower() == url_lower:
+                    existing.data = [record]
+                    # 使用数据库中存储的原始 URL
+                    url = record.get('feishu_url')
+                    break
         
         next_check = now + timedelta(hours=24)  # 24小时后再检测
         
@@ -6723,8 +6747,23 @@ async def record_feishu_access(request: Request, req: FeishuAccessRecord):
         
         # 获取链接名称（如果未提供，从卡密表获取）
         link_name = req.link_name
+        feishu_url = req.feishu_url  # 使用原始 URL
+        
         if not link_name:
-            cards_response = client.table('card_keys_table').select('link_name').eq('feishu_url', req.feishu_url).execute()
+            # 先精确匹配
+            cards_response = client.table('card_keys_table').select('feishu_url, link_name').eq('feishu_url', feishu_url).execute()
+            
+            # 如果精确匹配没找到，尝试忽略大小写匹配
+            if not cards_response.data:
+                all_cards = client.table('card_keys_table').select('feishu_url, link_name').execute()
+                url_lower = feishu_url.lower()
+                for card in (all_cards.data or []):
+                    if card.get('feishu_url', '').lower() == url_lower:
+                        # 使用数据库中存储的原始 URL
+                        feishu_url = card.get('feishu_url')
+                        cards_response.data = [card]
+                        break
+            
             if cards_response.data:
                 names = set()
                 for card in cards_response.data:
@@ -6736,7 +6775,7 @@ async def record_feishu_access(request: Request, req: FeishuAccessRecord):
         # 插入记录
         now = beijing_time_iso()
         record_data = {
-            'feishu_url': req.feishu_url,
+            'feishu_url': feishu_url,
             'link_name': link_name,
             'visitor_count': req.visitor_count,
             'access_count': req.access_count,
