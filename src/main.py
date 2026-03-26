@@ -829,6 +829,18 @@ async def logout_card_key(request: LogoutRequest):
         return {"success": False, "msg": str(e)}
 
 
+# ==================== 保活 API ====================
+
+@app.post("/api/keepalive")
+async def keepalive():
+    """
+    保活 API
+    - 用于前端定时请求，保持容器热启动
+    - 仅返回成功响应，不做任何数据库操作
+    """
+    return {"success": True, "msg": "保活成功", "timestamp": beijing_time_iso()}
+
+
 class UnbindDeviceRequest(BaseModel):
     """解绑设备请求"""
     card_key: str
