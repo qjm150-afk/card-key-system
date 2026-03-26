@@ -3255,7 +3255,7 @@
                     </select>
                     <select class="filter-select" id="linkHealthLeakFilter" onchange="filterLinkHealth()">
                         <option value="">泄露风险</option>
-                        <option value="normal">✅ 正常</option>
+                        <option value="normal">✅ 未泄露</option>
                         <option value="low">⚠️ 低风险</option>
                         <option value="medium">⚠️ 中风险</option>
                         <option value="high">🚨 高风险</option>
@@ -5047,7 +5047,7 @@
             // 缓存链接数据用于筛选
             window.linkHealthData = links;
             
-            // 按泄露风险和状态排序：高风险 > 中风险 > 低风险 > 正常 > 未录入
+            // 按泄露风险和状态排序：高风险 > 中风险 > 低风险 > 未泄露 > 未录入
             const riskOrder = { 'high': 0, 'medium': 1, 'low': 2, 'normal': 3, 'not_recorded': 4, 'unknown': 5 };
             const sortedLinks = [...links].sort((a, b) => {
                 const riskA = riskOrder[a.leak_risk] ?? 5;
@@ -5104,7 +5104,7 @@
         // 获取泄露风险显示信息
         function getLeakRiskDisplay(risk, diff) {
             const riskMap = {
-                'normal': { text: '✅ 正常', color: '#10B981' },
+                'normal': { text: '✅ 未泄露', color: '#10B981' },
                 'low': { text: '⚠️ 低风险', color: '#F59E0B' },
                 'medium': { text: '⚠️ 中风险', color: '#F97316' },
                 'high': { text: '🚨 高风险', color: '#EF4444' },
