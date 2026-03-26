@@ -8879,15 +8879,21 @@
             
             // 销毁旧实例
             if (cardTypesSortableInstance) {
-                cardTypesSortableInstance.destroy();
+                try {
+                    cardTypesSortableInstance.destroy();
+                } catch (e) {
+                    console.warn('销毁旧 Sortable 实例失败:', e);
+                }
+                cardTypesSortableInstance = null;
             }
             
-            // 检查是否有数据
+            // 检查是否有数据行（必须有 data-id 属性的行才算有效数据）
             const rows = tbody.querySelectorAll('tr[data-id]');
             if (rows.length === 0) return;
             
             // 创建新实例
-            cardTypesSortableInstance = new Sortable(tbody, {
+            try {
+                cardTypesSortableInstance = new Sortable(tbody, {
                 handle: '.drag-handle',
                 animation: 150,
                 ghostClass: 'sortable-ghost',
@@ -8925,6 +8931,10 @@
                     }
                 }
             });
+            } catch (e) {
+                console.error('初始化拖拽排序失败:', e);
+                cardTypesSortableInstance = null;
+            }
         }
         
         // 更新统计概览
