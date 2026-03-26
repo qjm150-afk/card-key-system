@@ -4502,7 +4502,10 @@
             }
             document.getElementById(`${tab}-tab`).classList.add('active');
             
-            if (tab === 'logs') {
+            if (tab === 'cards') {
+                loadCards();
+                loadStats();
+            } else if (tab === 'logs') {
                 loadLogs();
             } else if (tab === 'operation-logs') {
                 loadOperationLogs();
