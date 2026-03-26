@@ -15,10 +15,13 @@ CREATE TABLE IF NOT EXISTS feishu_access_records (
     link_name VARCHAR(200),          -- 链接名称（对应卡密的link_name）
     feishu_url TEXT,                 -- 飞书链接URL
     
-    -- 访问信息
+    -- 访问信息（简化版：仅录入访问人数和次数）
+    visitor_count INTEGER,           -- 访问人数
+    access_count INTEGER,            -- 访问次数
+    
+    -- 访问信息（详细版：可选，用于记录具体访问者）
     visitor_name VARCHAR(200),       -- 访问者姓名
     access_time TIMESTAMP WITH TIME ZONE,  -- 访问时间
-    access_count INTEGER DEFAULT 1,  -- 访问次数
     
     -- 来源信息
     source VARCHAR(50) DEFAULT 'manual',  -- 来源：manual=手动录入, import=批量导入
