@@ -9205,6 +9205,8 @@
         function closeCardTypeCardsModal() {
             document.getElementById('cardTypeCardsModalOverlay').classList.remove('active');
             currentCardTypeId = null;
+            // 关闭弹窗时刷新卡种列表，确保统计数据是最新的
+            loadCardTypes();
         }
         
         // 加载卡种统计信息
