@@ -1415,8 +1415,8 @@ async def get_card_keys(
         start = (page - 1) * page_size
         end = start + page_size - 1
         
-        # 按 sort_order 升序排序（支持拖拽排序），相同时按 ID 降序
-        response = query.range(start, end).order('sort_order').order('id', desc=True).execute()
+        # 按 sort_order 升序排序（支持拖拽排序）
+        response = query.range(start, end).order('sort_order').execute()
         
         # 为每条记录添加 is_expired 字段（实时计算）
         for card in response.data:
@@ -1496,8 +1496,9 @@ async def get_card_types(
         start = (page - 1) * page_size
         end = start + page_size - 1
         
-        # 按 sort_order 升序排序（支持拖拽排序），相同时按 ID 降序
-        response = query.range(start, end).order('sort_order').order('id', desc=True).execute()
+        # 按 sort_order 升序排序（支持拖拽排序）
+        # 注意：Supabase 的 order 链式调用顺序是先写的先生效
+        response = query.range(start, end).order('sort_order').execute()
         
         # 获取卡种列表
         card_types = response.data or []
