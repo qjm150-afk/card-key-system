@@ -7073,6 +7073,7 @@
                     closeModal();
                     loadCards();
                     loadStats();
+                    loadCardTypes();  // 刷新卡种列表（可能影响链接名称等统计）
                     // 刷新下拉列表
                     loadFilterOptions(null);
                     // 刷新销售渠道列表（新渠道可能需要加入下拉选项）
@@ -7251,49 +7252,8 @@
                     showToast(result.msg, 'success');
                     loadCards();
                     loadStats();
+                    loadCardTypes();  // 刷新卡种列表（更新总数、库存等统计数据）
                 } else {
-                    showToast(getErrorMsg(result), 'error');
-                }
-            } catch (error) {
-                showToast('删除失败: ' + error.message, 'error');
-            }
-        }
-
-        // 批量操作
-        async function batchAction(action) {
-            if (selectedIds.size === 0) {
-                showToast('请先选择要操作的卡密', 'error');
-                return;
-            }
-
-            const actionNames = {
-                'activate': '激活',
-                'deactivate': '停用',
-                'delete': '删除'
-            };
-
-            if (!confirm(`确定要批量${actionNames[action]} ${selectedIds.size} 条记录吗？`)) return;
-
-            try {
-                const response = await fetch('/api/admin/cards/batch', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        ids: Array.from(selectedIds),
-                        action
-                    })
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showToast(result.msg, 'success');
-                    selectedIds.clear();
-                    updateSelectedInfo();
-                    loadCards();
-                    loadStats();
-                    // 刷新下拉列表
-                    loadFilterOptions(null);
                 } else {
                     showToast(getErrorMsg(result), 'error');
                 }
@@ -7453,6 +7413,7 @@
                     closeImportSaleStatusModal();
                     loadCards();
                     loadStats();
+                    loadCardTypes();  // 刷新卡种列表（更新已售数量统计）
                 } else {
                     showToast(getErrorMsg(result), 'error');
                 }
@@ -8621,6 +8582,7 @@
                     if (selectAllCheckbox) selectAllCheckbox.checked = false;
                     loadCards();
                     loadStats();
+                    loadCardTypes();  // 刷新卡种列表（可能影响多种统计数据）
                     // 如果修改了相关字段，刷新下拉列表
                     if ('sales_channel' in batchUpdateData.updates || 'feishu_url' in batchUpdateData.updates || 'link_name' in batchUpdateData.updates) {
                         loadFilterOptions(null);
@@ -9591,6 +9553,7 @@
                     showToast(`已修改 ${result.affected_count || cardTypeCardsSelectedIds.size} 张卡密的销售状态`, 'success');
                     clearCardTypeCardsSelection();
                     loadCardTypeCards();
+                    loadCardTypes();  // 刷新卡种列表（更新已售数量统计）
                 } else {
                     showToast(getErrorMsg(result), 'error');
                 }
