@@ -7292,22 +7292,41 @@ async def serve_wechat_verify(verify_file: str):
     raise HTTPException(status_code=404, detail="File not found")
 
 
-# 挂载静态文件目录（禁用缓存）
-class NoCacheStaticFiles(StaticFiles):
-    """禁用缓存的静态文件服务"""
+# 挂载静态文件目录（智能缓存策略）
+class SmartCacheStaticFiles(StaticFiles):
+    """智能缓存的静态文件服务
+    
+    缓存策略：
+    - 图片文件（png, jpg, jpeg, gif, webp, svg, ico）：缓存 7 天
+    - HTML 文件：不缓存
+    - 其他文件：缓存 1 天
+    """
     async def __call__(self, scope, receive, send) -> None:
         # 先调用父类处理请求
         await super().__call__(scope, receive, send)
     
-    def file_response(self, *args, **kwargs):
-        response = super().file_response(*args, **kwargs)
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
+    def file_response(self, path: str, *args, **kwargs):
+        response = super().file_response(path, *args, **kwargs)
+        
+        # 根据文件扩展名设置缓存策略
+        ext = path.lower().split('.')[-1] if '.' in path else ''
+        
+        # 图片文件：缓存 7 天
+        if ext in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp'):
+            response.headers["Cache-Control"] = "public, max-age=604800"  # 7天
+        # HTML 文件：不缓存
+        elif ext == 'html':
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        # 其他文件：缓存 1 天
+        else:
+            response.headers["Cache-Control"] = "public, max-age=86400"  # 1天
+        
         return response
 
 if os.path.exists(STATIC_DIR):
-    app.mount("/static", NoCacheStaticFiles(directory=STATIC_DIR), name="static")
+    app.mount("/static", SmartCacheStaticFiles(directory=STATIC_DIR), name="static")
 
 
 if __name__ == "__main__":
