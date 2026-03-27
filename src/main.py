@@ -6619,31 +6619,34 @@ async def check_all_links():
     try:
         client = get_supabase_client()
         
-        # 获取所有唯一的飞书链接，同时收集每个链接的所有名称
+        # 获取所有唯一的飞书链接，同时统计每个名称的卡密数量
         cards_response = client.table('card_keys_table').select('feishu_url, link_name').execute()
         cards = cards_response.data or []
         
-        # 收集每个URL的所有名称（去重）
-        link_names = {}
+        # 收集每个URL的名称及其卡密数量
+        link_name_counts = {}
         for card in cards:
             url = card.get('feishu_url')
             if url:
                 name = card.get('link_name') or ''
-                if url not in link_names:
-                    link_names[url] = set()
+                if url not in link_name_counts:
+                    link_name_counts[url] = {}
                 if name:
-                    link_names[url].add(name)
+                    link_name_counts[url][name] = link_name_counts[url].get(name, 0) + 1
         
-        if not link_names:
+        if not link_name_counts:
             return {"success": True, "msg": "没有需要检测的链接", "results": []}
         
         # 批量检测链接
         results = []
         async with httpx.AsyncClient(timeout=10.0) as http_client:
-            for url, names in link_names.items():
-                # 处理名称：多个名称用逗号分隔
-                names_list = sorted([n for n in names if n])
-                name = ', '.join(names_list) if names_list else ''
+            for url, name_counts in link_name_counts.items():
+                # 取卡密数量最多的名称（最常用名称）
+                if name_counts:
+                    sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+                    name = sorted_names[0][0]
+                else:
+                    name = ''
                 result = await check_single_link(http_client, url, name, client)
                 results.append(result)
         
@@ -6694,16 +6697,20 @@ async def check_single_link_api(request: Request):
                     cards_response.data = [card]
                     break
         
-        names = set()
+        # 统计每个名称的卡密数量
+        name_counts = {}
         if cards_response.data:
             for card in cards_response.data:
                 name = card.get('link_name') or ''
                 if name:
-                    names.add(name)
+                    name_counts[name] = name_counts.get(name, 0) + 1
         
-        # 处理名称：多个名称用逗号分隔
-        names_list = sorted([n for n in names if n])
-        name = ', '.join(names_list) if names_list else ''
+        # 取卡密数量最多的名称（最常用名称）
+        if name_counts:
+            sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+            name = sorted_names[0][0]
+        else:
+            name = ''
         
         async with httpx.AsyncClient(timeout=10.0) as http_client:
             result = await check_single_link(http_client, url, name, client)
@@ -6919,12 +6926,19 @@ async def record_feishu_access(request: Request, req: FeishuAccessRecord):
                         break
             
             if cards_response.data:
-                names = set()
+                # 统计每个名称的卡密数量
+                name_counts = {}
                 for card in cards_response.data:
                     name = card.get('link_name') or ''
                     if name:
-                        names.add(name)
-                link_name = ', '.join(sorted(names)) if names else ''
+                        name_counts[name] = name_counts.get(name, 0) + 1
+                
+                # 取卡密数量最多的名称（最常用名称）
+                if name_counts:
+                    sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+                    link_name = sorted_names[0][0]
+                else:
+                    link_name = ''
         
         # 插入记录
         now = beijing_time_iso()
