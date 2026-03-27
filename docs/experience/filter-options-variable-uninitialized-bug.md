@@ -1,6 +1,8 @@
-# 筛选选项不显示问题 - 变量未初始化 Bug
+# 筛选选项相关问题汇总
 
-## 问题概述
+## 问题一：变量未初始化导致选项不显示
+
+### 问题概述
 
 **现象**：卡密管理后台的筛选下拉框选项丢失，固定过期日期、飞书链接等选项不显示
 
@@ -275,3 +277,143 @@ async def get_filter_options():
 |------|------|----------|
 | 2026-03-27 | `src/main.py` | 添加 `relative_expired = {}` 和 `date_expired = {}` 变量初始化 |
 | 2026-03-27 | `docs/experience/filter-options-variable-uninitialized-bug.md` | 创建本文档 |
+
+
+---
+
+## 问题二：飞书链接名称显示不一致（重复发生）
+
+### 问题概述
+
+**现象**：筛选下拉选项的飞书链接名称与链接管理页面不一致
+
+**发生时间**：2026年3月27日（第二次修复）
+
+**影响范围**：管理后台筛选下拉选项
+
+**严重程度**：中 - 用户困惑，体验不佳
+
+---
+
+### 问题表现
+
+用户反馈截图显示：
+- 链接管理页面：显示正确的飞书链接名称
+- 筛选下拉选项：显示不同的名称（取的是第一个名称，而非最常用名称）
+
+---
+
+### 根本原因
+
+**代码同步遗漏**：在第一次统一飞书链接名称显示逻辑时，遗漏了 `filter-options` API
+
+#### 第一次修复（统一名称显示逻辑）
+
+修改了多个 API，统一使用"最常用名称"逻辑：
+
+```python
+# 统计每个名称的出现次数
+link_name_counts[url][name] = link_name_counts[url].get(name, 0) + 1
+
+# 取卡密数量最多的名称（最常用名称）
+sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+display_name = sorted_names[0][0]
+```
+
+涉及的 API：
+- `/api/admin/links` ✅
+- `/api/admin/link-health/check-all` ✅
+- `/api/admin/link-health/check-single` ✅
+- `/api/admin/link-health/feishu-record` ✅
+- `/api/admin/cards/filter-options` ❌ **遗漏**
+
+#### 遗漏原因
+
+`filter-options` API 使用了类似的统计逻辑，但实现方式不同：
+
+```python
+# 遗漏的代码：只收集名称列表，没有统计数量
+feishu_url_groups[url_key] = {"url": url_key, "count": 0, "names": []}
+feishu_url_groups[url_key]["names"].append(name)
+
+# 错误的显示逻辑：取第一个名称
+display_name = data["names"][0] if data["names"] else ...
+```
+
+---
+
+### 解决方案
+
+修改 `filter-options` API，统一使用"最常用名称"逻辑：
+
+```python
+# 统计每个名称的出现次数
+feishu_url_groups[url_key] = {"url": url_key, "count": 0, "name_counts": {}}
+feishu_url_groups[url_key]["name_counts"][name] = feishu_url_groups[url_key]["name_counts"].get(name, 0) + 1
+
+# 取最常用名称
+name_counts = data["name_counts"]
+if name_counts:
+    sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+    display_name = sorted_names[0][0]
+```
+
+---
+
+### 经验教训
+
+#### 1. 全局搜索不彻底
+
+**问题**：修改时只搜索了部分关键词，没有找到所有相关位置
+
+**改进**：
+```bash
+# 使用多个关键词搜索
+grep -rn "link_name" src/
+grep -rn "feishu_url" src/
+grep -rn "最常用名称" src/
+```
+
+#### 2. 相似代码不同实现
+
+**问题**：同样的功能使用了不同的实现方式，容易被遗漏
+
+**改进**：
+- 提取公共函数，统一实现
+- 使用相同的变量命名约定
+
+```python
+# 建议：提取公共函数
+def get_most_common_name(name_counts: dict) -> str:
+    """取卡密数量最多的名称（最常用名称）"""
+    if not name_counts:
+        return ''
+    sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+    return sorted_names[0][0]
+```
+
+#### 3. 测试覆盖不足
+
+**问题**：没有测试验证所有 API 的名称显示逻辑一致
+
+**改进**：添加集成测试，验证多个 API 返回相同的名称
+
+---
+
+### 修改记录
+
+| 日期 | 文件 | 修改内容 |
+|------|------|----------|
+| 2026-03-27 | `src/main.py` | 第一次：统一多个 API 的飞书链接名称显示逻辑 |
+| 2026-03-27 | `src/main.py` | 第二次：修复 filter-options API 的名称显示逻辑 |
+
+---
+
+## 核心教训：相似修改必须全面检查
+
+当需要修改多个位置的相似逻辑时：
+
+1. **列出所有相关位置**（使用多种关键词搜索）
+2. **逐一核对修改**（不遗漏任何一个）
+3. **统一实现方式**（使用相同的代码结构）
+4. **添加测试验证**（确保一致性）
