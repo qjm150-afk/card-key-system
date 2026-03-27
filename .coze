@@ -1,5 +1,5 @@
 [project]
-requires = ["python-3.11"]
+requires = ["python-3.12"]
 
 [dev]
 # 开发环境：扣子平台自动注入 DATABASE_URL（开发环境数据库）
