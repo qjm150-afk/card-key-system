@@ -3432,8 +3432,9 @@ async def get_filter_options(
                 item_expire_after_days = item.get('expire_after_days')
                 item_activated_at = item.get('activated_at')
                 
-                # 优先处理激活后N天有效
-                if item_expire_after_days is not None:
+                # 判断过期类型：优先使用 expire_at（固定日期），其次 expire_after_days（激活后N天）
+                # 注意：expire_after_days = 0 视为无效值，使用 expire_at
+                if item_expire_after_days is not None and item_expire_after_days > 0:
                     days = item_expire_after_days
                     # 统计到 relative_groups（无论是否过期）
                     relative_groups[days] = relative_groups.get(days, 0) + 1
@@ -3741,8 +3742,9 @@ async def get_expire_groups():
             expire_after_days = item.get('expire_after_days')
             activated_at = item.get('activated_at')
             
-            # 优先处理激活后N天有效
-            if expire_after_days is not None:
+            # 判断过期类型：优先使用 expire_at（固定日期），其次 expire_after_days（激活后N天）
+            # 注意：expire_after_days = 0 视为无效值，使用 expire_at
+            if expire_after_days is not None and expire_after_days > 0:
                 # 激活后N天有效
                 days = expire_after_days
                 
