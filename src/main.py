@@ -3426,6 +3426,7 @@ async def get_filter_options(
                 sales_channel_count[channel] = sales_channel_count.get(channel, 0) + 1
             
             # 5. 过期时间统计（排除 expire_days 筛选）
+            # 修改：无论是否过期，都保留其原始分组，方便用户筛选
             if matches_filter(item, exclude='expire_days'):
                 item_expire_at = item.get('expire_at')
                 item_expire_after_days = item.get('expire_after_days')
@@ -3434,35 +3435,33 @@ async def get_filter_options(
                 # 优先处理激活后N天有效
                 if item_expire_after_days is not None:
                     days = item_expire_after_days
+                    # 统计到 relative_groups（无论是否过期）
+                    relative_groups[days] = relative_groups.get(days, 0) + 1
                     
-                    # 检查是否已过期
+                    # 检查是否已过期（用于标记）
                     if item_activated_at:
                         activated_time = parse_datetime(item_activated_at)
                         if activated_time:
-                            # 计算过期时间（保留时区）
                             expire_time = activated_time + timedelta(days=days)
                             if expire_time < now:
                                 expired_count += 1
-                            else:
-                                relative_groups[days] = relative_groups.get(days, 0) + 1
-                        else:
-                            # 解析失败，按未过期处理
-                            relative_groups[days] = relative_groups.get(days, 0) + 1
-                    else:
-                        relative_groups[days] = relative_groups.get(days, 0) + 1
+                                relative_expired[days] = relative_expired.get(days, 0) + 1
                 elif item_expire_at is None:
                     permanent_count += 1
                 else:
+                    # 固定过期日期
                     expire_date = parse_datetime(item_expire_at)
                     if expire_date:
                         expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
                         date_key = expire_date_only.strftime('%Y-%m-%d')
                         
-                        # 使用 today 进行比较（都是带时区的）
+                        # 统计到 expire_groups（无论是否过期）
+                        expire_groups[date_key] = expire_groups.get(date_key, 0) + 1
+                        
+                        # 检查是否已过期（用于标记）
                         if expire_date_only < today:
                             expired_count += 1
-                        else:
-                            expire_groups[date_key] = expire_groups.get(date_key, 0) + 1
+                            date_expired[date_key] = date_expired.get(date_key, 0) + 1
             
             # 6. 卡种统计（排除 card_type_id 筛选）
             if matches_filter(item, exclude='card_type_id'):
@@ -3488,11 +3487,28 @@ async def get_filter_options(
         
         # 构建过期时间分组列表
         expire_groups_list = []
+        # 已过期分组（用于筛选所有已过期的卡密）
         expire_groups_list.append({"value": "expired", "label": "已过期", "count": expired_count})
+        # 激活后N天有效（无论是否过期）
         for days in sorted(relative_groups.keys()):
-            expire_groups_list.append({"value": f"relative:{days}", "label": f"激活后{days}天有效", "count": relative_groups[days]})
+            is_expired = days in relative_expired
+            label = f"激活后{days}天有效" + (" (已过期)" if is_expired else "")
+            expire_groups_list.append({
+                "value": f"relative:{days}",
+                "label": f"激活后{days}天有效",
+                "count": relative_groups[days],
+                "is_expired": is_expired
+            })
+        # 固定过期日期（无论是否过期）
         for date_key in sorted(expire_groups.keys()):
-            expire_groups_list.append({"value": f"date:{date_key}", "label": f"{date_key} 到期", "count": expire_groups[date_key]})
+            is_expired = date_key in date_expired
+            expire_groups_list.append({
+                "value": f"date:{date_key}",
+                "label": f"{date_key} 到期",
+                "count": expire_groups[date_key],
+                "is_expired": is_expired
+            })
+        # 永久有效
         expire_groups_list.append({"value": "permanent", "label": "永久有效", "count": permanent_count})
         
         # 获取卡种名称映射
@@ -3714,9 +3730,11 @@ async def get_expire_groups():
         
         # 统计每个过期日期的数量
         permanent_count = 0  # 永久有效（expire_at和expire_after_days都为None）
-        expired_count = 0    # 已过期（过期日期小于今天，或激活后N天已过期）
-        expire_groups = {}   # 未过期的具体日期（过期日期>=今天）
-        relative_groups = {} # 激活后N天有效（expire_after_days），未过期
+        expired_count = 0    # 已过期总数
+        expire_groups = {}   # 固定过期日期（无论是否过期）
+        relative_groups = {} # 激活后N天有效（无论是否过期）
+        relative_expired = {} # 激活后N天有效且已过期
+        date_expired = {}    # 固定过期日期且已过期
         
         for item in response.data:
             expire_at = item.get('expire_at')
@@ -3728,60 +3746,40 @@ async def get_expire_groups():
                 # 激活后N天有效
                 days = expire_after_days
                 
-                # 检查是否已过期（需要已激活才能判断）
+                # 统计到 relative_groups（无论是否过期）
+                relative_groups[days] = relative_groups.get(days, 0) + 1
+                
+                # 检查是否已过期（用于标记）
                 if activated_at:
                     activated_time = parse_datetime(activated_at)
                     if activated_time:
-                        # 计算过期时间
                         expire_time = activated_time + timedelta(days=days)
                         if expire_time < now:
-                            # 已过期
                             expired_count += 1
-                        else:
-                            # 未过期，按天数分组
-                            if days not in relative_groups:
-                                relative_groups[days] = 0
-                            relative_groups[days] += 1
-                    else:
-                        # 解析失败，仍按天数分组显示
-                        if days not in relative_groups:
-                            relative_groups[days] = 0
-                        relative_groups[days] += 1
-                else:
-                    # 未激活，按天数分组显示
-                    if days not in relative_groups:
-                        relative_groups[days] = 0
-                    relative_groups[days] += 1
+                            relative_expired[days] = relative_expired.get(days, 0) + 1
             elif expire_at is None:
-                # 永久有效：创建卡密时没有填写过期时间，也没有设置激活后有效天数
+                # 永久有效
                 permanent_count += 1
             else:
-                # 解析过期时间
+                # 固定过期日期
                 expire_date = parse_datetime(expire_at)
                 if expire_date:
-                    # 只保留日期部分（去掉时分秒），统一用日期比较
                     expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
                     date_key = expire_date_only.strftime('%Y-%m-%d')
                     
+                    # 统计到 expire_groups（无论是否过期）
+                    expire_groups[date_key] = expire_groups.get(date_key, 0) + 1
+                    
+                    # 检查是否已过期（用于标记）
                     if expire_date_only < today:
-                        # 已过期：过期日期小于今天
                         expired_count += 1
-                    else:
-                        # 未过期，按日期分组
-                        if date_key not in expire_groups:
-                            expire_groups[date_key] = {
-                                'date': date_key,
-                                'count': 0,
-                                'is_expired': False
-                            }
-                        expire_groups[date_key]['count'] += 1
-        
-        # 转换为列表并按日期排序
-        groups = list(expire_groups.values())
-        groups.sort(key=lambda x: x['date'])
+                        date_expired[date_key] = date_expired.get(date_key, 0) + 1
         
         # 激活后N天有效排序（按天数）
         sorted_relative = sorted(relative_groups.items(), key=lambda x: x[0])
+        
+        # 固定过期日期排序（按日期）
+        sorted_dates = sorted(expire_groups.items(), key=lambda x: x[0])
         
         # 构建返回结果
         result = []
@@ -3795,32 +3793,36 @@ async def get_expire_groups():
             'is_expired': True
         })
         
-        # 2. 激活后N天有效
+        # 2. 激活后N天有效（无论是否过期）
         for days, count in sorted_relative:
+            is_expired = days in relative_expired
             result.append({
                 'type': 'relative',
                 'value': f"relative:{days}",
                 'days': days,
                 'label': f"激活后{days}天有效",
                 'count': count,
-                'is_expired': False
+                'is_expired': is_expired
             })
         
-        # 3. 未过期的具体日期（按日期排序）
-        for group in groups:
-            expire_date = datetime.strptime(group['date'], '%Y-%m-%d')
-            # 计算距离过期的天数（用日期比较）
-            days_remaining = (expire_date - today).days
-            label = f"{group['date']} ({days_remaining}天后到期)"
+        # 3. 固定过期日期（无论是否过期）
+        for date_key, count in sorted_dates:
+            is_expired = date_key in date_expired
+            if is_expired:
+                label = f"{date_key} (已过期)"
+            else:
+                # 计算距离过期的天数
+                expire_date = datetime.strptime(date_key, '%Y-%m-%d')
+                days_remaining = (expire_date.replace(tzinfo=BEIJING_TZ) - today).days
+                label = f"{date_key} ({days_remaining}天后到期)"
             
             result.append({
                 'type': 'date',
-                'value': f"date:{group['date']}",
-                'date': group['date'],
+                'value': f"date:{date_key}",
+                'date': date_key,
                 'label': label,
-                'count': group['count'],
-                'days_remaining': days_remaining,
-                'is_expired': False
+                'count': count,
+                'is_expired': is_expired
             })
         
         # 4. 永久有效（始终显示）
