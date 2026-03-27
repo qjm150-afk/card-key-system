@@ -6988,7 +6988,9 @@
             if (expireType === 'fixed') {
                 const expireAt = document.getElementById('expireAt').value;
                 if (expireAt) {
-                    formValues.expire_at = new Date(expireAt).toISOString();
+                    // 直接使用用户输入的时间值，不转换时区
+                    // 后端会将其视为北京时间处理
+                    formValues.expire_at = expireAt + ':00';  // 添加秒数
                 }
                 formValues.expire_after_days = null;
                 formValues.expire_type = 'fixed';
@@ -7118,7 +7120,9 @@
             if (expireType === 'fixed') {
                 const expireAtValue = document.getElementById('generateExpireAt').value;
                 if (expireAtValue) {
-                    data.expire_at = new Date(expireAtValue).toISOString();
+                    // 直接使用用户输入的时间值，不转换时区
+                    // 后端会将其视为北京时间处理
+                    data.expire_at = expireAtValue + ':00';  // 添加秒数
                 }
                 data.expire_type = 'fixed';
             } else if (expireType === 'relative') {
