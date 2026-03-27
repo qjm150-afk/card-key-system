@@ -9877,19 +9877,20 @@
 
         // ==================== 自动保活功能 ====================
         // 在指定时间段内每 10 分钟发送一次请求，保持容器热启动
-        // 时间段：晚上 22:00-24:00，早上 6:00-9:00
+        // 时间段：早上 6:00 - 凌晨 1:00（覆盖白天和晚上的高使用时段）
         (function initKeepAlive() {
             // 判断当前是否在保活时间段内
             function isInKeepAlivePeriod() {
                 const hour = new Date().getHours();
-                // 晚上 22:00-24:00 或 早上 6:00-9:00
-                return (hour >= 22 && hour < 24) || (hour >= 6 && hour < 9);
+                // 早上 6:00 - 凌晨 1:00（即 6:00-24:00 和 0:00-1:00）
+                // 凌晨 1:00 - 6:00 不保活（最低流量时段）
+                return hour >= 6 || hour < 1;
             }
 
             // 发送保活请求
             async function sendKeepAlive() {
                 if (!isInKeepAlivePeriod()) {
-                    console.log('[保活] 当前不在保活时间段，跳过');
+                    console.log('[保活] 当前不在保活时间段（凌晨 1:00-6:00），跳过');
                     return;
                 }
 
@@ -9918,9 +9919,9 @@
             // 在控制台显示保活状态
             const hour = new Date().getHours();
             if (isInKeepAlivePeriod()) {
-                console.log('[保活] 已启用自动保活，时段：22:00-24:00, 6:00-9:00，间隔：10 分钟');
+                console.log('[保活] 已启用自动保活，时段：6:00 - 次日 1:00，间隔：10 分钟');
             } else {
-                console.log('[保活] 当前不在保活时段，将在 22:00-24:00 和 6:00-9:00 自动保活');
+                console.log('[保活] 当前不在保活时段（凌晨 1:00-6:00），将在 6:00 起自动保活');
             }
         })();
     </script>
