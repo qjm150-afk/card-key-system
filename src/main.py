@@ -3810,7 +3810,7 @@ async def get_feishu_urls():
     分组逻辑：
     - 按飞书链接（feishu_url）分组
     - 空链接统一合并为"未设置"
-    - 显示名称优先取第一个非空名称
+    - 显示名称取卡密数量最多的名称（最常用名称）
     
     返回格式：
     - url: 飞书链接（空链接返回特殊标记"__none__"用于筛选）
@@ -3824,7 +3824,8 @@ async def get_feishu_urls():
         response = client.table('card_keys_table').select('feishu_url,link_name').execute()
         
         # 按飞书链接分组统计
-        url_groups = {}  # key: feishu_url, value: {count, names: []}
+        # key: feishu_url, value: {count, name_counts: {name: count}}
+        url_groups = {}
         
         for item in response.data:
             url = item.get('feishu_url') or ''
@@ -3834,18 +3835,25 @@ async def get_feishu_urls():
             url_key = url.strip() if url.strip() else ''
             
             if url_key not in url_groups:
-                url_groups[url_key] = {"url": url_key, "count": 0, "names": []}
+                url_groups[url_key] = {"url": url_key, "count": 0, "name_counts": {}}
             url_groups[url_key]["count"] += 1
-            # 收集所有名称（用于显示）
-            if name and name not in url_groups[url_key]["names"]:
-                url_groups[url_key]["names"].append(name)
+            # 统计每个名称的卡密数量
+            if name:
+                url_groups[url_key]["name_counts"][name] = url_groups[url_key]["name_counts"].get(name, 0) + 1
         
         # 构建返回结果
         result_list = []
         for url_key, data in url_groups.items():
             if url_key:  # 有链接
-                # 优先使用第一个非空名称，否则使用截断的链接
-                display_name = data["names"][0] if data["names"] else (url_key[:25] + '...' if len(url_key) > 25 else url_key)
+                # 取卡密数量最多的名称（最常用名称）
+                name_counts = data["name_counts"]
+                if name_counts:
+                    # 按数量降序排序，取第一个
+                    sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+                    display_name = sorted_names[0][0]
+                else:
+                    # 无名称时使用截断的链接
+                    display_name = url_key[:25] + '...' if len(url_key) > 25 else url_key
                 result_list.append({
                     "url": url_key,
                     "name": display_name,
@@ -6427,23 +6435,23 @@ async def get_link_health():
             # 表不存在，返回空数据
             health_data = []
         
-        # 获取所有唯一的飞书链接，同时收集每个链接的所有名称（去重）
+        # 获取所有唯一的飞书链接，同时统计每个名称的卡密数量
         cards_response = client.table('card_keys_table').select('feishu_url, link_name').execute()
         cards = cards_response.data or []
         
-        # 统计唯一链接，同时收集每个链接的所有名称（去重）
+        # 统计唯一链接，同时统计每个名称的卡密数量
         unique_links = {}
-        link_names = {}  # 收集每个URL的所有名称
+        link_name_counts = {}  # 收集每个URL的名称及其卡密数量
         
         for card in cards:
             url = card.get('feishu_url')
             if url:
-                # 收集名称
+                # 统计每个名称的卡密数量
                 name = card.get('link_name') or ''
-                if url not in link_names:
-                    link_names[url] = set()
-                if name:  # 只收集非空名称
-                    link_names[url].add(name)
+                if url not in link_name_counts:
+                    link_name_counts[url] = {}
+                if name:  # 只统计非空名称
+                    link_name_counts[url][name] = link_name_counts[url].get(name, 0) + 1
                 
                 # 初始化链接数据
                 if url not in unique_links:
@@ -6464,13 +6472,13 @@ async def get_link_health():
                         'feishu_recorded_at': None     # 飞书数据录入时间
                     }
         
-        # 处理名称：优先使用非空名称，多个名称用逗号分隔
+        # 处理名称：取卡密数量最多的名称（最常用名称）
         for url in unique_links:
-            names = link_names.get(url, set())
-            # 过滤空字符串，去重后排序
-            names_list = sorted([n for n in names if n])
-            if names_list:
-                unique_links[url]['name'] = ', '.join(names_list)
+            name_counts = link_name_counts.get(url, {})
+            if name_counts:
+                # 按数量降序排序，取第一个
+                sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+                unique_links[url]['name'] = sorted_names[0][0]
             else:
                 unique_links[url]['name'] = ''
         
