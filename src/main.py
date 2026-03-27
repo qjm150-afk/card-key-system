@@ -180,8 +180,7 @@ _rate_limit_lock = threading.Lock()
 
 # 限流规则配置
 RATE_LIMITS = {
-    "/api/validate": {"requests": 10, "window": 60},      # 验证接口：60秒内最多10次
-    "/api/admin/login": {"requests": 5, "window": 300},   # 登录接口：5分钟内最多5次
+    "/api/validate": {"requests": 10, "window": 60},  # 验证接口：60秒内最多10次
 }
 
 def check_rate_limit(identifier: str, path: str) -> tuple[bool, int]:
