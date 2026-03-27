@@ -6785,8 +6785,13 @@
                         // 固定日期
                         document.getElementById('cardExpireType').value = 'fixed';
                         try {
-                            const date = new Date(card.expire_at);
-                            document.getElementById('expireAt').value = date.toISOString().slice(0, 16);
+                            // 直接从 ISO 字符串提取日期时间，不进行时区转换
+                            // 数据库存储格式：2026-12-31T23:59:00+08:00 或 2026-12-31T23:59:00
+                            let expireAtStr = card.expire_at;
+                            if (expireAtStr.includes('T')) {
+                                // 提取 YYYY-MM-DDTHH:mm 部分
+                                document.getElementById('expireAt').value = expireAtStr.slice(0, 16);
+                            }
                         } catch(e) {}
                     } else {
                         // 永久有效
@@ -8515,15 +8520,10 @@
                         } else {
                             // 固定日期
                             if (value) {
-                                const date = new Date(value);
-                                const display = date.toLocaleString('zh-CN', {
-                                    year: 'numeric',
-                                    month: '2-digit',
-                                    day: '2-digit',
-                                    hour: '2-digit',
-                                    minute: '2-digit'
-                                });
-                                updates[field] = { value: date.toISOString(), display, expireType: 'fixed' };
+                                // 直接使用用户输入的时间值，不进行时区转换
+                                // value 格式：YYYY-MM-DDTHH:mm（datetime-local 输入框格式）
+                                const display = value.replace('T', ' ') + ':00';
+                                updates[field] = { value: value + ':00', display, expireType: 'fixed' };
                             } else {
                                 showToast('请选择过期日期', 'error');
                                 return;
