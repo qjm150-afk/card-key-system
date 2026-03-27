@@ -483,15 +483,15 @@ def calculate_is_expired(card: dict) -> bool:
     Returns:
         bool: True=已过期，False=未过期
     """
-    now = datetime.now()
+    now = datetime.now(BEIJING_TZ)
     
     # 情况1：固定日期过期
     if card.get('expire_at'):
         try:
             expire_at = datetime.fromisoformat(str(card['expire_at']).replace('Z', '+00:00'))
-            # 移除时区信息进行比较
-            if expire_at.tzinfo:
-                expire_at = expire_at.replace(tzinfo=None)
+            # 如果时间没有时区，添加北京时区
+            if not expire_at.tzinfo:
+                expire_at = expire_at.replace(tzinfo=BEIJING_TZ)
             if expire_at < now:
                 return True
         except Exception as e:
@@ -501,9 +501,9 @@ def calculate_is_expired(card: dict) -> bool:
     if card.get('expire_after_days') and card.get('activated_at'):
         try:
             activated_at = datetime.fromisoformat(str(card['activated_at']).replace('Z', '+00:00'))
-            # 移除时区信息
-            if activated_at.tzinfo:
-                activated_at = activated_at.replace(tzinfo=None)
+            # 如果时间没有时区，添加北京时区
+            if not activated_at.tzinfo:
+                activated_at = activated_at.replace(tzinfo=BEIJING_TZ)
             # 计算过期时间
             expire_date = activated_at + timedelta(days=card['expire_after_days'])
             if expire_date < now:
@@ -1152,7 +1152,7 @@ def log_access(client, card_key_id, key_value, success, error_msg, device_id=Non
     注意：根据《个人信息保护法》合规要求，不再收集IP地址、User-Agent、设备类型
     """
     try:
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         
         # 基本日志数据
         # 注意：已移除 ip_address、user_agent、device_type 字段（合规要求）
@@ -1300,7 +1300,7 @@ async def get_card_keys(
         # 过期时间筛选
         need_expire_filter = False  # 是否需要在应用层过滤过期状态
         if expire_days:
-            now = datetime.now()
+            now = datetime.now(BEIJING_TZ)
             if expire_days == 'expired':
                 # 已过期：需要在应用层过滤（包括固定日期过期和激活后N天过期）
                 need_expire_filter = True
@@ -1534,7 +1534,7 @@ async def get_card_types(
         ).in_('card_type_id', card_type_ids).execute()
         
         # 在内存中按卡种ID分组统计
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         
         # 初始化每个卡种的统计容器
         stats_by_type = {}
@@ -1792,7 +1792,7 @@ async def get_card_type(type_id: int):
         activated_count = 0
         deactivated_count = 0
         stock_count = 0
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         
         for card in (stats_response.data or []):
             # 统计状态
@@ -1985,7 +1985,7 @@ async def get_card_type_stats(type_id: int):
         activated = 0
         expired = 0
         disabled = 0
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         
         for c in cards:
             sale_status = c.get('sale_status')
@@ -2115,7 +2115,7 @@ async def get_card_type_cards(
             query = query.eq('sale_status', sale_status)
         
         # 过期筛选
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         if expire_filter == 'expired':
             # 已过期（需要在应用层处理）
             pass
@@ -2157,7 +2157,7 @@ async def get_card_type_cards(
             
             # 应用层过期筛选
             if expire_filter == 'expired':
-                now = datetime.now()
+                now = datetime.now(BEIJING_TZ)
                 expired_cards = []
                 for card in all_cards:
                     expire_at = card.get('expire_at')
@@ -2171,8 +2171,9 @@ async def get_card_type_cards(
                                 expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
                             else:
                                 expire_time = expire_at
-                            if expire_time.tzinfo:
-                                expire_time = expire_time.replace(tzinfo=None)
+                            # 如果时间没有时区，添加北京时区
+                            if not expire_time.tzinfo:
+                                expire_time = expire_time.replace(tzinfo=BEIJING_TZ)
                             is_expired = expire_time < now
                         except:
                             pass
@@ -2182,8 +2183,9 @@ async def get_card_type_cards(
                                 activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
                             else:
                                 activated_time = activated_at
-                            if activated_time.tzinfo:
-                                activated_time = activated_time.replace(tzinfo=None)
+                            # 如果时间没有时区，添加北京时区
+                            if not activated_time.tzinfo:
+                                activated_time = activated_time.replace(tzinfo=BEIJING_TZ)
                             is_expired = activated_time + timedelta(days=expire_after_days) < now
                         except:
                             pass
@@ -2206,7 +2208,7 @@ async def get_card_type_cards(
             cards = response.data or []
         
         # 处理过期状态（包括按激活天数过期的情况）
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         for card in cards:
             expire_at = card.get('expire_at')
             expire_after_days = card.get('expire_after_days')
@@ -2223,8 +2225,9 @@ async def get_card_type_cards(
                         expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
                     else:
                         expire_time = expire_at
-                    if expire_time.tzinfo:
-                        expire_time = expire_time.replace(tzinfo=None)
+                    # 如果时间没有时区，添加北京时区
+                    if not expire_time.tzinfo:
+                        expire_time = expire_time.replace(tzinfo=BEIJING_TZ)
                     is_expired = expire_time < now
                 except:
                     pass
@@ -2234,8 +2237,9 @@ async def get_card_type_cards(
                         activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
                     else:
                         activated_time = activated_at
-                    if activated_time.tzinfo:
-                        activated_time = activated_time.replace(tzinfo=None)
+                    # 如果时间没有时区，添加北京时区
+                    if not activated_time.tzinfo:
+                        activated_time = activated_time.replace(tzinfo=BEIJING_TZ)
                     actual_expire_at = (activated_time + timedelta(days=expire_after_days)).isoformat()
                     is_expired = activated_time + timedelta(days=expire_after_days) < now
                 except:
@@ -3035,7 +3039,7 @@ async def count_by_filters(
         # 过期时间筛选
         need_expire_filter = False  # 是否需要在应用层过滤过期状态
         if expire_days and expire_days != '':
-            now = datetime.now()
+            now = datetime.now(BEIJING_TZ)
             if expire_days == 'expired':
                 # 已过期：需要在应用层过滤（包括固定日期过期和激活后N天过期）
                 need_expire_filter = True
@@ -3345,7 +3349,7 @@ async def get_filter_options(
                 item_expire_after_days = item.get('expire_after_days')
                 item_activated_at = item.get('activated_at')
                 
-                now = datetime.now()
+                now = datetime.now(BEIJING_TZ)
                 
                 if expire_days == 'expired':
                     # 已过期（需要在内存中判断）
@@ -3353,8 +3357,9 @@ async def get_filter_options(
                     if item_expire_at:
                         try:
                             expire_time = datetime.fromisoformat(str(item_expire_at).replace('Z', '+00:00'))
-                            if expire_time.tzinfo:
-                                expire_time = expire_time.replace(tzinfo=None)
+                            # 如果时间没有时区，添加北京时区
+                            if not expire_time.tzinfo:
+                                expire_time = expire_time.replace(tzinfo=BEIJING_TZ)
                             if expire_time < now:
                                 is_expired = True
                         except:
@@ -3362,8 +3367,9 @@ async def get_filter_options(
                     elif item_expire_after_days and item_activated_at:
                         try:
                             activated_time = datetime.fromisoformat(str(item_activated_at).replace('Z', '+00:00'))
-                            if activated_time.tzinfo:
-                                activated_time = activated_time.replace(tzinfo=None)
+                            # 如果时间没有时区，添加北京时区
+                            if not activated_time.tzinfo:
+                                activated_time = activated_time.replace(tzinfo=BEIJING_TZ)
                             expire_time = activated_time + timedelta(days=item_expire_after_days)
                             if expire_time < now:
                                 is_expired = True
@@ -3411,7 +3417,7 @@ async def get_filter_options(
         card_type_count = {}
         no_card_type_count = 0
         
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         today = now.replace(hour=0, minute=0, second=0, microsecond=0)
         
         # 遍历所有数据，分别计算各字段的统计（排除对应字段的筛选条件）
@@ -3740,8 +3746,8 @@ async def get_expire_groups():
         response = client.table('card_keys_table').select('expire_at,expire_after_days,activated_at', count='exact').execute()
         
         # 使用日期比较（不含时分秒）
-        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        now = datetime.now()
+        today = datetime.now(BEIJING_TZ).replace(hour=0, minute=0, second=0, microsecond=0)
+        now = datetime.now(BEIJING_TZ)
         
         # 统计每个过期日期的数量
         permanent_count = 0  # 永久有效（expire_at和expire_after_days都为None）
@@ -3764,12 +3770,11 @@ async def get_expire_groups():
                     try:
                         if isinstance(activated_at, str):
                             activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
-                            if activated_time.tzinfo:
-                                activated_time = activated_time.replace(tzinfo=None)
                         else:
                             activated_time = activated_at
-                            if activated_time.tzinfo is not None:
-                                activated_time = activated_time.replace(tzinfo=None)
+                        # 如果时间没有时区，添加北京时区
+                        if not activated_time.tzinfo:
+                            activated_time = activated_time.replace(tzinfo=BEIJING_TZ)
                         
                         # 计算过期时间
                         expire_time = activated_time + timedelta(days=days)
@@ -3801,12 +3806,11 @@ async def get_expire_groups():
                     if isinstance(expire_at, str):
                         # 解析带时区的时间字符串
                         expire_date = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
-                        # 转换为不带时区的本地时间进行比较
-                        expire_date = expire_date.replace(tzinfo=None)
                     else:
                         expire_date = expire_at
-                        if expire_date.tzinfo is not None:
-                            expire_date = expire_date.replace(tzinfo=None)
+                    # 如果时间没有时区，添加北京时区
+                    if not expire_date.tzinfo:
+                        expire_date = expire_date.replace(tzinfo=BEIJING_TZ)
                     
                     # 只保留日期部分（去掉时分秒），统一用日期比较
                     expire_date_only = expire_date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -5326,7 +5330,7 @@ async def preview_clean_logs(request: CleanLogsRequest):
             query = query.eq('success', True)
         elif request.condition == 'expired':
             # 查找过期卡密的日志（包括固定过期日期和激活后N天过期）
-            now = datetime.now()
+            now = datetime.now(BEIJING_TZ)
             # 1. 固定过期日期的卡密
             expired_fixed = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now.isoformat()).execute()
             expired_keys = [card['key_value'] for card in (expired_fixed.data or [])]
@@ -5341,8 +5345,9 @@ async def preview_clean_logs(request: CleanLogsRequest):
                         activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
                     else:
                         activated_time = activated_at
-                    if activated_time.tzinfo is not None:
-                        activated_time = activated_time.replace(tzinfo=None)
+                    # 如果时间没有时区，添加北京时区
+                    if not activated_time.tzinfo:
+                        activated_time = activated_time.replace(tzinfo=BEIJING_TZ)
                     expire_time = activated_time + timedelta(days=expire_after_days)
                     if expire_time < now:
                         expired_keys.append(card['key_value'])
@@ -5389,7 +5394,7 @@ async def clean_logs(request: CleanLogsRequest):
             query = query.eq('success', True)
         elif request.condition == 'expired':
             # 查找过期卡密的日志（包括固定过期日期和激活后N天过期）
-            now = datetime.now()
+            now = datetime.now(BEIJING_TZ)
             # 1. 固定过期日期的卡密
             expired_fixed = client.table('card_keys_table').select('key_value').not_.is_('expire_at', 'null').lt('expire_at', now.isoformat()).execute()
             expired_keys = [card['key_value'] for card in (expired_fixed.data or [])]
@@ -5404,8 +5409,9 @@ async def clean_logs(request: CleanLogsRequest):
                         activated_time = datetime.fromisoformat(activated_at.replace('Z', '+00:00'))
                     else:
                         activated_time = activated_at
-                    if activated_time.tzinfo is not None:
-                        activated_time = activated_time.replace(tzinfo=None)
+                    # 如果时间没有时区，添加北京时区
+                    if not activated_time.tzinfo:
+                        activated_time = activated_time.replace(tzinfo=BEIJING_TZ)
                     expire_time = activated_time + timedelta(days=expire_after_days)
                     if expire_time < now:
                         expired_keys.append(card['key_value'])
@@ -5924,7 +5930,7 @@ async def get_statistics_trend(
         client = get_supabase_client()
         
         # 计算日期范围
-        end_date = datetime.now()
+        end_date = datetime.now(BEIJING_TZ)
         start_date = end_date - timedelta(days=days)
         
         # 获取访问日志
@@ -6032,7 +6038,7 @@ async def get_statistics_distribution():
         }
         
         # 过期状态
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         expired_count = 0
         expiring_7days = 0
         expiring_30days = 0
@@ -6155,7 +6161,7 @@ async def get_statistics_overview():
         sold_cards = len([c for c in cards if c.get('sale_status') == 'sold'])
         
         # 今日访问量
-        today = datetime.now().strftime('%Y-%m-%d')
+        today = datetime.now(BEIJING_TZ).strftime('%Y-%m-%d')
         today_logs = client.table('access_logs').select('id', count='exact').gte('access_time', f'{today}T00:00:00').execute()
         today_visits = today_logs.count or 0
         
@@ -6164,7 +6170,8 @@ async def get_statistics_overview():
         today_success_count = today_success.count or 0
         
         # 本周新增卡密
-        week_start = (datetime.now() - timedelta(days=datetime.now().weekday())).strftime('%Y-%m-%d')
+        now_beijing = datetime.now(BEIJING_TZ)
+        week_start = (now_beijing - timedelta(days=now_beijing.weekday())).strftime('%Y-%m-%d')
         week_cards = client.table('card_keys_table').select('id', count='exact').gte('bstudio_create_time', f'{week_start}T00:00:00').execute()
         week_new_cards = week_cards.count or 0
         
@@ -6203,7 +6210,7 @@ async def export_statistics():
         logs = logs_response.data or []
         
         # 汇总统计
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         
         # 卡密统计
         total_cards = len(cards)
@@ -6227,9 +6234,9 @@ async def export_statistics():
                         expire_time = datetime.fromisoformat(expire_at.replace('Z', '+00:00'))
                     else:
                         expire_time = expire_at
-                    # 移除时区信息，避免与 naive datetime 比较时报错
-                    if expire_time.tzinfo is not None:
-                        expire_time = expire_time.replace(tzinfo=None)
+                    # 如果时间没有时区，添加北京时区
+                    if not expire_time.tzinfo:
+                        expire_time = expire_time.replace(tzinfo=BEIJING_TZ)
                     if expire_time < now:
                         expired += 1
                     elif expire_time < now + timedelta(days=7):
@@ -6851,9 +6858,9 @@ async def get_analytics_overview(
         
         # 默认最近7天
         if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
+            end_date = datetime.now(BEIJING_TZ).strftime('%Y-%m-%d')
         if not start_date:
-            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            start_date = (datetime.now(BEIJING_TZ) - timedelta(days=7)).strftime('%Y-%m-%d')
         
         # 尝试使用 access_date 字段查询（新字段）
         try:
@@ -6924,9 +6931,9 @@ async def get_analytics_channels(
         
         # 默认最近7天
         if not end_date:
-            end_date = datetime.now().strftime('%Y-%m-%d')
+            end_date = datetime.now(BEIJING_TZ).strftime('%Y-%m-%d')
         if not start_date:
-            start_date = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')
+            start_date = (datetime.now(BEIJING_TZ) - timedelta(days=7)).strftime('%Y-%m-%d')
         
         # 尝试使用 access_date 字段查询（新字段）
         try:
