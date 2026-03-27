@@ -3388,6 +3388,8 @@ async def get_filter_options(
         sales_channel_count = {}
         expire_groups = {}
         relative_groups = {}
+        relative_expired = {}  # 激活后N天有效且已过期
+        date_expired = {}      # 固定过期日期且已过期
         permanent_count = 0
         expired_count = 0
         card_type_count = {}
