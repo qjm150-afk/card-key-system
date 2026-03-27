@@ -3119,7 +3119,7 @@
             <!-- 筛选区域 -->
             <div class="filter-section">
                 <div class="filter-row">
-                    <input type="text" class="search-input search-input-wide" id="logSearchInput" placeholder="搜索卡密..." autocomplete="off">
+                    <input type="text" class="search-input search-input-wide" id="logSearchInput" placeholder="搜索卡密..." autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
                     <select class="filter-select" id="logResultFilter" onchange="searchLogs()">
                         <option value="">访问结果</option>
                         <option value="success">成功</option>
@@ -3176,7 +3176,7 @@
             <!-- 筛选区域 -->
             <div class="filter-section">
                 <div class="filter-row">
-                    <input type="text" class="search-input search-input-wide" id="operationLogSearchInput" placeholder="搜索操作人..." autocomplete="off">
+                    <input type="text" class="search-input search-input-wide" id="operationLogSearchInput" placeholder="搜索操作人..." autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
                     <select class="filter-select" id="operationTypeFilter" onchange="searchOperationLogs()">
                         <option value="">操作类型</option>
                         <option value="batch_generate">批量生成</option>
@@ -3246,7 +3246,7 @@
             <!-- 操作区域 -->
             <div class="filter-section">
                 <div class="filter-row">
-                    <input type="text" class="search-input search-input-wide" id="linkHealthSearchInput" placeholder="搜索链接名称..." autocomplete="off">
+                    <input type="text" class="search-input search-input-wide" id="linkHealthSearchInput" placeholder="搜索链接名称..." autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')">
                     <select class="filter-select" id="linkHealthStatusFilter" onchange="filterLinkHealth()">
                         <option value="">全部状态</option>
                         <option value="healthy">正常</option>
@@ -3967,7 +3967,7 @@
                 <!-- 操作栏 -->
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                     <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                        <input type="text" class="search-input" id="cardTypeCardsSearch" placeholder="搜索卡密..." style="width: 160px;" onkeyup="if(event.keyCode===13)searchCardTypeCards()">
+                        <input type="text" class="search-input" id="cardTypeCardsSearch" placeholder="搜索卡密..." style="width: 160px;" autocomplete="one-time-code" readonly onfocus="this.removeAttribute('readonly')" onkeyup="if(event.keyCode===13)searchCardTypeCards()">
                         <select class="filter-select" id="cardTypeCardsStatusFilter" onchange="searchCardTypeCards()" style="padding: 6px 10px; border-radius: 4px; border: 1px solid #ccc;">
                             <option value="">激活状态</option>
                             <option value="valid">有效</option>

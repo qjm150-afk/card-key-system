@@ -1036,7 +1036,9 @@
                                         class="input" 
                                         placeholder="请输入您的专属卡密"
                                         maxlength="50"
-                                        autocomplete="off"
+                                        autocomplete="one-time-code"
+                                        readonly
+                                        onfocus="this.removeAttribute('readonly')"
                                         autocorrect="off"
                                         autocapitalize="characters"
                                         spellcheck="false"
@@ -1098,7 +1100,9 @@
                                 class="input" 
                                 placeholder="请输入您的专属卡密"
                                 maxlength="50"
-                                autocomplete="off"
+                                autocomplete="one-time-code"
+                                readonly
+                                onfocus="this.removeAttribute('readonly')"
                                 autocorrect="off"
                                 autocapitalize="characters"
                                 spellcheck="false"
