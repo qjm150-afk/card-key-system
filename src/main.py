@@ -3595,15 +3595,16 @@ async def get_filter_options(
                 sale_status_count[s] = sale_status_count.get(s, 0) + 1
             
             # 3. 飞书链接统计（排除 feishu_url 筛选）
+            # 改为统计每个名称的出现次数，以便取"最常用名称"
             if matches_filter(item, exclude='feishu_url'):
                 url = item.get('feishu_url') or ''
                 name = item.get('link_name') or ''
                 url_key = url.strip() if url.strip() else ''
                 if url_key not in feishu_url_groups:
-                    feishu_url_groups[url_key] = {"url": url_key, "count": 0, "names": []}
+                    feishu_url_groups[url_key] = {"url": url_key, "count": 0, "name_counts": {}}
                 feishu_url_groups[url_key]["count"] += 1
-                if name and name not in feishu_url_groups[url_key]["names"]:
-                    feishu_url_groups[url_key]["names"].append(name)
+                if name:
+                    feishu_url_groups[url_key]["name_counts"][name] = feishu_url_groups[url_key]["name_counts"].get(name, 0) + 1
             
             # 4. 销售渠道统计（排除 sales_channel 筛选）
             if matches_filter(item, exclude='sales_channel'):
@@ -3661,7 +3662,13 @@ async def get_filter_options(
         feishu_url_list = []
         for url_key, data in feishu_url_groups.items():
             if url_key:
-                display_name = data["names"][0] if data["names"] else (url_key[:30] + "..." if len(url_key) > 30 else url_key)
+                # 取卡密数量最多的名称（最常用名称）
+                name_counts = data["name_counts"]
+                if name_counts:
+                    sorted_names = sorted(name_counts.items(), key=lambda x: x[1], reverse=True)
+                    display_name = sorted_names[0][0]
+                else:
+                    display_name = url_key[:30] + "..." if len(url_key) > 30 else url_key
                 feishu_url_list.append({"url": url_key, "name": display_name, "count": data["count"]})
             else:
                 feishu_url_list.append({"url": "__none__", "name": "未设置", "count": data["count"]})
