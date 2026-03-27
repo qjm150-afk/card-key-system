@@ -1020,7 +1020,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         is_expired = False
         expire_reason = ""
         
-        now = datetime.now()
+        now = datetime.now(BEIJING_TZ)
         
         # 方式1: 固定日期过期
         if expire_at:
