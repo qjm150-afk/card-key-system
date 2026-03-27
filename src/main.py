@@ -223,39 +223,43 @@ def check_rate_limit(identifier: str, path: str) -> tuple[bool, int]:
 
 
 # ==================== 登录安全配置 ====================
-# 登录失败计数存储
-_login_failures = defaultdict(list)  # {ip: [failure_times]}
-_login_lockouts = {}  # {ip: lockout_until}
+# 登录失败计数存储（合规：不收集 IP，使用固定标识）
+_login_failures = defaultdict(list)  # {identifier: [failure_times]}
+_login_lockouts = {}  # {identifier: lockout_until}
 
 # 安全配置
 MAX_LOGIN_FAILURES = 5       # 最大失败次数
 LOCKOUT_DURATION = 900       # 锁定时长（秒），15分钟
 FAILURE_WINDOW = 300         # 失败计数窗口（秒），5分钟
 
+# 固定标识符（不收集 IP，使用固定 key 进行全局限流）
+LOGIN_SECURITY_KEY = "admin_login_global"
 
-def record_login_failure(ip: str) -> dict:
+
+def record_login_failure() -> dict:
     """
-    记录登录失败
+    记录登录失败（合规：不收集 IP）
     
     Returns:
         {"locked": bool, "remaining_attempts": int, "lockout_until": datetime or None}
     """
     now = datetime.now()
+    identifier = LOGIN_SECURITY_KEY  # 使用固定标识，不收集 IP
     
     with _rate_limit_lock:
         # 清理过期的失败记录
         cutoff = now - timedelta(seconds=FAILURE_WINDOW)
-        _login_failures[ip] = [t for t in _login_failures[ip] if t > cutoff]
+        _login_failures[identifier] = [t for t in _login_failures[identifier] if t > cutoff]
         
         # 记录本次失败
-        _login_failures[ip].append(now)
-        failure_count = len(_login_failures[ip])
+        _login_failures[identifier].append(now)
+        failure_count = len(_login_failures[identifier])
         
         # 检查是否需要锁定
         if failure_count >= MAX_LOGIN_FAILURES:
             lockout_until = now + timedelta(seconds=LOCKOUT_DURATION)
-            _login_lockouts[ip] = lockout_until
-            logger.warning(f"[LoginSecurity] IP {ip} 被锁定至 {lockout_until}")
+            _login_lockouts[identifier] = lockout_until
+            logger.warning(f"[LoginSecurity] 登录失败次数过多，已锁定至 {lockout_until}")
             return {
                 "locked": True,
                 "remaining_attempts": 0,
@@ -269,36 +273,38 @@ def record_login_failure(ip: str) -> dict:
         }
 
 
-def check_login_lockout(ip: str) -> tuple[bool, int]:
+def check_login_lockout() -> tuple[bool, int]:
     """
-    检查 IP 是否被锁定
+    检查是否被锁定（合规：不收集 IP）
     
     Returns:
         (是否锁定, 剩余锁定秒数)
     """
     now = datetime.now()
+    identifier = LOGIN_SECURITY_KEY  # 使用固定标识
     
     with _rate_limit_lock:
-        if ip in _login_lockouts:
-            lockout_until = _login_lockouts[ip]
+        if identifier in _login_lockouts:
+            lockout_until = _login_lockouts[identifier]
             if now < lockout_until:
                 remaining = int((lockout_until - now).total_seconds())
                 return True, remaining
             else:
                 # 锁定已过期，清除记录
-                del _login_lockouts[ip]
-                _login_failures[ip] = []
+                del _login_lockouts[identifier]
+                _login_failures[identifier] = []
         
         return False, 0
 
 
-def clear_login_failures(ip: str):
-    """登录成功后清除失败记录"""
+def clear_login_failures():
+    """登录成功后清除失败记录（合规：不收集 IP）"""
+    identifier = LOGIN_SECURITY_KEY
     with _rate_limit_lock:
-        if ip in _login_failures:
-            del _login_failures[ip]
-        if ip in _login_lockouts:
-            del _login_lockouts[ip]
+        if identifier in _login_failures:
+            del _login_failures[identifier]
+        if identifier in _login_lockouts:
+            del _login_lockouts[identifier]
 
 
 # ==================== 权限验证中间件 ====================
@@ -307,38 +313,37 @@ from starlette.responses import JSONResponse
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """API 限流中间件 - 防止暴力破解"""
+    """API 限流中间件 - 防止暴力破解（合规：不收集 IP）"""
     
-    # 需要限流的路径
-    RATE_LIMITED_PATHS = ["/api/validate", "/api/admin/login"]
+    # 需要限流的路径（登录接口使用独立的登录安全机制）
+    RATE_LIMITED_PATHS = ["/api/validate"]
     
     async def dispatch(self, request, call_next):
         path = request.url.path
         
         # 只对特定路径进行限流
         if path in self.RATE_LIMITED_PATHS:
-            # 获取客户端标识（优先使用设备ID，其次IP）
-            device_id = None
+            # 获取客户端标识（合规：使用 card_key，不使用 IP）
+            identifier = "anonymous"
             if request.method == "POST":
                 try:
-                    # 尝试从请求体获取设备ID
+                    # 尝试从请求体获取 card_key 作为标识
                     body = await request.body()
                     if body:
                         import json
                         data = json.loads(body)
-                        device_id = data.get("device_id") or data.get("card_key")
+                        # 使用 card_key 作为限流标识（用户输入的卡密）
+                        card_key = data.get("card_key", "")
+                        if card_key:
+                            identifier = f"card:{card_key[:8]}"  # 只取前8位，避免存储完整卡密
                 except:
                     pass
-            
-            # 获取 IP 作为标识
-            client_ip = request.client.host if request.client else "unknown"
-            identifier = device_id or client_ip
             
             # 检查限流
             allowed, retry_after = check_rate_limit(identifier, path)
             
             if not allowed:
-                logger.warning(f"[RateLimit] 限流触发: identifier={identifier}, path={path}")
+                logger.warning(f"[RateLimit] 限流触发: identifier={identifier}")
                 return JSONResponse(
                     status_code=429,
                     content={
@@ -5572,15 +5577,13 @@ async def clean_logs(request: CleanLogsRequest):
 # ==================== 管理员登录 API ====================
 
 @app.post("/api/admin/login")
-async def admin_login(request: LoginRequest, response: Response, req: Request):
-    """管理员登录（带安全防护）"""
-    # 获取客户端 IP
-    client_ip = req.client.host if req.client else "unknown"
+async def admin_login(request: LoginRequest, response: Response):
+    """管理员登录（带安全防护，合规：不收集 IP）"""
     
     # 检查是否被锁定
-    is_locked, remaining_seconds = check_login_lockout(client_ip)
+    is_locked, remaining_seconds = check_login_lockout()
     if is_locked:
-        logger.warning(f"[Login] IP {client_ip} 已被锁定，剩余 {remaining_seconds} 秒")
+        logger.warning(f"[Login] 登录已被锁定，剩余 {remaining_seconds} 秒")
         return {
             "success": False,
             "msg": f"登录失败次数过多，请 {remaining_seconds} 秒后重试",
@@ -5591,8 +5594,8 @@ async def admin_login(request: LoginRequest, response: Response, req: Request):
     current_password = get_admin_password()
     if request.password != current_password:
         # 记录失败
-        result = record_login_failure(client_ip)
-        logger.warning(f"[Login] 登录失败: IP={client_ip}, 剩余尝试次数={result['remaining_attempts']}")
+        result = record_login_failure()
+        logger.warning(f"[Login] 登录失败: 剩余尝试次数={result['remaining_attempts']}")
         
         if result["locked"]:
             return {
@@ -5609,10 +5612,10 @@ async def admin_login(request: LoginRequest, response: Response, req: Request):
         }
     
     # 登录成功，清除失败记录
-    clear_login_failures(client_ip)
+    clear_login_failures()
     
     token = create_token()
-    logger.info(f"[Login] 管理员登录成功, IP={client_ip}, token={token[:10]}...")
+    logger.info(f"[Login] 管理员登录成功, token={token[:10]}...")
     
     # 设置 cookie
     # 生产环境 HTTPS 需要 secure=True

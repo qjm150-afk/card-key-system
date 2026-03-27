@@ -3,8 +3,9 @@ API 限流测试
 
 测试覆盖：
 1. 验证接口限流
-2. 登录接口限流
-3. 限流解除
+2. 限流解除
+
+注意：合规要求 - 不收集 IP，使用 card_key 作为标识
 """
 import pytest
 from datetime import datetime, timedelta
@@ -28,7 +29,7 @@ class TestRateLimitLogic:
             _rate_limit_store.clear()
         
         # 验证接口允许10次/分钟
-        identifier = "test_user_1"
+        identifier = "card:ABC12345"
         path = "/api/validate"
         
         for i in range(10):
@@ -48,7 +49,7 @@ class TestRateLimitLogic:
         with _rate_limit_lock:
             _rate_limit_store.clear()
         
-        identifier = "test_user_2"
+        identifier = "card:TEST1234"
         path = "/api/validate"
         
         # 发送10次请求（最大限制）
@@ -75,42 +76,15 @@ class TestRateLimitLogic:
         
         path = "/api/validate"
         
-        # 用户1发送5次请求
+        # 卡密1发送5次请求
         for i in range(5):
-            allowed, _ = check_rate_limit("user_1", path)
+            allowed, _ = check_rate_limit("card:AAA11111", path)
             assert allowed == True
         
-        # 用户2也应该能发送5次请求（独立计数）
+        # 卡密2也应该能发送5次请求（独立计数）
         for i in range(5):
-            allowed, _ = check_rate_limit("user_2", path)
+            allowed, _ = check_rate_limit("card:BBB22222", path)
             assert allowed == True
-        
-        # 清理
-        with _rate_limit_lock:
-            _rate_limit_store.clear()
-    
-    def test_rate_limit_different_paths(self):
-        """测试不同路径独立限流"""
-        from main import check_rate_limit, _rate_limit_store, _rate_limit_lock
-        
-        # 清理测试数据
-        with _rate_limit_lock:
-            _rate_limit_store.clear()
-        
-        identifier = "test_user_3"
-        
-        # 验证接口：10次/分钟
-        for i in range(10):
-            allowed, _ = check_rate_limit(identifier, "/api/validate")
-            assert allowed == True
-        
-        # 验证接口超限
-        allowed, _ = check_rate_limit(identifier, "/api/validate")
-        assert allowed == False
-        
-        # 登录接口应该独立计算（5次/5分钟）
-        allowed, _ = check_rate_limit(identifier, "/api/admin/login")
-        assert allowed == True, "不同路径应该独立限流"
         
         # 清理
         with _rate_limit_lock:
@@ -124,7 +98,7 @@ class TestRateLimitLogic:
         with _rate_limit_lock:
             _rate_limit_store.clear()
         
-        identifier = "test_user_4"
+        identifier = "card:TEST9999"
         path = "/api/other"  # 无限流配置
         
         # 无限流的路径应该始终允许
@@ -132,32 +106,6 @@ class TestRateLimitLogic:
             allowed, retry_after = check_rate_limit(identifier, path)
             assert allowed == True
             assert retry_after == 0
-        
-        # 清理
-        with _rate_limit_lock:
-            _rate_limit_store.clear()
-    
-    def test_rate_limit_login_stricter(self):
-        """测试登录接口更严格的限流"""
-        from main import check_rate_limit, _rate_limit_store, _rate_limit_lock
-        
-        # 清理测试数据
-        with _rate_limit_lock:
-            _rate_limit_store.clear()
-        
-        identifier = "test_user_5"
-        path = "/api/admin/login"
-        
-        # 登录接口：5次/5分钟
-        for i in range(5):
-            allowed, _ = check_rate_limit(identifier, path)
-            assert allowed == True
-        
-        # 第6次应该被拒绝
-        allowed, retry_after = check_rate_limit(identifier, path)
-        assert allowed == False
-        assert retry_after > 0
-        assert retry_after <= 300  # 5分钟窗口
         
         # 清理
         with _rate_limit_lock:
@@ -171,8 +119,8 @@ class TestRateLimitConfig:
         """测试限流配置存在"""
         from main import RATE_LIMITS
         
+        # 验证接口应该有限流配置
         assert "/api/validate" in RATE_LIMITS
-        assert "/api/admin/login" in RATE_LIMITS
         
         # 验证配置结构
         validate_config = RATE_LIMITS["/api/validate"]
@@ -180,8 +128,39 @@ class TestRateLimitConfig:
         assert "window" in validate_config
         assert validate_config["requests"] > 0
         assert validate_config["window"] > 0
+    
+    def test_no_login_rate_limit_in_middleware(self):
+        """测试中间件不对登录接口限流（登录有独立安全机制）"""
+        from main import RateLimitMiddleware
         
-        # 登录接口应该更严格
-        login_config = RATE_LIMITS["/api/admin/login"]
-        assert login_config["requests"] <= validate_config["requests"]
-        assert login_config["window"] >= validate_config["window"]
+        # 登录接口应该不在中间件的限流列表中
+        assert "/api/admin/login" not in RateLimitMiddleware.RATE_LIMITED_PATHS
+
+
+class TestComplianceCheck:
+    """合规检查测试"""
+    
+    def test_no_ip_in_identifier(self):
+        """测试限流标识不包含 IP"""
+        from main import check_rate_limit, _rate_limit_store, _rate_limit_lock
+        
+        # 清理测试数据
+        with _rate_limit_lock:
+            _rate_limit_store.clear()
+        
+        # 使用 card_key 作为标识
+        identifier = "card:ABC12345"
+        path = "/api/validate"
+        
+        allowed, _ = check_rate_limit(identifier, path)
+        assert allowed == True
+        
+        # 验证存储的 key 不包含 IP
+        with _rate_limit_lock:
+            for key in _rate_limit_store.keys():
+                # key 应该以 "card:" 开头，而不是 IP 格式
+                assert key.startswith("card:") or key.startswith("anonymous:"), f"限流标识不应包含 IP: {key}"
+        
+        # 清理
+        with _rate_limit_lock:
+            _rate_limit_store.clear()
