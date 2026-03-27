@@ -6805,6 +6805,17 @@ async def get_analytics_overview(
             hour = log.get('access_hour')
             if hour is not None:
                 hour_dist[hour] = hour_dist.get(hour, 0) + 1
+            else:
+                # 如果 access_hour 字段不存在，从 access_time 解析
+                access_time = log.get('access_time')
+                if access_time:
+                    try:
+                        access_dt = parse_datetime(access_time)
+                        if access_dt:
+                            hour = access_dt.hour
+                            hour_dist[hour] = hour_dist.get(hour, 0) + 1
+                    except Exception:
+                        pass
         
         return {
             "success": True,
