@@ -6450,9 +6450,14 @@ async def get_link_health():
         unique_links = {}
         link_name_counts = {}  # 收集每个URL的名称及其卡密数量
         
+        from urllib.parse import unquote
+        
         for card in cards:
-            url = card.get('feishu_url')
-            if url:
+            raw_url = card.get('feishu_url')
+            if raw_url:
+                # URL 规范化：解码 URL，确保与 link_health_table 中保存的格式一致
+                url = unquote(raw_url)
+                
                 # 统计每个名称的卡密数量
                 name = card.get('link_name') or ''
                 if url not in link_name_counts:
@@ -6489,15 +6494,15 @@ async def get_link_health():
             else:
                 unique_links[url]['name'] = ''
         
-        # 合并健康状态数据（URL 不区分大小写匹配 + URL 解码匹配）
-        from urllib.parse import unquote
+        # 合并健康状态数据
+        # 由于 unique_links 的 key 已经是解码后的 URL，需要用解码后的 URL 进行匹配
         for health in health_data:
-            url = health.get('feishu_url')
-            if url:
-                # 解码 URL 用于比较
-                url_decoded = unquote(url)
+            raw_url = health.get('feishu_url')
+            if raw_url:
+                # 解码 URL 用于匹配
+                url = unquote(raw_url)
                 
-                # 尝试精确匹配
+                # 精确匹配（unique_links 的 key 已经是解码后的 URL）
                 if url in unique_links:
                     unique_links[url].update({
                         'status': health.get('status', 'unknown'),
@@ -6507,11 +6512,10 @@ async def get_link_health():
                         'consecutive_failures': health.get('consecutive_failures', 0)
                     })
                 else:
-                    # 尝试忽略大小写 + URL 解码匹配
-                    url_lower = url_decoded.lower()
+                    # 尝试忽略大小写匹配
+                    url_lower = url.lower()
                     for link_url in unique_links:
-                        link_url_decoded = unquote(link_url)
-                        if link_url_decoded.lower() == url_lower:
+                        if link_url.lower() == url_lower:
                             unique_links[link_url].update({
                                 'status': health.get('status', 'unknown'),
                                 'last_check_time': health.get('last_check_time'),
@@ -6528,12 +6532,14 @@ async def get_link_health():
             feishu_response = client.table('feishu_access_records').select('*').order('created_at', desc=True).execute()
             feishu_data = feishu_response.data or []
             
-            # 按 URL 去重，只保留最新记录
+            # 按 URL 去重，只保留最新记录，URL 规范化（解码）
             feishu_by_url = {}
             for record in feishu_data:
-                url = record.get('feishu_url')
-                if url and url not in feishu_by_url:
-                    feishu_by_url[url] = record
+                raw_url = record.get('feishu_url')
+                if raw_url:
+                    url = unquote(raw_url)  # URL 规范化
+                    if url not in feishu_by_url:
+                        feishu_by_url[url] = record
         except Exception as e:
             logger.warning(f"查询飞书访问记录失败: {str(e)}")
             feishu_by_url = {}
@@ -6548,24 +6554,26 @@ async def get_link_health():
             
             # 按链接分组统计
             for card in cards_data:
-                url = card.get('feishu_url')
-                if url and url in unique_links:
-                    # 统计验证次数（从devices字段解析）
-                    devices_str = card.get('devices', '[]')
-                    try:
-                        if isinstance(devices_str, str):
-                            devices = json.loads(devices_str) if devices_str else []
-                        else:
-                            devices = devices_str if devices_str else []
-                        
-                        # 系统验证人数（去重）
-                        unique_links[url]['system_visitor_count'] += len(devices) if devices else 0
-                        
-                        # 系统验证次数（每个设备的访问次数总和）
-                        for device in devices:
-                            unique_links[url]['system_access_count'] += device.get('access_count', 1) if isinstance(device, dict) else 1
-                    except Exception:
-                        pass
+                raw_url = card.get('feishu_url')
+                if raw_url:
+                    url = unquote(raw_url)  # URL 规范化
+                    if url in unique_links:
+                        # 统计验证次数（从devices字段解析）
+                        devices_str = card.get('devices', '[]')
+                        try:
+                            if isinstance(devices_str, str):
+                                devices = json.loads(devices_str) if devices_str else []
+                            else:
+                                devices = devices_str if devices_str else []
+                            
+                            # 系统验证人数（去重）
+                            unique_links[url]['system_visitor_count'] += len(devices) if devices else 0
+                            
+                            # 系统验证次数（每个设备的访问次数总和）
+                            for device in devices:
+                                unique_links[url]['system_access_count'] += device.get('access_count', 1) if isinstance(device, dict) else 1
+                        except Exception:
+                            pass
         except Exception as e:
             logger.warning(f"查询系统验证数据失败: {str(e)}")
         
