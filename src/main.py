@@ -6692,6 +6692,10 @@ async def check_single_link_api(request: Request):
         if not url:
             return {"success": False, "msg": "缺少链接URL"}
         
+        # URL 规范化：解码确保一致性
+        from urllib.parse import unquote
+        url = unquote(url)
+        
         client = get_supabase_client()
         
         # 获取该URL的所有链接名称和原始URL（处理大小写问题）
@@ -6703,7 +6707,8 @@ async def check_single_link_api(request: Request):
             all_cards = client.table('card_keys_table').select('feishu_url, link_name').execute()
             url_lower = url.lower()
             for card in (all_cards.data or []):
-                if card.get('feishu_url', '').lower() == url_lower:
+                card_url = unquote(card.get('feishu_url', ''))
+                if card_url.lower() == url_lower:
                     # 使用数据库中存储的原始 URL
                     url = card.get('feishu_url')
                     cards_response.data = [card]
@@ -6921,11 +6926,12 @@ class FeishuAccessRecord(BaseModel):
 async def record_feishu_access(request: Request, req: FeishuAccessRecord):
     """录入飞书访问数据"""
     try:
+        from urllib.parse import unquote
         client = get_supabase_client()
         
         # 获取链接名称（如果未提供，从卡密表获取）
         link_name = req.link_name
-        feishu_url = req.feishu_url  # 使用原始 URL
+        feishu_url = unquote(req.feishu_url)  # URL 解码确保一致性
         
         if not link_name:
             # 先精确匹配
@@ -6936,7 +6942,8 @@ async def record_feishu_access(request: Request, req: FeishuAccessRecord):
                 all_cards = client.table('card_keys_table').select('feishu_url, link_name').execute()
                 url_lower = feishu_url.lower()
                 for card in (all_cards.data or []):
-                    if card.get('feishu_url', '').lower() == url_lower:
+                    card_url = unquote(card.get('feishu_url', ''))
+                    if card_url.lower() == url_lower:
                         # 使用数据库中存储的原始 URL
                         feishu_url = card.get('feishu_url')
                         cards_response.data = [card]
