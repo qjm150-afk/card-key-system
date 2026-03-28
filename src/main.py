@@ -6489,10 +6489,14 @@ async def get_link_health():
             else:
                 unique_links[url]['name'] = ''
         
-        # 合并健康状态数据（URL 不区分大小写匹配）
+        # 合并健康状态数据（URL 不区分大小写匹配 + URL 解码匹配）
+        from urllib.parse import unquote
         for health in health_data:
             url = health.get('feishu_url')
             if url:
+                # 解码 URL 用于比较
+                url_decoded = unquote(url)
+                
                 # 尝试精确匹配
                 if url in unique_links:
                     unique_links[url].update({
@@ -6503,10 +6507,11 @@ async def get_link_health():
                         'consecutive_failures': health.get('consecutive_failures', 0)
                     })
                 else:
-                    # 尝试忽略大小写匹配
-                    url_lower = url.lower()
+                    # 尝试忽略大小写 + URL 解码匹配
+                    url_lower = url_decoded.lower()
                     for link_url in unique_links:
-                        if link_url.lower() == url_lower:
+                        link_url_decoded = unquote(link_url)
+                        if link_url_decoded.lower() == url_lower:
                             unique_links[link_url].update({
                                 'status': health.get('status', 'unknown'),
                                 'last_check_time': health.get('last_check_time'),
@@ -6805,18 +6810,23 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
     
     # 更新数据库
     try:
+        # URL 规范化：确保 URL 是未编码的状态
+        from urllib.parse import unquote
+        normalized_url = unquote(url)  # 解码 URL，确保一致性
+        
         # 检查记录是否存在（精确匹配）
-        existing = db_client.table('link_health_table').select('id, feishu_url').eq('feishu_url', url).execute()
+        existing = db_client.table('link_health_table').select('id, feishu_url').eq('feishu_url', normalized_url).execute()
         
         # 如果精确匹配没找到，尝试忽略大小写匹配
         if not existing.data:
             all_records = db_client.table('link_health_table').select('id, feishu_url').execute()
-            url_lower = url.lower()
+            url_lower = normalized_url.lower()
             for record in (all_records.data or []):
-                if record.get('feishu_url', '').lower() == url_lower:
+                record_url = unquote(record.get('feishu_url', ''))
+                if record_url.lower() == url_lower:
                     existing.data = [record]
                     # 使用数据库中存储的原始 URL
-                    url = record.get('feishu_url')
+                    normalized_url = record.get('feishu_url')
                     break
         
         next_check = now + timedelta(hours=24)  # 24小时后再检测
@@ -6837,7 +6847,7 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
         else:
             # 创建新记录
             db_client.table('link_health_table').insert({
-                'feishu_url': url,
+                'feishu_url': normalized_url,
                 'link_name': name,
                 'status': result['status'],
                 'http_code': result['http_code'],
