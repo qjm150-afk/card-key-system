@@ -6537,14 +6537,18 @@ async def get_link_health():
         
         # 合并健康状态数据
         # 由于 unique_links 的 key 已经是解码后的 URL，需要用解码后的 URL 进行匹配
+        logger.info(f"[get_link_health] unique_links 数量: {len(unique_links)}, health_data 数量: {len(health_data)}")
         for health in health_data:
             raw_url = health.get('feishu_url')
             if raw_url:
                 # 解码 URL 用于匹配
                 url = unquote(raw_url)
+                health_status = health.get('status', 'unknown')
+                logger.info(f"[get_link_health] 处理健康记录: URL={url[:50]}..., 状态={health_status}")
                 
                 # 精确匹配（unique_links 的 key 已经是解码后的 URL）
                 if url in unique_links:
+                    logger.info(f"[get_link_health] 精确匹配成功")
                     unique_links[url].update({
                         'status': health.get('status', 'unknown'),
                         'last_check_time': health.get('last_check_time'),
@@ -6738,12 +6742,15 @@ async def check_single_link_api(request: Request):
         body = await request.json()
         url = body.get('url')
         
+        logger.info(f"[check-single] 收到检测请求, 原始URL: {url}")
+        
         if not url:
             return {"success": False, "msg": "缺少链接URL"}
         
         # URL 规范化：解码确保一致性
         from urllib.parse import unquote
         url = unquote(url)
+        logger.info(f"[check-single] 解码后URL: {url}")
         
         client = get_supabase_client()
         
@@ -6868,19 +6875,24 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
         from urllib.parse import unquote
         normalized_url = unquote(url)  # 解码 URL，确保一致性
         
+        logger.info(f"[check_single_link] 准备保存链接健康状态, URL: {normalized_url[:60]}, 状态: {result['status']}")
+        
         # 检查记录是否存在（精确匹配）
         existing = db_client.table('link_health_table').select('id, feishu_url').eq('feishu_url', normalized_url).execute()
+        logger.info(f"[check_single_link] 精确匹配结果: {len(existing.data or [])} 条记录")
         
         # 如果精确匹配没找到，尝试忽略大小写匹配
         if not existing.data:
             all_records = db_client.table('link_health_table').select('id, feishu_url').execute()
             url_lower = normalized_url.lower()
+            logger.info(f"[check_single_link] 尝试大小写忽略匹配, 总记录数: {len(all_records.data or [])}")
             for record in (all_records.data or []):
                 record_url = unquote(record.get('feishu_url', ''))
                 if record_url.lower() == url_lower:
                     existing.data = [record]
                     # 使用数据库中存储的原始 URL
                     normalized_url = record.get('feishu_url')
+                    logger.info(f"[check_single_link] 大小写忽略匹配成功, 使用URL: {normalized_url[:60]}")
                     break
         
         next_check = now + timedelta(hours=24)  # 24小时后再检测
@@ -6888,6 +6900,7 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
         if existing.data and len(existing.data) > 0:
             # 更新现有记录
             record_id = existing.data[0]['id']
+            logger.info(f"[check_single_link] 更新现有记录, ID: {record_id}")
             db_client.table('link_health_table').update({
                 'status': result['status'],
                 'http_code': result['http_code'],
@@ -6898,8 +6911,10 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
                 'total_checks': 1,  # 每次检测重置
                 'updated_at': now.isoformat()
             }).eq('id', record_id).execute()
+            logger.info(f"[check_single_link] 更新记录成功")
         else:
             # 创建新记录
+            logger.info(f"[check_single_link] 创建新记录")
             db_client.table('link_health_table').insert({
                 'feishu_url': normalized_url,
                 'link_name': name,
@@ -6912,8 +6927,9 @@ async def check_single_link(http_client: httpx.AsyncClient, url: str, name: str,
                 'total_checks': 1,
                 'successful_checks': 1 if result['status'] == 'healthy' else 0
             }).execute()
+            logger.info(f"[check_single_link] 创建记录成功")
     except Exception as e:
-        logger.warning(f"保存链接健康状态失败: {str(e)}")
+        logger.error(f"保存链接健康状态失败: {str(e)}")
     
     return result
 
