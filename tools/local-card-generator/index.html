@@ -444,6 +444,12 @@
             padding-bottom: 8px;
             border-bottom: 2px solid #667eea;
         }
+        
+        .help-text {
+            font-size: 12px;
+            color: #999;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -464,10 +470,9 @@
         <div id="panel-generate" class="panel active">
             <div class="tips">
                 <strong>💡 使用说明</strong>
-                1. 先在「卡种管理」创建卡种（设置链接、密码等）<br>
-                2. 回到这里选择卡种，批量生成卡密<br>
-                3. 每个卡密独立设置过期时间<br>
-                4. 在「导出数据」导出 CSV，导入飞书多维表格
+                1. 先在「卡种管理」创建卡种（只需输入名称）<br>
+                2. 回到这里选择卡种，设置链接和密码，批量生成卡密<br>
+                3. 在「导出数据」导出 CSV，导入飞书多维表格
             </div>
             
             <div class="stats-grid" id="generate-stats">
@@ -505,7 +510,26 @@
                     </div>
                 </div>
                 
-                <div class="section-title">过期设置（每个卡密独立设置）</div>
+                <div class="section-title">飞书链接设置</div>
+                
+                <div class="form-group">
+                    <label>飞书链接 *</label>
+                    <input type="url" id="gen-feishu-url" required placeholder="https://xxx.feishu.cn/xxx">
+                    <p class="help-text">验证成功后将跳转到此链接</p>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>访问密码</label>
+                        <input type="text" id="gen-password" placeholder="如: abc123（可选）">
+                    </div>
+                    <div class="form-group">
+                        <label>链接名称</label>
+                        <input type="text" id="gen-link-name" placeholder="如: VIP资料库">
+                    </div>
+                </div>
+                
+                <div class="section-title">过期设置</div>
                 
                 <div class="form-group">
                     <div class="expire-options">
@@ -557,8 +581,8 @@
         <div id="panel-cardTypes" class="panel">
             <div class="tips">
                 <strong>📁 卡种说明</strong>
-                卡种用于分类管理卡密，包含飞书链接和访问密码。<br>
-                每个卡密的过期时间独立设置，不继承卡种设置。
+                卡种用于分类管理卡密，只需输入名称即可。<br>
+                飞书链接在生成卡密时单独设置。
             </div>
             
             <button class="btn btn-primary" onclick="showCardTypeModal()">➕ 新建卡种</button>
@@ -602,10 +626,10 @@
                             <th><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll()"></th>
                             <th>卡密</th>
                             <th>卡种</th>
+                            <th>链接</th>
                             <th>状态</th>
                             <th>销售状态</th>
-                            <th>过期时间</th>
-                            <th>备注</th>
+                            <th>过期</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -621,7 +645,7 @@
             <div class="tips">
                 <strong>📤 导出说明</strong>
                 导出的 CSV 文件可以直接导入飞书多维表格的「卡密表」。<br>
-                字段映射：卡密 → 卡密, 文档链接 → 文档链接, 访问密码 → 访问密码
+                字段映射：卡密 → 卡密, 飞书链接 → 文档链接, 访问密码 → 访问密码
             </div>
             
             <div class="form-row">
@@ -659,19 +683,7 @@
                 <input type="hidden" id="ct-id">
                 <div class="form-group">
                     <label>卡种名称 *</label>
-                    <input type="text" id="ct-name" required placeholder="如: VIP资料库">
-                </div>
-                <div class="form-group">
-                    <label>飞书链接 *</label>
-                    <input type="url" id="ct-feishu-url" required placeholder="https://xxx.feishu.cn/xxx">
-                </div>
-                <div class="form-group">
-                    <label>访问密码</label>
-                    <input type="text" id="ct-password" placeholder="如: abc123">
-                </div>
-                <div class="form-group">
-                    <label>链接名称</label>
-                    <input type="text" id="ct-link-name" placeholder="如: VIP资料库">
+                    <input type="text" id="ct-name" required placeholder="如: VIP资料库、普通资料">
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="hideCardTypeModal()">取消</button>
@@ -695,20 +707,36 @@
                     <input type="text" id="ck-key" readonly style="background:#f5f5f5;">
                 </div>
                 <div class="form-group">
-                    <label>状态</label>
-                    <select id="ck-status">
-                        <option value="1">有效</option>
-                        <option value="0">已停用</option>
-                    </select>
+                    <label>飞书链接</label>
+                    <input type="url" id="ck-feishu-url" placeholder="https://xxx.feishu.cn/xxx">
                 </div>
-                <div class="form-group">
-                    <label>销售状态</label>
-                    <select id="ck-sale-status">
-                        <option value="unsold">未售出</option>
-                        <option value="sold">已售出</option>
-                        <option value="refunded">已退款</option>
-                        <option value="disputed">有纠纷</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>访问密码</label>
+                        <input type="text" id="ck-password" placeholder="可选">
+                    </div>
+                    <div class="form-group">
+                        <label>链接名称</label>
+                        <input type="text" id="ck-link-name" placeholder="可选">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>状态</label>
+                        <select id="ck-status">
+                            <option value="1">有效</option>
+                            <option value="0">已停用</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>销售状态</label>
+                        <select id="ck-sale-status">
+                            <option value="unsold">未售出</option>
+                            <option value="sold">已售出</option>
+                            <option value="refunded">已退款</option>
+                            <option value="disputed">有纠纷</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>过期设置</label>
@@ -733,13 +761,15 @@
                         </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>备注</label>
-                    <input type="text" id="ck-note">
-                </div>
-                <div class="form-group">
-                    <label>销售渠道</label>
-                    <input type="text" id="ck-channel">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>备注</label>
+                        <input type="text" id="ck-note">
+                    </div>
+                    <div class="form-group">
+                        <label>销售渠道</label>
+                        <input type="text" id="ck-channel">
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="hideCardKeyModal()">取消</button>
@@ -795,10 +825,19 @@
         
         // 获取过期显示文本
         function getExpireText(card) {
-            if (!card.expireType || card.expireType === 'permanent') return '永久有效';
+            if (!card.expireType || card.expireType === 'permanent') return '永久';
             if (card.expireType === 'fixed' && card.expireAt) return formatDate(card.expireAt);
-            if (card.expireType === 'relative' && card.expireDays) return `激活后${card.expireDays}天`;
-            return '永久有效';
+            if (card.expireType === 'relative' && card.expireDays) return `${card.expireDays}天`;
+            return '永久';
+        }
+        
+        // 截取链接显示
+        function getShortUrl(url) {
+            if (!url) return '-';
+            if (url.length > 30) {
+                return url.substring(0, 30) + '...';
+            }
+            return url;
         }
         
         // 显示提示
@@ -910,6 +949,15 @@
             
             const prefix = document.getElementById('gen-prefix').value || 'CSS';
             const count = parseInt(document.getElementById('gen-count').value) || 10;
+            const feishuUrl = document.getElementById('gen-feishu-url').value.trim();
+            const feishuPassword = document.getElementById('gen-password').value.trim();
+            const linkName = document.getElementById('gen-link-name').value.trim();
+            
+            if (!feishuUrl) {
+                showToast('请输入飞书链接');
+                return;
+            }
+            
             const expireTypeRadio = document.querySelector('input[name="expire-type"]:checked');
             const expireType = expireTypeRadio ? expireTypeRadio.value : 'permanent';
             const note = document.getElementById('gen-note').value;
@@ -951,9 +999,9 @@
                     cardTypeName: cardType.name,
                     status: 1,
                     saleStatus: 'unsold',
-                    feishuUrl: cardType.feishuUrl,
-                    feishuPassword: cardType.feishuPassword,
-                    linkName: cardType.linkName || cardType.name,
+                    feishuUrl: feishuUrl,
+                    feishuPassword: feishuPassword,
+                    linkName: linkName || cardType.name,
                     expireType: expireType,
                     expireAt: expireAt,
                     expireDays: expireDays,
@@ -1006,7 +1054,6 @@
                         <div class="card-type-info">
                             <h3>${type.name}</h3>
                             <p>总数: ${keyCount} | 未售出: ${unsoldCount} | 已售出: ${soldCount}</p>
-                            <p style="font-size:11px;color:#999;">链接: ${type.feishuUrl} ${type.feishuPassword ? '| 密码: ' + type.feishuPassword : ''}</p>
                         </div>
                         <div class="card-type-actions">
                             <button class="btn btn-secondary btn-sm" onclick="editCardType('${type.id}')">编辑</button>
@@ -1032,9 +1079,6 @@
                     title.textContent = '编辑卡种';
                     document.getElementById('ct-id').value = type.id;
                     document.getElementById('ct-name').value = type.name;
-                    document.getElementById('ct-feishu-url').value = type.feishuUrl || '';
-                    document.getElementById('ct-password').value = type.feishuPassword || '';
-                    document.getElementById('ct-link-name').value = type.linkName || '';
                 }
             } else {
                 title.textContent = '新建卡种';
@@ -1068,9 +1112,11 @@
             
             const id = document.getElementById('ct-id').value;
             const name = document.getElementById('ct-name').value.trim();
-            const feishuUrl = document.getElementById('ct-feishu-url').value.trim();
-            const password = document.getElementById('ct-password').value.trim();
-            const linkName = document.getElementById('ct-link-name').value.trim();
+            
+            if (!name) {
+                showToast('请输入卡种名称');
+                return;
+            }
             
             const data = getData();
             
@@ -1078,20 +1124,14 @@
                 // 编辑
                 const index = data.cardTypes.findIndex(t => t.id === id);
                 if (index > -1) {
-                    data.cardTypes[index] = {
-                        ...data.cardTypes[index],
-                        name,
-                        feishuUrl,
-                        feishuPassword: password,
-                        linkName,
-                        updatedAt: new Date().toISOString()
-                    };
-                    // 更新关联卡密的链接信息
+                    const oldName = data.cardTypes[index].name;
+                    data.cardTypes[index].name = name;
+                    data.cardTypes[index].updatedAt = new Date().toISOString();
+                    
+                    // 更新关联卡密的卡种名称
                     data.cardKeys.forEach(key => {
                         if (key.cardTypeId === id) {
-                            key.feishuUrl = feishuUrl;
-                            key.feishuPassword = password;
-                            key.linkName = linkName || name;
+                            key.cardTypeName = name;
                         }
                     });
                 }
@@ -1099,10 +1139,7 @@
                 // 新建
                 data.cardTypes.push({
                     id: generateId(),
-                    name,
-                    feishuUrl,
-                    feishuPassword: password,
-                    linkName,
+                    name: name,
                     createdAt: new Date().toISOString()
                 });
             }
@@ -1157,6 +1194,7 @@
                     <td><input type="checkbox" class="key-checkbox" data-id="${key.id}"></td>
                     <td style="font-family:monospace;">${key.keyValue}</td>
                     <td>${key.cardTypeName || '-'}</td>
+                    <td title="${key.feishuUrl || ''}">${getShortUrl(key.feishuUrl)}</td>
                     <td>
                         <span class="status-badge ${key.status == 1 ? 'status-valid' : 'status-invalid'}">
                             ${key.status == 1 ? '有效' : '已停用'}
@@ -1168,7 +1206,6 @@
                         </span>
                     </td>
                     <td>${getExpireText(key)}</td>
-                    <td>${key.note || '-'}</td>
                     <td>
                         <button class="btn btn-secondary btn-sm" onclick="editCardKey('${key.id}')">编辑</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteCardKey('${key.id}')">删除</button>
@@ -1194,6 +1231,9 @@
             
             document.getElementById('ck-id').value = key.id;
             document.getElementById('ck-key').value = key.keyValue;
+            document.getElementById('ck-feishu-url').value = key.feishuUrl || '';
+            document.getElementById('ck-password').value = key.feishuPassword || '';
+            document.getElementById('ck-link-name').value = key.linkName || '';
             document.getElementById('ck-status').value = key.status;
             document.getElementById('ck-sale-status').value = key.saleStatus;
             document.getElementById('ck-note').value = key.note || '';
@@ -1239,6 +1279,9 @@
             e.preventDefault();
             
             const id = document.getElementById('ck-id').value;
+            const feishuUrl = document.getElementById('ck-feishu-url').value.trim();
+            const feishuPassword = document.getElementById('ck-password').value.trim();
+            const linkName = document.getElementById('ck-link-name').value.trim();
             const status = parseInt(document.getElementById('ck-status').value);
             const saleStatus = document.getElementById('ck-sale-status').value;
             const expireType = document.querySelector('input[name="ck-expire-type"]:checked')?.value || 'permanent';
@@ -1251,6 +1294,9 @@
             const index = data.cardKeys.findIndex(k => k.id === id);
             
             if (index > -1) {
+                data.cardKeys[index].feishuUrl = feishuUrl;
+                data.cardKeys[index].feishuPassword = feishuPassword;
+                data.cardKeys[index].linkName = linkName;
                 data.cardKeys[index].status = status;
                 data.cardKeys[index].saleStatus = saleStatus;
                 data.cardKeys[index].expireType = expireType;
@@ -1375,7 +1421,7 @@
         
         function downloadCSV(keys, filename) {
             // CSV 表头（兼容飞书多维表格字段）
-            const headers = ['卡密', '状态', '文档链接', '访问密码', '链接名称', '过期类型', '过期时间', '有效天数', '最大设备数', '销售状态', '备注', '销售渠道'];
+            const headers = ['卡密', '状态', '文档链接', '访问密码', '链接名称', '过期类型', '过期时间', '有效天数', '最大设备数', '销售状态', '备注', '销售渠道', '卡种'];
             
             // CSV 数据行
             const rows = keys.map(k => {
@@ -1403,7 +1449,8 @@
                     k.maxDevices || 5,
                     saleStatusMap[k.saleStatus] || '未售出',
                     k.note || '',
-                    k.salesChannel || ''
+                    k.salesChannel || '',
+                    k.cardTypeName || ''
                 ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
             });
             
