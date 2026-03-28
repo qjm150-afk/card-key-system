@@ -403,9 +403,41 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
         
         return await call_next(request)
 
-# 添加中间件（注意顺序：先限流，后权限验证）
+# ==================== 请求计时中间件 ====================
+import time
+
+class TimingMiddleware(BaseHTTPMiddleware):
+    """请求计时中间件 - 用于性能分析"""
+    
+    async def dispatch(self, request, call_next):
+        start_time = time.time()
+        path = request.url.path
+        
+        # 记录请求开始
+        logger.info(f"[TIMING] 请求开始: {request.method} {path}")
+        
+        try:
+            response = await call_next(request)
+            
+            # 计算处理时间
+            process_time = time.time() - start_time
+            
+            # 记录请求完成
+            logger.info(f"[TIMING] 请求完成: {request.method} {path} - 状态: {response.status_code} - 耗时: {process_time:.3f}s")
+            
+            # 添加处理时间到响应头
+            response.headers["X-Process-Time"] = f"{process_time:.3f}s"
+            
+            return response
+        except Exception as e:
+            process_time = time.time() - start_time
+            logger.error(f"[TIMING] 请求异常: {request.method} {path} - 耗时: {process_time:.3f}s - 错误: {str(e)}")
+            raise
+
+# 添加中间件（注意顺序：先计时，再限流，最后权限验证）
 app.add_middleware(AdminAuthMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(TimingMiddleware)
 
 
 # ==================== API 模型 ====================
@@ -3423,20 +3455,26 @@ async def get_filter_options(
     - 原来：每个字段单独查询一次（共7次数据库查询）
     - 现在：一次查询获取所有数据，在内存中计算各字段统计
     """
+    import time
+    start_time = time.time()
+    
     try:
+        # 步骤1：获取数据库客户端
+        step1_start = time.time()
         client = get_supabase_client()
+        logger.info(f"[filter-options] 步骤1-获取数据库客户端: {time.time() - step1_start:.3f}s")
         
         # 处理搜索参数（去除前后空格）
         if search:
             search = search.strip()
         
-        # 【优化】一次查询获取所有需要的数据
-        # 包含所有筛选选项需要的字段
+        # 步骤2：查询所有卡密数据
+        step2_start = time.time()
         all_response = client.table('card_keys_table').select(
             'status, sale_status, feishu_url, link_name, devices, expire_at, expire_after_days, sales_channel, activated_at, card_type_id, bstudio_create_time'
         ).execute()
-        
         all_data = all_response.data or []
+        logger.info(f"[filter-options] 步骤2-查询卡密数据: {time.time() - step2_start:.3f}s, 数据量: {len(all_data)}")
         
         # 定义筛选条件判断函数（在内存中判断记录是否满足条件）
         def matches_filter(item: dict, exclude: str = None) -> bool:
@@ -3724,6 +3762,9 @@ async def get_filter_options(
                 "name": "未分配卡种",
                 "count": no_card_type_count
             })
+        
+        total_time = time.time() - start_time
+        logger.info(f"[filter-options] API 总耗时: {total_time:.3f}s")
         
         return {
             "success": True,
