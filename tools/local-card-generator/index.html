@@ -1,0 +1,1425 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地卡密生成工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .tab-btn:hover {
+            background: #f0f0f0;
+        }
+        
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .panel {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .panel.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a6fd6;
+        }
+        
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .btn-success {
+            background: #10b981;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #059669;
+        }
+        
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .card-type-list {
+            margin-top: 20px;
+        }
+        
+        .card-type-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+        
+        .card-type-info h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .card-type-info p {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .card-type-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .card-key-list {
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background: #f9f9f9;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        tr:hover {
+            background: #f9f9f9;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-valid {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .status-invalid {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .sale-unsold {
+            background: #e0e7ff;
+            color: #4f46e5;
+        }
+        
+        .sale-sold {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+        
+        .sale-refunded {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        
+        .sale-disputed {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        
+        .filter-bar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filter-bar select,
+        .filter-bar input {
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            font-size: 28px;
+            margin-bottom: 4px;
+        }
+        
+        .stat-card p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            font-size: 18px;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 20px;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state p {
+            margin-bottom: 16px;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #333;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .expire-options {
+            margin-top: 12px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+        
+        .expire-options label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+        }
+        
+        .expire-options input[type="radio"] {
+            width: auto;
+        }
+        
+        .expire-options .expire-input {
+            margin-left: 24px;
+            margin-top: 8px;
+        }
+        
+        .batch-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+        
+        .tips {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #856404;
+        }
+        
+        .tips strong {
+            display: block;
+            margin-bottom: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 本地卡密生成工具</h1>
+            <p>完全离线运行 | 数据存储在本地浏览器 | 不会影响云端系统</p>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('generate')">📝 生成卡密</button>
+            <button class="tab-btn" onclick="switchTab('cardTypes')">📁 卡种管理</button>
+            <button class="tab-btn" onclick="switchTab('cardKeys')">📋 卡密管理</button>
+            <button class="tab-btn" onclick="switchTab('export')">📤 导出数据</button>
+        </div>
+        
+        <!-- 生成卡密面板 -->
+        <div id="panel-generate" class="panel active">
+            <div class="tips">
+                <strong>💡 使用说明</strong>
+                1. 先在「卡种管理」创建卡种（设置链接、密码等）<br>
+                2. 回到这里选择卡种，批量生成卡密<br>
+                3. 在「导出数据」导出 CSV，导入飞书多维表格
+            </div>
+            
+            <div class="stats-grid" id="generate-stats">
+                <div class="stat-card">
+                    <h3 id="stat-total">0</h3>
+                    <p>总卡密数</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="stat-types">0</h3>
+                    <p>卡种数量</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="stat-unsold">0</h3>
+                    <p>未售出</p>
+                </div>
+            </div>
+            
+            <form id="generate-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>选择卡种 *</label>
+                        <select id="gen-card-type" required>
+                            <option value="">-- 请先创建卡种 --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>卡密前缀</label>
+                        <input type="text" id="gen-prefix" value="CSS" maxlength="4" placeholder="如: VIP、CSS">
+                    </div>
+                    <div class="form-group">
+                        <label>生成数量 *</label>
+                        <input type="number" id="gen-count" min="1" max="1000" value="10" required>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>过期设置</label>
+                    <div class="expire-options">
+                        <label>
+                            <input type="radio" name="expire-type" value="inherit" checked>
+                            继承卡种设置
+                        </label>
+                        <label>
+                            <input type="radio" name="expire-type" value="permanent">
+                            永久有效
+                        </label>
+                        <label>
+                            <input type="radio" name="expire-type" value="fixed">
+                            固定日期过期
+                        </label>
+                        <div class="expire-input" id="expire-fixed-input" style="display:none;">
+                            <input type="date" id="gen-expire-at">
+                        </div>
+                        <label>
+                            <input type="radio" name="expire-type" value="relative">
+                            激活后有效
+                        </label>
+                        <div class="expire-input" id="expire-relative-input" style="display:none;">
+                            <input type="number" id="gen-expire-days" min="1" placeholder="天数"> 天
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>备注</label>
+                        <input type="text" id="gen-note" placeholder="如: 张三购买">
+                    </div>
+                    <div class="form-group">
+                        <label>销售渠道</label>
+                        <input type="text" id="gen-channel" placeholder="如: 淘宝、微信">
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">🔑 生成卡密</button>
+            </form>
+            
+            <div id="generate-result" style="margin-top: 20px;"></div>
+        </div>
+        
+        <!-- 卡种管理面板 -->
+        <div id="panel-cardTypes" class="panel">
+            <button class="btn btn-primary" onclick="showCardTypeModal()">➕ 新建卡种</button>
+            
+            <div class="card-type-list" id="card-type-list">
+                <!-- 卡种列表将在这里渲染 -->
+            </div>
+        </div>
+        
+        <!-- 卡密管理面板 -->
+        <div id="panel-cardKeys" class="panel">
+            <div class="filter-bar">
+                <select id="filter-card-type">
+                    <option value="">全部卡种</option>
+                </select>
+                <select id="filter-status">
+                    <option value="">全部状态</option>
+                    <option value="1">有效</option>
+                    <option value="0">已停用</option>
+                </select>
+                <select id="filter-sale-status">
+                    <option value="">全部销售状态</option>
+                    <option value="unsold">未售出</option>
+                    <option value="sold">已售出</option>
+                    <option value="refunded">已退款</option>
+                    <option value="disputed">有纠纷</option>
+                </select>
+                <input type="text" id="filter-search" placeholder="搜索卡密...">
+            </div>
+            
+            <div class="batch-actions">
+                <button class="btn btn-secondary btn-sm" onclick="selectAll()">全选</button>
+                <button class="btn btn-danger btn-sm" onclick="batchDelete()">批量删除</button>
+                <button class="btn btn-success btn-sm" onclick="batchExport()">导出选中</button>
+            </div>
+            
+            <div class="card-key-list">
+                <table>
+                    <thead>
+                        <tr>
+                            <th><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll()"></th>
+                            <th>卡密</th>
+                            <th>卡种</th>
+                            <th>状态</th>
+                            <th>销售状态</th>
+                            <th>过期时间</th>
+                            <th>备注</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="card-key-table">
+                        <!-- 卡密列表将在这里渲染 -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 导出数据面板 -->
+        <div id="panel-export" class="panel">
+            <div class="tips">
+                <strong>📤 导出说明</strong>
+                导出的 CSV 文件可以直接导入飞书多维表格的「卡密表」。<br>
+                字段映射：卡密 → 卡密, 文档链接 → 文档链接, 访问密码 → 访问密码
+            </div>
+            
+            <div class="form-row">
+                <div class="form-group">
+                    <label>导出范围</label>
+                    <select id="export-scope">
+                        <option value="all">全部卡密</option>
+                        <option value="unsold">仅未售出</option>
+                        <option value="sold">仅已售出</option>
+                        <option value="valid">仅有效</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>选择卡种</label>
+                    <select id="export-card-type">
+                        <option value="">全部卡种</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button class="btn btn-success" onclick="exportCSV()">📥 导出 CSV 文件</button>
+            
+            <div id="export-preview" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+    
+    <!-- 卡种编辑弹窗 -->
+    <div id="card-type-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">新建卡种</h2>
+                <button class="modal-close" onclick="hideCardTypeModal()">&times;</button>
+            </div>
+            <form id="card-type-form">
+                <input type="hidden" id="ct-id">
+                <div class="form-group">
+                    <label>卡种名称 *</label>
+                    <input type="text" id="ct-name" required placeholder="如: VIP资料库">
+                </div>
+                <div class="form-group">
+                    <label>飞书链接 *</label>
+                    <input type="url" id="ct-feishu-url" required placeholder="https://xxx.feishu.cn/xxx">
+                </div>
+                <div class="form-group">
+                    <label>访问密码</label>
+                    <input type="text" id="ct-password" placeholder="如: abc123">
+                </div>
+                <div class="form-group">
+                    <label>链接名称</label>
+                    <input type="text" id="ct-link-name" placeholder="如: VIP资料库">
+                </div>
+                <div class="form-group">
+                    <label>默认过期设置</label>
+                    <div class="expire-options">
+                        <label>
+                            <input type="radio" name="ct-expire-type" value="permanent" checked>
+                            永久有效
+                        </label>
+                        <label>
+                            <input type="radio" name="ct-expire-type" value="fixed">
+                            固定日期过期
+                        </label>
+                        <div class="expire-input" id="ct-expire-fixed-input" style="display:none;">
+                            <input type="date" id="ct-expire-at">
+                        </div>
+                        <label>
+                            <input type="radio" name="ct-expire-type" value="relative">
+                            激活后有效
+                        </label>
+                        <div class="expire-input" id="ct-expire-relative-input" style="display:none;">
+                            <input type="number" id="ct-expire-days" min="1" placeholder="天数"> 天
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideCardTypeModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- 卡密编辑弹窗 -->
+    <div id="card-key-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>编辑卡密</h2>
+                <button class="modal-close" onclick="hideCardKeyModal()">&times;</button>
+            </div>
+            <form id="card-key-edit-form">
+                <input type="hidden" id="ck-id">
+                <div class="form-group">
+                    <label>卡密</label>
+                    <input type="text" id="ck-key" readonly style="background:#f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>状态</label>
+                    <select id="ck-status">
+                        <option value="1">有效</option>
+                        <option value="0">已停用</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>销售状态</label>
+                    <select id="ck-sale-status">
+                        <option value="unsold">未售出</option>
+                        <option value="sold">已售出</option>
+                        <option value="refunded">已退款</option>
+                        <option value="disputed">有纠纷</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>备注</label>
+                    <input type="text" id="ck-note">
+                </div>
+                <div class="form-group">
+                    <label>销售渠道</label>
+                    <input type="text" id="ck-channel">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideCardKeyModal()">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // ==================== 数据管理 ====================
+        const STORAGE_KEY = 'local_card_generator_data';
+        
+        // 获取数据
+        function getData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                return JSON.parse(data);
+            }
+            return { cardTypes: [], cardKeys: [] };
+        }
+        
+        // 保存数据
+        function saveData(data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        }
+        
+        // 生成唯一ID
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+        
+        // 生成卡密 (格式: 前缀-XXXX-XXXX-XXXX)
+        function generateCardKey(prefix = 'CSS') {
+            const chars = '0123456789ABCDEF';
+            const parts = [];
+            for (let i = 0; i < 3; i++) {
+                let part = '';
+                for (let j = 0; j < 4; j++) {
+                    part += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                parts.push(part);
+            }
+            return `${prefix}-${parts.join('-')}`;
+        }
+        
+        // 格式化日期
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('zh-CN');
+        }
+        
+        // 获取过期显示文本
+        function getExpireText(card) {
+            if (card.expireType === 'permanent') return '永久有效';
+            if (card.expireType === 'fixed' && card.expireAt) return formatDate(card.expireAt);
+            if (card.expireType === 'relative' && card.expireDays) return `激活后${card.expireDays}天`;
+            return '-';
+        }
+        
+        // 显示提示
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        // ==================== 标签页切换 ====================
+        function switchTab(tabName) {
+            // 更新标签按钮状态
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 更新面板显示
+            document.querySelectorAll('.panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            document.getElementById(`panel-${tabName}`).classList.add('active');
+            
+            // 刷新数据
+            if (tabName === 'generate') {
+                updateGenerateStats();
+                updateCardTypeSelect('gen-card-type');
+            } else if (tabName === 'cardTypes') {
+                renderCardTypes();
+            } else if (tabName === 'cardKeys') {
+                updateCardTypeSelect('filter-card-type');
+                renderCardKeys();
+            } else if (tabName === 'export') {
+                updateCardTypeSelect('export-card-type');
+                updateExportPreview();
+            }
+        }
+        
+        // ==================== 生成卡密 ====================
+        function updateGenerateStats() {
+            const data = getData();
+            document.getElementById('stat-total').textContent = data.cardKeys.length;
+            document.getElementById('stat-types').textContent = data.cardTypes.length;
+            document.getElementById('stat-unsold').textContent = data.cardKeys.filter(k => k.saleStatus === 'unsold').length;
+        }
+        
+        function updateCardTypeSelect(selectId) {
+            const data = getData();
+            const select = document.getElementById(selectId);
+            const currentValue = select.value;
+            
+            // 保留第一个选项
+            const firstOption = select.options[0];
+            select.innerHTML = '';
+            if (firstOption && !firstOption.value) {
+                select.appendChild(firstOption);
+            }
+            
+            data.cardTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.id;
+                option.textContent = type.name;
+                select.appendChild(option);
+            });
+            
+            if (currentValue) {
+                select.value = currentValue;
+            }
+        }
+        
+        // 过期类型切换
+        document.querySelectorAll('input[name="expire-type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('expire-fixed-input').style.display = 
+                    this.value === 'fixed' ? 'block' : 'none';
+                document.getElementById('expire-relative-input').style.display = 
+                    this.value === 'relative' ? 'block' : 'none';
+            });
+        });
+        
+        // 卡种过期类型切换
+        document.querySelectorAll('input[name="ct-expire-type"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                document.getElementById('ct-expire-fixed-input').style.display = 
+                    this.value === 'fixed' ? 'block' : 'none';
+                document.getElementById('ct-expire-relative-input').style.display = 
+                    this.value === 'relative' ? 'block' : 'none';
+            });
+        });
+        
+        // 生成卡密表单提交
+        document.getElementById('generate-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const cardTypeId = document.getElementById('gen-card-type').value;
+            if (!cardTypeId) {
+                showToast('请先选择卡种');
+                return;
+            }
+            
+            const data = getData();
+            const cardType = data.cardTypes.find(t => t.id === cardTypeId);
+            if (!cardType) {
+                showToast('卡种不存在');
+                return;
+            }
+            
+            const prefix = document.getElementById('gen-prefix').value || 'CSS';
+            const count = parseInt(document.getElementById('gen-count').value) || 10;
+            const expireTypeRadio = document.querySelector('input[name="expire-type"]:checked');
+            const expireType = expireTypeRadio ? expireTypeRadio.value : 'inherit';
+            const note = document.getElementById('gen-note').value;
+            const channel = document.getElementById('gen-channel').value;
+            
+            // 确定过期设置
+            let finalExpireType, finalExpireAt, finalExpireDays;
+            
+            if (expireType === 'inherit') {
+                finalExpireType = cardType.expireType || 'permanent';
+                finalExpireAt = cardType.expireAt;
+                finalExpireDays = cardType.expireDays;
+            } else if (expireType === 'permanent') {
+                finalExpireType = 'permanent';
+            } else if (expireType === 'fixed') {
+                finalExpireType = 'fixed';
+                finalExpireAt = document.getElementById('gen-expire-at').value;
+            } else if (expireType === 'relative') {
+                finalExpireType = 'relative';
+                finalExpireDays = parseInt(document.getElementById('gen-expire-days').value);
+            }
+            
+            // 生成卡密
+            const existingKeys = new Set(data.cardKeys.map(k => k.keyValue));
+            const newKeys = [];
+            
+            for (let i = 0; i < count; i++) {
+                let key;
+                let attempts = 0;
+                do {
+                    key = generateCardKey(prefix);
+                    attempts++;
+                    if (attempts > 100) {
+                        showToast('生成卡密失败，请尝试更换前缀');
+                        return;
+                    }
+                } while (existingKeys.has(key));
+                
+                existingKeys.add(key);
+                
+                newKeys.push({
+                    id: generateId(),
+                    keyValue: key,
+                    cardTypeId: cardTypeId,
+                    cardTypeName: cardType.name,
+                    status: 1,
+                    saleStatus: 'unsold',
+                    feishuUrl: cardType.feishuUrl,
+                    feishuPassword: cardType.feishuPassword,
+                    linkName: cardType.linkName,
+                    expireType: finalExpireType,
+                    expireAt: finalExpireAt,
+                    expireDays: finalExpireDays,
+                    note: note,
+                    salesChannel: channel,
+                    createdAt: new Date().toISOString()
+                });
+            }
+            
+            // 保存数据
+            data.cardKeys.push(...newKeys);
+            saveData(data);
+            
+            // 显示结果
+            const resultDiv = document.getElementById('generate-result');
+            resultDiv.innerHTML = `
+                <div class="tips" style="background:#dcfce7;border-color:#10b981;color:#059669;">
+                    <strong>✅ 成功生成 ${count} 个卡密</strong>
+                    卡种: ${cardType.name} | 前缀: ${prefix}
+                </div>
+            `;
+            
+            updateGenerateStats();
+            showToast(`成功生成 ${count} 个卡密`);
+        });
+        
+        // ==================== 卡种管理 ====================
+        function renderCardTypes() {
+            const data = getData();
+            const listDiv = document.getElementById('card-type-list');
+            
+            if (data.cardTypes.length === 0) {
+                listDiv.innerHTML = `
+                    <div class="empty-state">
+                        <p>还没有创建卡种</p>
+                        <button class="btn btn-primary" onclick="showCardTypeModal()">创建第一个卡种</button>
+                    </div>
+                `;
+                return;
+            }
+            
+            listDiv.innerHTML = data.cardTypes.map(type => {
+                const keyCount = data.cardKeys.filter(k => k.cardTypeId === type.id).length;
+                const expireText = type.expireType === 'permanent' ? '永久有效' :
+                    type.expireType === 'fixed' ? `固定日期: ${formatDate(type.expireAt)}` :
+                    type.expireType === 'relative' ? `激活后${type.expireDays}天` : '未设置';
+                
+                return `
+                    <div class="card-type-item">
+                        <div class="card-type-info">
+                            <h3>${type.name}</h3>
+                            <p>卡密数: ${keyCount} | 过期: ${expireText}</p>
+                            <p style="font-size:11px;color:#999;">链接: ${type.feishuUrl}</p>
+                        </div>
+                        <div class="card-type-actions">
+                            <button class="btn btn-secondary btn-sm" onclick="editCardType('${type.id}')">编辑</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteCardType('${type.id}')">删除</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function showCardTypeModal(typeId = null) {
+            const modal = document.getElementById('card-type-modal');
+            const form = document.getElementById('card-type-form');
+            const title = document.getElementById('modal-title');
+            
+            form.reset();
+            document.getElementById('ct-id').value = '';
+            document.getElementById('ct-expire-fixed-input').style.display = 'none';
+            document.getElementById('ct-expire-relative-input').style.display = 'none';
+            
+            if (typeId) {
+                const data = getData();
+                const type = data.cardTypes.find(t => t.id === typeId);
+                if (type) {
+                    title.textContent = '编辑卡种';
+                    document.getElementById('ct-id').value = type.id;
+                    document.getElementById('ct-name').value = type.name;
+                    document.getElementById('ct-feishu-url').value = type.feishuUrl || '';
+                    document.getElementById('ct-password').value = type.feishuPassword || '';
+                    document.getElementById('ct-link-name').value = type.linkName || '';
+                    
+                    // 设置过期类型
+                    const expireRadio = document.querySelector(`input[name="ct-expire-type"][value="${type.expireType || 'permanent'}"]`);
+                    if (expireRadio) expireRadio.checked = true;
+                    
+                    if (type.expireType === 'fixed') {
+                        document.getElementById('ct-expire-fixed-input').style.display = 'block';
+                        document.getElementById('ct-expire-at').value = type.expireAt || '';
+                    } else if (type.expireType === 'relative') {
+                        document.getElementById('ct-expire-relative-input').style.display = 'block';
+                        document.getElementById('ct-expire-days').value = type.expireDays || '';
+                    }
+                }
+            } else {
+                title.textContent = '新建卡种';
+            }
+            
+            modal.classList.add('show');
+        }
+        
+        function hideCardTypeModal() {
+            document.getElementById('card-type-modal').classList.remove('show');
+        }
+        
+        function editCardType(typeId) {
+            showCardTypeModal(typeId);
+        }
+        
+        function deleteCardType(typeId) {
+            if (!confirm('确定要删除这个卡种吗？关联的卡密不会被删除。')) return;
+            
+            const data = getData();
+            data.cardTypes = data.cardTypes.filter(t => t.id !== typeId);
+            saveData(data);
+            
+            renderCardTypes();
+            showToast('卡种已删除');
+        }
+        
+        // 卡种表单提交
+        document.getElementById('card-type-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('ct-id').value;
+            const name = document.getElementById('ct-name').value.trim();
+            const feishuUrl = document.getElementById('ct-feishu-url').value.trim();
+            const password = document.getElementById('ct-password').value.trim();
+            const linkName = document.getElementById('ct-link-name').value.trim();
+            const expireType = document.querySelector('input[name="ct-expire-type"]:checked').value;
+            const expireAt = document.getElementById('ct-expire-at').value;
+            const expireDays = parseInt(document.getElementById('ct-expire-days').value) || null;
+            
+            const data = getData();
+            
+            if (id) {
+                // 编辑
+                const index = data.cardTypes.findIndex(t => t.id === id);
+                if (index > -1) {
+                    data.cardTypes[index] = {
+                        ...data.cardTypes[index],
+                        name,
+                        feishuUrl,
+                        feishuPassword: password,
+                        linkName,
+                        expireType,
+                        expireAt,
+                        expireDays,
+                        updatedAt: new Date().toISOString()
+                    };
+                }
+            } else {
+                // 新建
+                data.cardTypes.push({
+                    id: generateId(),
+                    name,
+                    feishuUrl,
+                    feishuPassword: password,
+                    linkName,
+                    expireType,
+                    expireAt,
+                    expireDays,
+                    createdAt: new Date().toISOString()
+                });
+            }
+            
+            saveData(data);
+            hideCardTypeModal();
+            renderCardTypes();
+            showToast(id ? '卡种已更新' : '卡种已创建');
+        });
+        
+        // ==================== 卡密管理 ====================
+        function renderCardKeys() {
+            const data = getData();
+            const filterType = document.getElementById('filter-card-type').value;
+            const filterStatus = document.getElementById('filter-status').value;
+            const filterSaleStatus = document.getElementById('filter-sale-status').value;
+            const search = document.getElementById('filter-search').value.toLowerCase();
+            
+            let filteredKeys = data.cardKeys;
+            
+            if (filterType) {
+                filteredKeys = filteredKeys.filter(k => k.cardTypeId === filterType);
+            }
+            if (filterStatus) {
+                filteredKeys = filteredKeys.filter(k => k.status == filterStatus);
+            }
+            if (filterSaleStatus) {
+                filteredKeys = filteredKeys.filter(k => k.saleStatus === filterSaleStatus);
+            }
+            if (search) {
+                filteredKeys = filteredKeys.filter(k => 
+                    k.keyValue.toLowerCase().includes(search) ||
+                    (k.note && k.note.toLowerCase().includes(search))
+                );
+            }
+            
+            const tbody = document.getElementById('card-key-table');
+            
+            if (filteredKeys.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" style="text-align:center;padding:40px;color:#666;">
+                            暂无卡密数据
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = filteredKeys.map(key => `
+                <tr>
+                    <td><input type="checkbox" class="key-checkbox" data-id="${key.id}"></td>
+                    <td style="font-family:monospace;">${key.keyValue}</td>
+                    <td>${key.cardTypeName || '-'}</td>
+                    <td>
+                        <span class="status-badge ${key.status == 1 ? 'status-valid' : 'status-invalid'}">
+                            ${key.status == 1 ? '有效' : '已停用'}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge sale-${key.saleStatus}">
+                            ${getSaleStatusText(key.saleStatus)}
+                        </span>
+                    </td>
+                    <td>${getExpireText(key)}</td>
+                    <td>${key.note || '-'}</td>
+                    <td>
+                        <button class="btn btn-secondary btn-sm" onclick="editCardKey('${key.id}')">编辑</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCardKey('${key.id}')">删除</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function getSaleStatusText(status) {
+            const map = {
+                'unsold': '未售出',
+                'sold': '已售出',
+                'refunded': '已退款',
+                'disputed': '有纠纷'
+            };
+            return map[status] || status;
+        }
+        
+        function editCardKey(keyId) {
+            const data = getData();
+            const key = data.cardKeys.find(k => k.id === keyId);
+            if (!key) return;
+            
+            document.getElementById('ck-id').value = key.id;
+            document.getElementById('ck-key').value = key.keyValue;
+            document.getElementById('ck-status').value = key.status;
+            document.getElementById('ck-sale-status').value = key.saleStatus;
+            document.getElementById('ck-note').value = key.note || '';
+            document.getElementById('ck-channel').value = key.salesChannel || '';
+            
+            document.getElementById('card-key-modal').classList.add('show');
+        }
+        
+        function hideCardKeyModal() {
+            document.getElementById('card-key-modal').classList.remove('show');
+        }
+        
+        function deleteCardKey(keyId) {
+            if (!confirm('确定要删除这个卡密吗？')) return;
+            
+            const data = getData();
+            data.cardKeys = data.cardKeys.filter(k => k.id !== keyId);
+            saveData(data);
+            
+            renderCardKeys();
+            showToast('卡密已删除');
+        }
+        
+        // 卡密编辑表单提交
+        document.getElementById('card-key-edit-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const id = document.getElementById('ck-id').value;
+            const status = parseInt(document.getElementById('ck-status').value);
+            const saleStatus = document.getElementById('ck-sale-status').value;
+            const note = document.getElementById('ck-note').value;
+            const channel = document.getElementById('ck-channel').value;
+            
+            const data = getData();
+            const index = data.cardKeys.findIndex(k => k.id === id);
+            
+            if (index > -1) {
+                data.cardKeys[index].status = status;
+                data.cardKeys[index].saleStatus = saleStatus;
+                data.cardKeys[index].note = note;
+                data.cardKeys[index].salesChannel = channel;
+                data.cardKeys[index].updatedAt = new Date().toISOString();
+                
+                saveData(data);
+                hideCardKeyModal();
+                renderCardKeys();
+                showToast('卡密已更新');
+            }
+        });
+        
+        // 筛选事件
+        ['filter-card-type', 'filter-status', 'filter-sale-status', 'filter-search'].forEach(id => {
+            document.getElementById(id).addEventListener('change', renderCardKeys);
+            document.getElementById(id).addEventListener('input', renderCardKeys);
+        });
+        
+        // 全选
+        function toggleSelectAll() {
+            const checked = document.getElementById('select-all-checkbox').checked;
+            document.querySelectorAll('.key-checkbox').forEach(cb => cb.checked = checked);
+        }
+        
+        function selectAll() {
+            document.querySelectorAll('.key-checkbox').forEach(cb => cb.checked = true);
+            document.getElementById('select-all-checkbox').checked = true;
+        }
+        
+        // 批量删除
+        function batchDelete() {
+            const selected = document.querySelectorAll('.key-checkbox:checked');
+            if (selected.length === 0) {
+                showToast('请先选择要删除的卡密');
+                return;
+            }
+            
+            if (!confirm(`确定要删除选中的 ${selected.length} 个卡密吗？`)) return;
+            
+            const ids = Array.from(selected).map(cb => cb.dataset.id);
+            const data = getData();
+            data.cardKeys = data.cardKeys.filter(k => !ids.includes(k.id));
+            saveData(data);
+            
+            renderCardKeys();
+            showToast(`已删除 ${ids.length} 个卡密`);
+        }
+        
+        // 批量导出
+        function batchExport() {
+            const selected = document.querySelectorAll('.key-checkbox:checked');
+            if (selected.length === 0) {
+                showToast('请先选择要导出的卡密');
+                return;
+            }
+            
+            const ids = Array.from(selected).map(cb => cb.dataset.id);
+            const data = getData();
+            const keys = data.cardKeys.filter(k => ids.includes(k.id));
+            
+            downloadCSV(keys, 'selected_cards');
+        }
+        
+        // ==================== 导出功能 ====================
+        function updateExportPreview() {
+            const data = getData();
+            const scope = document.getElementById('export-scope').value;
+            const typeId = document.getElementById('export-card-type').value;
+            
+            let keys = data.cardKeys;
+            
+            if (scope === 'unsold') {
+                keys = keys.filter(k => k.saleStatus === 'unsold');
+            } else if (scope === 'sold') {
+                keys = keys.filter(k => k.saleStatus === 'sold');
+            } else if (scope === 'valid') {
+                keys = keys.filter(k => k.status === 1);
+            }
+            
+            if (typeId) {
+                keys = keys.filter(k => k.cardTypeId === typeId);
+            }
+            
+            document.getElementById('export-preview').innerHTML = `
+                <div class="tips">
+                    <strong>📊 导出预览</strong>
+                    将导出 ${keys.length} 条卡密数据
+                </div>
+            `;
+        }
+        
+        function exportCSV() {
+            const data = getData();
+            const scope = document.getElementById('export-scope').value;
+            const typeId = document.getElementById('export-card-type').value;
+            
+            let keys = data.cardKeys;
+            
+            if (scope === 'unsold') {
+                keys = keys.filter(k => k.saleStatus === 'unsold');
+            } else if (scope === 'sold') {
+                keys = keys.filter(k => k.saleStatus === 'sold');
+            } else if (scope === 'valid') {
+                keys = keys.filter(k => k.status === 1);
+            }
+            
+            if (typeId) {
+                keys = keys.filter(k => k.cardTypeId === typeId);
+            }
+            
+            if (keys.length === 0) {
+                showToast('没有可导出的数据');
+                return;
+            }
+            
+            downloadCSV(keys, 'all_cards');
+        }
+        
+        function downloadCSV(keys, filename) {
+            // CSV 表头（兼容飞书多维表格字段）
+            const headers = ['卡密', '状态', '文档链接', '访问密码', '链接名称', '过期类型', '过期时间', '有效天数', '销售状态', '备注', '销售渠道'];
+            
+            // CSV 数据行
+            const rows = keys.map(k => {
+                const expireTypeMap = {
+                    'permanent': '永久',
+                    'fixed': '固定日期',
+                    'relative': '激活后N天'
+                };
+                const saleStatusMap = {
+                    'unsold': '未售出',
+                    'sold': '已售出',
+                    'refunded': '已退款',
+                    'disputed': '有纠纷'
+                };
+                
+                return [
+                    k.keyValue,
+                    k.status == 1 ? '有效' : '已停用',
+                    k.feishuUrl || '',
+                    k.feishuPassword || '',
+                    k.linkName || '',
+                    expireTypeMap[k.expireType] || '永久',
+                    k.expireAt || '',
+                    k.expireDays || '',
+                    saleStatusMap[k.saleStatus] || '未售出',
+                    k.note || '',
+                    k.salesChannel || ''
+                ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(',');
+            });
+            
+            const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `卡密数据_${new Date().toLocaleDateString('zh-CN').replace(/\//g, '-')}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showToast(`成功导出 ${keys.length} 条卡密`);
+        }
+        
+        // 导出筛选变化时更新预览
+        document.getElementById('export-scope').addEventListener('change', updateExportPreview);
+        document.getElementById('export-card-type').addEventListener('change', updateExportPreview);
+        
+        // ==================== 初始化 ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            updateGenerateStats();
+            updateCardTypeSelect('gen-card-type');
+            updateCardTypeSelect('filter-card-type');
+            updateCardTypeSelect('export-card-type');
+            renderCardTypes();
+            renderCardKeys();
+            updateExportPreview();
+        });
+    </script>
+</body>
+</html>
