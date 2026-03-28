@@ -299,76 +299,193 @@ Step 3: 导入飞书多维表格
 
 ---
 
-## 八、最终推荐方案：Serverless 平台迁移
+## 八、最终推荐方案：国内云平台迁移
 
-### 8.1 为什么改推这个方案？
+### 8.1 关键问题：国内访问速度
 
-| 因素 | 分析 |
-|------|------|
-| 用户无飞书账号 | 需要保留 Web 验证页面 |
-| 访问量 50-200/天 | 免费额度完全够用 |
-| 设备限制不重要 | 可以简化功能，降低复杂度 |
-| 追求最低成本 | Serverless 免费方案 |
+| 平台 | 国内访问 | 问题 |
+|------|----------|------|
+| **Vercel** | 🐢 慢/无法访问 | 服务器在海外，被墙风险 |
+| **Cloudflare** | 🐢 慢 | 部分节点在国内访问慢 |
+| **阿里云 FC** | ⚡ 快 | 国内节点，访问稳定 |
+| **腾讯云 SCF** | ⚡ 快 | 国内节点，访问稳定 |
+| **轻量服务器** | ⚡ 快 | 完全自主控制 |
 
-### 8.2 推荐平台：Vercel + Supabase
+### 8.2 推荐方案对比
 
-```
-┌─────────────────────────────────────────────────────────┐
-│              推荐架构：Vercel + Supabase                 │
-│                                                         │
-│   用户 → Vercel（免费托管）→ Supabase（免费数据库）      │
-│              ↓                                          │
-│        飞书多维表格嵌入                                  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### 8.3 成本分析
-
-| 项目 | 免费额度 | 你的用量 | 费用 |
-|------|----------|----------|------|
-| **Vercel** | 10万请求/月 | ~6000 请求/月 | **¥0** |
-| **Supabase** | 500MB 存储 | 预估 < 100MB | **¥0** |
-| **域名** | vercel.app 免费域名 | - | **¥0** |
-| **总成本** | - | - | **¥0/月** |
-
-### 8.4 与原系统对比
-
-| 对比项 | 原 Coze 托管 | 新 Vercel 方案 |
-|--------|-------------|----------------|
-| 月成本 | ¥460+ | **¥0** |
-| 功能 | 100% | **100%** |
-| 用户门槛 | 无 | **无** |
-| 维护成本 | 中 | **低** |
-| 自定义程度 | 有限制 | **完全自由** |
+| 方案 | 月成本 | 国内访问 | 维护成本 | 推荐度 |
+|------|--------|----------|----------|--------|
+| **A. 阿里云函数计算 FC** | **¥0** | ⚡ 快 | 低 | ⭐⭐⭐⭐⭐ |
+| **B. 腾讯云 SCF** | **¥0** | ⚡ 快 | 低 | ⭐⭐⭐⭐⭐ |
+| **C. 阿里云轻量服务器** | **¥24-50** | ⚡ 快 | 中 | ⭐⭐⭐⭐ |
+| D. Vercel（海外） | ¥0 | 🐢 慢 | 低 | ⭐⭐ |
 
 ---
 
-## 九、详细实施步骤
+## 八-A. 方案 A：阿里云函数计算 FC（推荐）
+
+### 架构图
+
+```
+┌─────────────────────────────────────────────────────────┐
+│           阿里云函数计算 FC + 云数据库                   │
+│                                                         │
+│   用户 → 函数计算 FC → 云数据库 RDS/Redis               │
+│         (国内节点)       (或继续用 Supabase)            │
+│              ↓                                          │
+│        飞书多维表格嵌入                                  │
+│                                                         │
+│   用户体验：访问快，无需飞书账号                         │
+│   月成本：¥0（免费额度内）                               │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 免费额度
+
+| 资源 | 免费额度 | 你的用量 | 费用 |
+|------|----------|----------|------|
+| 函数调用次数 | **100万次/月** | ~6000 次/月 | **¥0** |
+| 函数执行时长 | 40万 GB-秒/月 | ~1000 GB-秒/月 | **¥0** |
+| 公网流出流量 | 1GB/月 | ~500MB/月 | **¥0** |
+| **总成本** | - | - | **¥0/月** |
+
+### 优势
+
+| 优势 | 说明 |
+|------|------|
+| ✅ **完全免费** | 用量远低于免费额度 |
+| ✅ **国内访问快** | 节点在国内，延迟 < 50ms |
+| ✅ **无需维护服务器** | Serverless 架构 |
+| ✅ **自动扩缩容** | 访问高峰自动扩展 |
+
+### 数据库选择
+
+| 选项 | 成本 | 说明 |
+|------|------|------|
+| **继续用 Supabase** | ¥0 | 无需迁移，直接用现有数据库 |
+| 阿里云 RDS | ¥0（免费试用）或付费 | 更低延迟，但需迁移数据 |
+| 阿里云 TableStore | ¥0（免费额度）| NoSQL，适合简单查询 |
+
+**建议**：先继续用 Supabase，系统稳定后再考虑迁移数据库。
+
+---
+
+## 八-B. 方案 B：腾讯云 SCF（同样推荐）
+
+### 免费额度
+
+| 资源 | 免费额度 | 你的用量 | 费用 |
+|------|----------|----------|------|
+| 函数调用次数 | **40万次/月** | ~6000 次/月 | **¥0** |
+| 函数执行时长 | 4万 GB-秒/月 | ~1000 GB-秒/月 | **¥0** |
+| 外网出流量 | 1GB/月 | ~500MB/月 | **¥0** |
+| **总成本** | - | - | **¥0/月** |
+
+### 与阿里云对比
+
+| 对比项 | 阿里云 FC | 腾讯云 SCF |
+|--------|----------|------------|
+| 免费额度 | 更大（100万次） | 够用（40万次） |
+| 文档质量 | 完善 | 完善 |
+| Python 支持 | ✅ | ✅ |
+| 推荐度 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+
+**选择建议**：哪个账号方便用哪个，功能差异不大。
+
+---
+
+## 八-C. 方案 C：轻量应用服务器
+
+### 如果你不信任 Serverless...
+
+```
+┌─────────────────────────────────────────────────────────┐
+│              轻量应用服务器架构                          │
+│                                                         │
+│   用户 → 轻量服务器 → PostgreSQL/SQLite                │
+│         (2核2G)     (或继续用 Supabase)                │
+│              ↓                                          │
+│        飞书多维表格嵌入                                  │
+│                                                         │
+│   用户体验：访问快，完全自主                             │
+│   月成本：¥24-50                                        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### 价格对比
+
+| 云服务商 | 配置 | 月价格 | 说明 |
+|----------|------|--------|------|
+| **阿里云轻量** | 2核2G | **¥24-35** | 新用户优惠 |
+| **腾讯云轻量** | 2核2G | **¥25-40** | 新用户优惠 |
+| 华为云 HECS | 2核2G | ¥30-50 | 略贵 |
+
+### 适合场景
+
+| 场景 | 是否适合 |
+|------|----------|
+| 需要完全自主控制 | ✅ 适合 |
+| 不想依赖免费额度的限制 | ✅ 适合 |
+| 预算允许 ¥24-50/月 | ✅ 适合 |
+| 追求零成本 | ❌ 不适合 |
+
+---
+
+## 八-D. 方案对比总结
+
+| 方案 | 月成本 | 国内访问 | 维护成本 | 适合人群 |
+|------|--------|----------|----------|----------|
+| **A. 阿里云 FC** | **¥0** | ⚡ 快 | 低 | 追求零成本 |
+| **B. 腾讯云 SCF** | **¥0** | ⚡ 快 | 低 | 追求零成本 |
+| **C. 轻量服务器** | ¥24-50 | ⚡ 快 | 中 | 需要完全自主控制 |
+| ~~Vercel~~ | ¥0 | 🐢 慢 | 低 | ❌ 国内不推荐 |
+
+---
+
+## 九、详细实施步骤（阿里云 FC）
 
 ### 第一阶段：准备工作（1 小时）
 
-#### Step 1: 注册 Vercel 账号
+#### Step 1: 注册阿里云账号
 
-```bash
-# 1. 访问 https://vercel.com
-# 2. 使用 GitHub 账号登录（推荐）
-# 3. 完成账号设置
+```
+1. 访问 https://www.aliyun.com
+2. 完成账号注册和实名认证（必须）
+3. 开通「函数计算 FC」服务
 ```
 
-#### Step 2: 准备 Supabase 数据库
+#### Step 2: 安装命令行工具
 
-**选择 1：继续使用现有 Supabase**
-- 无需额外操作
-- 只需更新环境变量
-
-**选择 2：创建新的免费 Supabase**
 ```bash
-# 1. 访问 https://supabase.com
-# 2. 创建新项目
-# 3. 记录数据库连接信息
+# 安装阿里云 CLI
+# macOS
+brew install aliyun-cli
+
+# Windows
+# 下载 https://aliyuncli.alicdn.com/aliyun-cli-windows-latest-amd64.zip
+
+# Linux
+wget https://aliyuncli.alicdn.com/aliyun-cli-linux-latest-amd64.tgz
+tar -xzf aliyun-cli-linux-latest-amd64.tgz
+sudo mv aliyun /usr/local/bin/
+
+# 配置凭证
+aliyun configure
+# 输入 AccessKey ID 和 AccessKey Secret
 ```
 
-#### Step 3: 导出现有数据
+#### Step 3: 安装 Funcraft（函数计算部署工具）
+
+```bash
+# 安装 Node.js（如果还没有）
+# 然后
+npm install -g @alicloud/fun
+
+# 验证安装
+fun --version
+```
+
+#### Step 4: 导出现有数据
 
 ```bash
 # 在本地运行
@@ -380,86 +497,173 @@ backups/backup_YYYYMMDD_HHMMSS.json
 
 ### 第二阶段：代码适配（2-3 小时）
 
-#### 需要修改的内容
+#### 需要修改的文件
 
-| 修改项 | 说明 | 工作量 |
-|--------|------|--------|
-| 入口文件 | 适配 Vercel Serverless Functions | 30 分钟 |
-| 数据库连接 | 使用连接池，适配 Serverless | 30 分钟 |
-| 静态文件 | 迁移到 Vercel 静态资源目录 | 30 分钟 |
-| 环境变量 | 配置 Vercel 环境变量 | 15 分钟 |
-| 测试验证 | 本地测试 + 部署测试 | 1 小时 |
+| 文件 | 修改内容 | 工作量 |
+|------|----------|--------|
+| `template.yml` | 新建 FC 配置文件 | 30 分钟 |
+| `src/main.py` | 适配 FC 入口格式 | 30 分钟 |
+| `src/storage/database/` | 数据库连接适配 | 30 分钟 |
+| `requirements.txt` | 确认依赖完整 | 10 分钟 |
+| 环境变量配置 | FC 环境变量设置 | 15 分钟 |
 
-#### 目录结构调整
+#### FC 入口适配示例
 
+```python
+# src/fc_main.py (新建文件)
+
+from flask import Flask, request, jsonify
+from main import app as fastapi_app
+import json
+
+# Flask 适配层
+flask_app = Flask(__name__)
+
+@flask_app.route('/', defaults={'path': ''}, methods=['GET', 'POST', 'PUT', 'DELETE'])
+@flask_app.route('/<path:path>', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def catch_all(path):
+    # 将请求转发给 FastAPI
+    from starlette.testclient import TestClient
+    client = TestClient(fastapi_app)
+    response = client.request(
+        method=request.method,
+        url=f"/{path}",
+        headers=dict(request.headers),
+        data=request.get_data(),
+        params=request.args.to_dict()
+    )
+    return response.content, response.status_code, dict(response.headers)
+
+# FC 入口函数
+def handler(event, context):
+    from werkzeug.serving import run_simple
+    # FC 会调用这个函数
+    return flask_app(event, context)
 ```
-/workspace/projects/
-├── api/                    # Vercel Serverless Functions
-│   └── index.py           # 主入口
-├── public/                 # 静态文件
-│   ├── index.html
-│   ├── admin.html
-│   └── assets/
-├── src/                    # 业务代码
-├── requirements.txt
-├── vercel.json            # Vercel 配置
-└── .env                   # 环境变量模板
+
+#### template.yml 配置
+
+```yaml
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  card-key-service:
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: 卡密验证服务
+      MemorySize: 512
+      Timeout: 60
+      Runtime: python3.9
+      EnvironmentVariables:
+        DATABASE_URL: ${DATABASE_URL}
+        SUPABASE_URL: ${SUPABASE_URL}
+        SUPABASE_KEY: ${SUPABASE_KEY}
+        
+    card-key-function:
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: src.fc_main.handler
+        CodeUri: ./
+        Runtime: python3.9
+        Timeout: 60
+        MemorySize: 512
+        
+      HttpTrigger:
+        Type: HTTP
+        Properties:
+          AuthType: anonymous
+          Methods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
 ```
 
-### 第三阶段：部署上线（1 小时）
-
-#### Step 1: 创建 Vercel 项目
+### 第三阶段：本地测试（1 小时）
 
 ```bash
-# 安装 Vercel CLI（可选，也可用网页）
-npm i -g vercel
+# 使用 fun 本地测试
+fun local start
 
-# 登录
-vercel login
-
-# 部署
-vercel
+# 测试验证
+curl http://localhost:8000/health
+curl http://localhost:8000/
+curl http://localhost:8000/admin
 ```
 
-#### Step 2: 配置环境变量
-
-在 Vercel Dashboard 中设置：
+### 第四阶段：部署上线（1 小时）
 
 ```bash
-# 数据库配置
-DATABASE_URL=postgresql://xxx
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_KEY=xxx
+# 部署到阿里云 FC
+fun deploy
 
-# 管理员配置
-ADMIN_USERNAME=xxx
-ADMIN_PASSWORD=xxx
+# 部署成功后会输出访问地址
+# 例如：https://xxxxxx.cn-hangzhou.fc.aliyuncs.com
 ```
 
-#### Step 3: 绑定域名（可选）
+### 第五阶段：配置自定义域名（可选）
 
 ```
-# 使用免费域名
-xxx.vercel.app
-
-# 或绑定自定义域名
-你的域名.com
+1. 阿里云控制台 → 函数计算 → 域名管理
+2. 添加自定义域名
+3. 配置路由规则：/.* → card-key-service/card-key-function
+4. 域名解析：添加 CNAME 记录
 ```
 
-### 第四阶段：数据迁移（30 分钟）
+### 第六阶段：数据迁移（30 分钟）
 
-#### 方式 1：通过管理后台导入
+**如果继续用 Supabase**：无需迁移数据
 
-```
-1. 访问新系统管理后台
-2. 使用导入功能导入 CSV
-```
-
-#### 方式 2：直接导入 Supabase
-
+**如果迁移到阿里云数据库**：
 ```bash
-# 使用 Supabase Dashboard
-Table Editor → Import data from CSV
+# 1. 创建 RDS PostgreSQL 实例（有免费试用）
+# 2. 导出数据
+python scripts/backup_data.py
+
+# 3. 导入数据
+python scripts/import_data_to_production.py
+```
+
+---
+
+## 十、腾讯云 SCF 实施步骤（类似）
+
+腾讯云 SCF 的流程与阿里云 FC 类似，主要差异：
+
+| 对比项 | 阿里云 FC | 腾讯云 SCF |
+|--------|----------|------------|
+| 部署工具 | `fun` 或 `s` | `scf` |
+| 配置文件 | `template.yml` | `template.yaml` |
+| 入口函数 | `handler(event, context)` | `main_handler(event, context)` |
+| 控制台 | 阿里云控制台 | 腾讯云控制台 |
+
+**腾讯云 SCF 配置示例**：
+
+```yaml
+# template.yaml
+Resources:
+  CardKeyService:
+    Type: TencentCloud::Serverless::Namespace
+    CardKeyFunction:
+      Type: TencentCloud::Serverless::Function
+      Properties:
+        CodeUri: ./
+        Type: Event
+        Handler: src.scf_main.main_handler
+        Runtime: Python3.9
+        MemorySize: 512
+        Timeout: 60
+        Environment:
+          Variables:
+            DATABASE_URL: ${DATABASE_URL}
+            SUPABASE_URL: ${SUPABASE_URL}
+            SUPABASE_KEY: ${SUPABASE_KEY}
+        Events:
+          HttpTrigger:
+            Type: HTTP
+            Properties:
+              AuthType: NONE
+              Namespace: default
 ```
 
 ### 第五阶段：切换上线（1 小时）
@@ -482,53 +686,145 @@ Table Editor → Import data from CSV
 
 ---
 
-## 十、风险与应对
+## 十一、风险与应对
 
 | 风险 | 可能性 | 影响 | 应对措施 |
 |------|--------|------|----------|
-| Vercel 免费额度不够 | 低 | 服务中断 | 监控用量，升级付费版（$20/月） |
-| Supabase 存储不够 | 低 | 数据写入失败 | 监控存储，升级付费版（$25/月） |
+| FC 免费额度超限 | 极低 | 服务暂停 | 监控用量，设置告警 |
+| 数据库连接超时 | 中 | 请求失败 | 使用连接池，设置超时时间 |
+| 冷启动延迟 | 中 | 首次访问慢 | 设置预留实例（付费）或接受 |
 | 迁移过程数据丢失 | 中 | 数据丢失 | 提前备份，多次验证 |
 | API 兼容性问题 | 低 | 功能异常 | 充分测试 |
 
+### 冷启动问题说明
+
+| 场景 | 延迟 | 说明 |
+|------|------|------|
+| 函数长时间未调用 | 1-3 秒 | Python 运行时初始化 |
+| 函数刚被调用过 | < 100ms | 热启动，快速响应 |
+| 访问量 50-200/天 | 偶有冷启动 | 可接受 |
+
+**优化方案**：
+- 免费方案：接受偶尔的冷启动延迟
+- 付费方案：设置「预留实例」，消除冷启动（约 ¥30/月）
+
 ---
 
-## 十一、时间规划
+## 十二、时间规划
 
 | 阶段 | 预计时间 | 说明 |
 |------|----------|------|
-| 准备工作 | 1 小时 | 注册账号、导出数据 |
-| 代码适配 | 2-3 小时 | 适配 Vercel 平台 |
-| 部署测试 | 1 小时 | 部署 + 测试验证 |
-| 数据迁移 | 30 分钟 | 导入数据 |
-| 切换上线 | 1 小时 | 最终测试 + 切换 |
+| 准备工作 | 1 小时 | 注册账号、安装工具、导出数据 |
+| 代码适配 | 2-3 小时 | 适配 FC 入口、配置文件 |
+| 本地测试 | 1 小时 | 确保功能正常 |
+| 部署上线 | 1 小时 | 部署 + 配置域名 |
+| 数据迁移 | 30 分钟 | 如需要 |
 | **总计** | **5-7 小时** | 可分多天完成 |
 
 ---
 
-## 十二、决策点
+## 十三、成本对比最终版
 
-请确认以下问题，我可以帮你开始实施：
+| 方案 | 月成本 | 国内访问 | 用户门槛 | 功能完整度 | 推荐度 |
+|------|--------|----------|----------|------------|--------|
+| **阿里云 FC** | **¥0** | ⚡ 快 | 无 | 100% | ⭐⭐⭐⭐⭐ |
+| **腾讯云 SCF** | **¥0** | ⚡ 快 | 无 | 100% | ⭐⭐⭐⭐⭐ |
+| **轻量服务器** | ¥24-50 | ⚡ 快 | 无 | 100% | ⭐⭐⭐⭐ |
+| ~~Vercel~~ | ¥0 | 🐢 慢 | 无 | 100% | ❌ 不推荐 |
+| ~~飞书协作者~~ | ¥0 | 快 | **需要飞书账号** | 90% | ❌ 不适合 |
+| 原 Coze 托管 | ¥460+ | 快 | 无 | 100% | ❌ 成本高 |
 
-### ❓ 问题 1：是否接受用户使用原体验？
+---
 
-- **Web 验证页面**：用户直接输入卡密，无需飞书账号
-- 与现有体验完全一致
-- 成本：¥0/月
+## 十四、我的建议
 
-### ❓ 问题 2：是否需要我帮你进行代码适配？
+### 如果你追求零成本
 
-- 我可以帮你：
-  - 创建 Vercel 配置文件
-  - 适配 Serverless Functions
-  - 修改数据库连接方式
-  - 生成部署指南
+**选择阿里云 FC 或腾讯云 SCF**
 
-### ❓ 问题 3：什么时候开始迁移？
+| 优势 | 说明 |
+|------|------|
+| ✅ 完全免费 | 用量远低于免费额度 |
+| ✅ 国内访问快 | 用户无需等待 |
+| ✅ 无需维护服务器 | Serverless 自动运维 |
+| ⚠️ 偶有冷启动 | 1-3 秒延迟，可接受 |
 
-- [ ] 现在就开始（我可以立即帮你做代码适配）
-- [ ] 先看看具体要改哪些代码
-- [ ] 再考虑一下
+### 如果你不信任免费额度
+
+**选择轻量应用服务器**
+
+| 配置 | 月价格 | 适合场景 |
+|------|--------|----------|
+| 2核2G | ¥24-35 | 个人小项目 |
+| 2核4G | ¥50-80 | 访问量稍大 |
+
+### 我的推荐顺序
+
+```
+1. 阿里云 FC（首选）
+   └── 零成本、访问快、维护简单
+
+2. 腾讯云 SCF（备选）
+   └── 如果阿里云账号不方便
+
+3. 轻量服务器（保底）
+   └── 如果你不信任 Serverless
+```
+
+---
+
+## 十五、决策点
+
+### ❓ 问题 1：选择哪个平台？
+
+| 选项 | 月成本 | 优势 | 适合你吗？ |
+|------|--------|------|------------|
+| **A. 阿里云 FC** | ¥0 | 免费额度大，访问快 | ? |
+| **B. 腾讯云 SCF** | ¥0 | 同样免费，访问快 | ? |
+| **C. 轻量服务器** | ¥24-50 | 完全自主控制 | ? |
+
+### ❓ 问题 2：数据库怎么处理？
+
+| 选项 | 成本 | 迁移工作量 |
+|------|------|------------|
+| **继续用 Supabase** | ¥0 | 无需迁移 |
+| 迁移到阿里云 RDS | ¥0（试用）或付费 | 需要迁移数据 |
+
+**建议**：先继续用 Supabase，稳定后再考虑迁移数据库。
+
+### ❓ 问题 3：是否需要我帮你？
+
+我可以帮你：
+- [ ] 创建 FC 配置文件（template.yml）
+- [ ] 适配 FC 入口代码
+- [ ] 修改数据库连接（适配 Serverless）
+- [ ] 生成详细部署步骤
+
+---
+
+## 十六、快速决策流程图
+
+```
+开始迁移？
+    │
+    ├── 是 → 有阿里云账号？
+    │           │
+    │           ├── 有 → 选择【阿里云 FC】
+    │           │
+    │           └── 没有 → 有腾讯云账号？
+    │                         │
+    │                         ├── 有 → 选择【腾讯云 SCF】
+    │                         │
+    │                         └── 都没有 → 注册一个（推荐阿里云）
+    │
+    └── 否 → 继续使用原系统（¥460+/月）
+```
+
+---
+
+**需要我帮你开始代码适配吗？** 请告诉我：
+1. 你选择哪个平台？
+2. 是否需要我帮忙适配代码？
 
 ---
 
