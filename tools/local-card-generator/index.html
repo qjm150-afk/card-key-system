@@ -220,6 +220,28 @@
             background: #f9f9f9;
             font-weight: 600;
             color: #333;
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        th:hover {
+            background: #f0f0f0;
+        }
+        
+        th.sortable::after {
+            content: ' ↕';
+            color: #999;
+            font-size: 12px;
+        }
+        
+        th.sort-asc::after {
+            content: ' ↑';
+            color: #667eea;
+        }
+        
+        th.sort-desc::after {
+            content: ' ↓';
+            color: #667eea;
         }
         
         tr:hover {
@@ -436,6 +458,12 @@
             margin-bottom: 4px;
         }
         
+        .tips.success {
+            background: #dcfce7;
+            border-color: #10b981;
+            color: #059669;
+        }
+        
         .section-title {
             font-size: 16px;
             font-weight: 600;
@@ -450,6 +478,21 @@
             color: #999;
             margin-top: 4px;
         }
+        
+        .auto-export-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 12px;
+            background: #f0fdf4;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+        }
+        
+        .auto-export-option input[type="checkbox"] {
+            width: auto;
+        }
     </style>
 </head>
 <body>
@@ -460,22 +503,47 @@
         </div>
         
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('generate')">📝 生成卡密</button>
-            <button class="tab-btn" onclick="switchTab('cardTypes')">📁 卡种管理</button>
+            <button class="tab-btn active" onclick="switchTab('cardTypes')">📁 卡种管理</button>
+            <button class="tab-btn" onclick="switchTab('generate')">📝 生成卡密</button>
             <button class="tab-btn" onclick="switchTab('cardKeys')">📋 卡密管理</button>
             <button class="tab-btn" onclick="switchTab('export')">📤 导出数据</button>
         </div>
         
+        <!-- 卡种管理面板 -->
+        <div id="panel-cardTypes" class="panel active">
+            <div class="tips">
+                <strong>📁 卡种说明</strong>
+                卡种用于分类管理卡密，只需输入名称即可。飞书链接在生成卡密时单独设置。
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="stat-types-cardTypes">0</h3>
+                    <p>卡种数量</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="stat-total-cardTypes">0</h3>
+                    <p>总卡密数</p>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" onclick="showCardTypeModal()">➕ 新建卡种</button>
+            
+            <div class="card-type-list" id="card-type-list">
+                <!-- 卡种列表将在这里渲染 -->
+            </div>
+        </div>
+        
         <!-- 生成卡密面板 -->
-        <div id="panel-generate" class="panel active">
+        <div id="panel-generate" class="panel">
             <div class="tips">
                 <strong>💡 使用说明</strong>
                 1. 先在「卡种管理」创建卡种（只需输入名称）<br>
                 2. 回到这里选择卡种，设置链接和密码，批量生成卡密<br>
-                3. 在「导出数据」导出 CSV，导入飞书多维表格
+                3. 生成后自动下载 CSV 文件
             </div>
             
-            <div class="stats-grid" id="generate-stats">
+            <div class="stats-grid">
                 <div class="stat-card">
                     <h3 id="stat-total">0</h3>
                     <p>总卡密数</p>
@@ -571,25 +639,15 @@
                     </div>
                 </div>
                 
-                <button type="submit" class="btn btn-primary">🔑 生成卡密</button>
+                <div class="auto-export-option">
+                    <input type="checkbox" id="auto-export" checked>
+                    <label for="auto-export">生成后自动下载 CSV 文件</label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="margin-top: 16px;">🔑 生成卡密</button>
             </form>
             
             <div id="generate-result" style="margin-top: 20px;"></div>
-        </div>
-        
-        <!-- 卡种管理面板 -->
-        <div id="panel-cardTypes" class="panel">
-            <div class="tips">
-                <strong>📁 卡种说明</strong>
-                卡种用于分类管理卡密，只需输入名称即可。<br>
-                飞书链接在生成卡密时单独设置。
-            </div>
-            
-            <button class="btn btn-primary" onclick="showCardTypeModal()">➕ 新建卡种</button>
-            
-            <div class="card-type-list" id="card-type-list">
-                <!-- 卡种列表将在这里渲染 -->
-            </div>
         </div>
         
         <!-- 卡密管理面板 -->
@@ -624,12 +682,13 @@
                     <thead>
                         <tr>
                             <th><input type="checkbox" id="select-all-checkbox" onchange="toggleSelectAll()"></th>
-                            <th>卡密</th>
-                            <th>卡种</th>
+                            <th class="sortable" data-sort="keyValue" onclick="sortTable('keyValue')">卡密</th>
+                            <th class="sortable" data-sort="cardTypeName" onclick="sortTable('cardTypeName')">卡种</th>
                             <th>链接</th>
-                            <th>状态</th>
-                            <th>销售状态</th>
-                            <th>过期</th>
+                            <th class="sortable" data-sort="status" onclick="sortTable('status')">状态</th>
+                            <th class="sortable" data-sort="saleStatus" onclick="sortTable('saleStatus')">销售状态</th>
+                            <th class="sortable" data-sort="expireAt" onclick="sortTable('expireAt')">过期</th>
+                            <th class="sortable" data-sort="createdAt" onclick="sortTable('createdAt')">创建时间</th>
                             <th>操作</th>
                         </tr>
                     </thead>
@@ -783,6 +842,9 @@
         // ==================== 数据管理 ====================
         const STORAGE_KEY = 'local_card_generator_data';
         
+        // 排序状态
+        let currentSort = { field: 'createdAt', order: 'desc' };
+        
         // 获取数据
         function getData() {
             const data = localStorage.getItem(STORAGE_KEY);
@@ -823,6 +885,13 @@
             return date.toLocaleDateString('zh-CN');
         }
         
+        // 格式化日期时间
+        function formatDateTime(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN');
+        }
+        
         // 获取过期显示文本
         function getExpireText(card) {
             if (!card.expireType || card.expireType === 'permanent') return '永久';
@@ -834,8 +903,8 @@
         // 截取链接显示
         function getShortUrl(url) {
             if (!url) return '-';
-            if (url.length > 30) {
-                return url.substring(0, 30) + '...';
+            if (url.length > 25) {
+                return url.substring(0, 25) + '...';
             }
             return url;
         }
@@ -868,6 +937,7 @@
                 updateGenerateStats();
                 updateCardTypeSelect('gen-card-type');
             } else if (tabName === 'cardTypes') {
+                updateCardTypesStats();
                 renderCardTypes();
             } else if (tabName === 'cardKeys') {
                 updateCardTypeSelect('filter-card-type');
@@ -886,6 +956,12 @@
             document.getElementById('stat-unsold').textContent = data.cardKeys.filter(k => k.saleStatus === 'unsold').length;
         }
         
+        function updateCardTypesStats() {
+            const data = getData();
+            document.getElementById('stat-types-cardTypes').textContent = data.cardTypes.length;
+            document.getElementById('stat-total-cardTypes').textContent = data.cardKeys.length;
+        }
+        
         function updateCardTypeSelect(selectId) {
             const data = getData();
             const select = document.getElementById(selectId);
@@ -898,7 +974,10 @@
                 select.appendChild(firstOption);
             }
             
-            data.cardTypes.forEach(type => {
+            // 按名称排序卡种
+            const sortedTypes = [...data.cardTypes].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+            
+            sortedTypes.forEach(type => {
                 const option = document.createElement('option');
                 option.value = type.id;
                 option.textContent = type.name;
@@ -1019,7 +1098,7 @@
             // 显示结果
             const resultDiv = document.getElementById('generate-result');
             resultDiv.innerHTML = `
-                <div class="tips" style="background:#dcfce7;border-color:#10b981;color:#059669;">
+                <div class="tips success">
                     <strong>✅ 成功生成 ${count} 个卡密</strong>
                     卡种: ${cardType.name} | 前缀: ${prefix} | 过期: ${getExpireText({expireType, expireAt, expireDays})}
                 </div>
@@ -1027,6 +1106,13 @@
             
             updateGenerateStats();
             showToast(`成功生成 ${count} 个卡密`);
+            
+            // 自动导出
+            if (document.getElementById('auto-export').checked) {
+                setTimeout(() => {
+                    downloadCSV(newKeys, `新生成卡密_${cardType.name}`);
+                }, 500);
+            }
         });
         
         // ==================== 卡种管理 ====================
@@ -1037,14 +1123,17 @@
             if (data.cardTypes.length === 0) {
                 listDiv.innerHTML = `
                     <div class="empty-state">
-                        <p>还没有创建卡种</p>
+                        <p>还没有创建卡种，请先创建一个卡种</p>
                         <button class="btn btn-primary" onclick="showCardTypeModal()">创建第一个卡种</button>
                     </div>
                 `;
                 return;
             }
             
-            listDiv.innerHTML = data.cardTypes.map(type => {
+            // 按名称排序
+            const sortedTypes = [...data.cardTypes].sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'));
+            
+            listDiv.innerHTML = sortedTypes.map(type => {
                 const keyCount = data.cardKeys.filter(k => k.cardTypeId === type.id).length;
                 const unsoldCount = data.cardKeys.filter(k => k.cardTypeId === type.id && k.saleStatus === 'unsold').length;
                 const soldCount = data.cardKeys.filter(k => k.cardTypeId === type.id && k.saleStatus === 'sold').length;
@@ -1102,6 +1191,7 @@
             data.cardTypes = data.cardTypes.filter(t => t.id !== typeId);
             saveData(data);
             
+            updateCardTypesStats();
             renderCardTypes();
             showToast('卡种已删除');
         }
@@ -1146,11 +1236,31 @@
             
             saveData(data);
             hideCardTypeModal();
+            updateCardTypesStats();
             renderCardTypes();
             showToast(id ? '卡种已更新' : '卡种已创建');
         });
         
         // ==================== 卡密管理 ====================
+        function sortTable(field) {
+            if (currentSort.field === field) {
+                currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.order = 'asc';
+            }
+            
+            // 更新表头样式
+            document.querySelectorAll('th.sortable').forEach(th => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (th.dataset.sort === field) {
+                    th.classList.add(currentSort.order === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+            
+            renderCardKeys();
+        }
+        
         function renderCardKeys() {
             const data = getData();
             const filterType = document.getElementById('filter-card-type').value;
@@ -1176,12 +1286,30 @@
                 );
             }
             
+            // 排序
+            filteredKeys.sort((a, b) => {
+                let aVal = a[currentSort.field];
+                let bVal = b[currentSort.field];
+                
+                if (currentSort.field === 'createdAt') {
+                    aVal = aVal ? new Date(aVal).getTime() : 0;
+                    bVal = bVal ? new Date(bVal).getTime() : 0;
+                } else if (currentSort.field === 'status' || currentSort.field === 'saleStatus') {
+                    aVal = aVal || '';
+                    bVal = bVal || '';
+                }
+                
+                if (aVal < bVal) return currentSort.order === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.order === 'asc' ? 1 : -1;
+                return 0;
+            });
+            
             const tbody = document.getElementById('card-key-table');
             
             if (filteredKeys.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="8" style="text-align:center;padding:40px;color:#666;">
+                        <td colspan="9" style="text-align:center;padding:40px;color:#666;">
                             暂无卡密数据
                         </td>
                     </tr>
@@ -1206,6 +1334,7 @@
                         </span>
                     </td>
                     <td>${getExpireText(key)}</td>
+                    <td style="font-size:12px;color:#666;">${formatDate(key.createdAt)}</td>
                     <td>
                         <button class="btn btn-secondary btn-sm" onclick="editCardKey('${key.id}')">编辑</button>
                         <button class="btn btn-danger btn-sm" onclick="deleteCardKey('${key.id}')">删除</button>
@@ -1473,6 +1602,7 @@
         
         // ==================== 初始化 ====================
         document.addEventListener('DOMContentLoaded', function() {
+            updateCardTypesStats();
             updateGenerateStats();
             updateCardTypeSelect('gen-card-type');
             updateCardTypeSelect('filter-card-type');
