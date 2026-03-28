@@ -326,7 +326,7 @@
             background: white;
             border-radius: 12px;
             padding: 24px;
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
             max-height: 90vh;
             overflow-y: auto;
@@ -356,16 +356,6 @@
             gap: 10px;
             justify-content: flex-end;
             margin-top: 20px;
-        }
-        
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .checkbox-group input[type="checkbox"] {
-            width: auto;
         }
         
         .empty-state {
@@ -445,6 +435,15 @@
             display: block;
             margin-bottom: 4px;
         }
+        
+        .section-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin: 20px 0 12px 0;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #667eea;
+        }
     </style>
 </head>
 <body>
@@ -467,7 +466,8 @@
                 <strong>💡 使用说明</strong>
                 1. 先在「卡种管理」创建卡种（设置链接、密码等）<br>
                 2. 回到这里选择卡种，批量生成卡密<br>
-                3. 在「导出数据」导出 CSV，导入飞书多维表格
+                3. 每个卡密独立设置过期时间<br>
+                4. 在「导出数据」导出 CSV，导入飞书多维表格
             </div>
             
             <div class="stats-grid" id="generate-stats">
@@ -486,6 +486,8 @@
             </div>
             
             <form id="generate-form">
+                <div class="section-title">基本信息</div>
+                
                 <div class="form-row">
                     <div class="form-group">
                         <label>选择卡种 *</label>
@@ -503,15 +505,12 @@
                     </div>
                 </div>
                 
+                <div class="section-title">过期设置（每个卡密独立设置）</div>
+                
                 <div class="form-group">
-                    <label>过期设置</label>
                     <div class="expire-options">
                         <label>
-                            <input type="radio" name="expire-type" value="inherit" checked>
-                            继承卡种设置
-                        </label>
-                        <label>
-                            <input type="radio" name="expire-type" value="permanent">
+                            <input type="radio" name="expire-type" value="permanent" checked>
                             永久有效
                         </label>
                         <label>
@@ -531,6 +530,8 @@
                     </div>
                 </div>
                 
+                <div class="section-title">其他信息</div>
+                
                 <div class="form-row">
                     <div class="form-group">
                         <label>备注</label>
@@ -539,6 +540,10 @@
                     <div class="form-group">
                         <label>销售渠道</label>
                         <input type="text" id="gen-channel" placeholder="如: 淘宝、微信">
+                    </div>
+                    <div class="form-group">
+                        <label>最大设备数</label>
+                        <input type="number" id="gen-max-devices" min="1" max="10" value="5" placeholder="默认5台">
                     </div>
                 </div>
                 
@@ -550,6 +555,12 @@
         
         <!-- 卡种管理面板 -->
         <div id="panel-cardTypes" class="panel">
+            <div class="tips">
+                <strong>📁 卡种说明</strong>
+                卡种用于分类管理卡密，包含飞书链接和访问密码。<br>
+                每个卡密的过期时间独立设置，不继承卡种设置。
+            </div>
+            
             <button class="btn btn-primary" onclick="showCardTypeModal()">➕ 新建卡种</button>
             
             <div class="card-type-list" id="card-type-list">
@@ -662,29 +673,6 @@
                     <label>链接名称</label>
                     <input type="text" id="ct-link-name" placeholder="如: VIP资料库">
                 </div>
-                <div class="form-group">
-                    <label>默认过期设置</label>
-                    <div class="expire-options">
-                        <label>
-                            <input type="radio" name="ct-expire-type" value="permanent" checked>
-                            永久有效
-                        </label>
-                        <label>
-                            <input type="radio" name="ct-expire-type" value="fixed">
-                            固定日期过期
-                        </label>
-                        <div class="expire-input" id="ct-expire-fixed-input" style="display:none;">
-                            <input type="date" id="ct-expire-at">
-                        </div>
-                        <label>
-                            <input type="radio" name="ct-expire-type" value="relative">
-                            激活后有效
-                        </label>
-                        <div class="expire-input" id="ct-expire-relative-input" style="display:none;">
-                            <input type="number" id="ct-expire-days" min="1" placeholder="天数"> 天
-                        </div>
-                    </div>
-                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="hideCardTypeModal()">取消</button>
                     <button type="submit" class="btn btn-primary">保存</button>
@@ -721,6 +709,29 @@
                         <option value="refunded">已退款</option>
                         <option value="disputed">有纠纷</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>过期设置</label>
+                    <div class="expire-options">
+                        <label>
+                            <input type="radio" name="ck-expire-type" value="permanent">
+                            永久有效
+                        </label>
+                        <label>
+                            <input type="radio" name="ck-expire-type" value="fixed">
+                            固定日期过期
+                        </label>
+                        <div class="expire-input" id="ck-expire-fixed-input" style="display:none;">
+                            <input type="date" id="ck-expire-at">
+                        </div>
+                        <label>
+                            <input type="radio" name="ck-expire-type" value="relative">
+                            激活后有效
+                        </label>
+                        <div class="expire-input" id="ck-expire-relative-input" style="display:none;">
+                            <input type="number" id="ck-expire-days" min="1" placeholder="天数"> 天
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label>备注</label>
@@ -761,7 +772,7 @@
             return Date.now().toString(36) + Math.random().toString(36).substr(2);
         }
         
-        // 生成卡密 (格式: 前缀-XXXX-XXXX-XXXX)
+        // 生成卡密 (格式: 前缀-XXXX-XXXX-XXXX，16进制字符)
         function generateCardKey(prefix = 'CSS') {
             const chars = '0123456789ABCDEF';
             const parts = [];
@@ -784,10 +795,10 @@
         
         // 获取过期显示文本
         function getExpireText(card) {
-            if (card.expireType === 'permanent') return '永久有效';
+            if (!card.expireType || card.expireType === 'permanent') return '永久有效';
             if (card.expireType === 'fixed' && card.expireAt) return formatDate(card.expireAt);
             if (card.expireType === 'relative' && card.expireDays) return `激活后${card.expireDays}天`;
-            return '-';
+            return '永久有效';
         }
         
         // 显示提示
@@ -844,7 +855,7 @@
             // 保留第一个选项
             const firstOption = select.options[0];
             select.innerHTML = '';
-            if (firstOption && !firstOption.value) {
+            if (firstOption) {
                 select.appendChild(firstOption);
             }
             
@@ -870,12 +881,12 @@
             });
         });
         
-        // 卡种过期类型切换
-        document.querySelectorAll('input[name="ct-expire-type"]').forEach(radio => {
+        // 卡密编辑过期类型切换
+        document.querySelectorAll('input[name="ck-expire-type"]').forEach(radio => {
             radio.addEventListener('change', function() {
-                document.getElementById('ct-expire-fixed-input').style.display = 
+                document.getElementById('ck-expire-fixed-input').style.display = 
                     this.value === 'fixed' ? 'block' : 'none';
-                document.getElementById('ct-expire-relative-input').style.display = 
+                document.getElementById('ck-expire-relative-input').style.display = 
                     this.value === 'relative' ? 'block' : 'none';
             });
         });
@@ -900,25 +911,19 @@
             const prefix = document.getElementById('gen-prefix').value || 'CSS';
             const count = parseInt(document.getElementById('gen-count').value) || 10;
             const expireTypeRadio = document.querySelector('input[name="expire-type"]:checked');
-            const expireType = expireTypeRadio ? expireTypeRadio.value : 'inherit';
+            const expireType = expireTypeRadio ? expireTypeRadio.value : 'permanent';
             const note = document.getElementById('gen-note').value;
             const channel = document.getElementById('gen-channel').value;
+            const maxDevices = parseInt(document.getElementById('gen-max-devices').value) || 5;
             
-            // 确定过期设置
-            let finalExpireType, finalExpireAt, finalExpireDays;
+            // 获取过期设置
+            let expireAt = null;
+            let expireDays = null;
             
-            if (expireType === 'inherit') {
-                finalExpireType = cardType.expireType || 'permanent';
-                finalExpireAt = cardType.expireAt;
-                finalExpireDays = cardType.expireDays;
-            } else if (expireType === 'permanent') {
-                finalExpireType = 'permanent';
-            } else if (expireType === 'fixed') {
-                finalExpireType = 'fixed';
-                finalExpireAt = document.getElementById('gen-expire-at').value;
+            if (expireType === 'fixed') {
+                expireAt = document.getElementById('gen-expire-at').value || null;
             } else if (expireType === 'relative') {
-                finalExpireType = 'relative';
-                finalExpireDays = parseInt(document.getElementById('gen-expire-days').value);
+                expireDays = parseInt(document.getElementById('gen-expire-days').value) || null;
             }
             
             // 生成卡密
@@ -948,10 +953,11 @@
                     saleStatus: 'unsold',
                     feishuUrl: cardType.feishuUrl,
                     feishuPassword: cardType.feishuPassword,
-                    linkName: cardType.linkName,
-                    expireType: finalExpireType,
-                    expireAt: finalExpireAt,
-                    expireDays: finalExpireDays,
+                    linkName: cardType.linkName || cardType.name,
+                    expireType: expireType,
+                    expireAt: expireAt,
+                    expireDays: expireDays,
+                    maxDevices: maxDevices,
                     note: note,
                     salesChannel: channel,
                     createdAt: new Date().toISOString()
@@ -967,7 +973,7 @@
             resultDiv.innerHTML = `
                 <div class="tips" style="background:#dcfce7;border-color:#10b981;color:#059669;">
                     <strong>✅ 成功生成 ${count} 个卡密</strong>
-                    卡种: ${cardType.name} | 前缀: ${prefix}
+                    卡种: ${cardType.name} | 前缀: ${prefix} | 过期: ${getExpireText({expireType, expireAt, expireDays})}
                 </div>
             `;
             
@@ -992,16 +998,15 @@
             
             listDiv.innerHTML = data.cardTypes.map(type => {
                 const keyCount = data.cardKeys.filter(k => k.cardTypeId === type.id).length;
-                const expireText = type.expireType === 'permanent' ? '永久有效' :
-                    type.expireType === 'fixed' ? `固定日期: ${formatDate(type.expireAt)}` :
-                    type.expireType === 'relative' ? `激活后${type.expireDays}天` : '未设置';
+                const unsoldCount = data.cardKeys.filter(k => k.cardTypeId === type.id && k.saleStatus === 'unsold').length;
+                const soldCount = data.cardKeys.filter(k => k.cardTypeId === type.id && k.saleStatus === 'sold').length;
                 
                 return `
                     <div class="card-type-item">
                         <div class="card-type-info">
                             <h3>${type.name}</h3>
-                            <p>卡密数: ${keyCount} | 过期: ${expireText}</p>
-                            <p style="font-size:11px;color:#999;">链接: ${type.feishuUrl}</p>
+                            <p>总数: ${keyCount} | 未售出: ${unsoldCount} | 已售出: ${soldCount}</p>
+                            <p style="font-size:11px;color:#999;">链接: ${type.feishuUrl} ${type.feishuPassword ? '| 密码: ' + type.feishuPassword : ''}</p>
                         </div>
                         <div class="card-type-actions">
                             <button class="btn btn-secondary btn-sm" onclick="editCardType('${type.id}')">编辑</button>
@@ -1019,8 +1024,6 @@
             
             form.reset();
             document.getElementById('ct-id').value = '';
-            document.getElementById('ct-expire-fixed-input').style.display = 'none';
-            document.getElementById('ct-expire-relative-input').style.display = 'none';
             
             if (typeId) {
                 const data = getData();
@@ -1032,18 +1035,6 @@
                     document.getElementById('ct-feishu-url').value = type.feishuUrl || '';
                     document.getElementById('ct-password').value = type.feishuPassword || '';
                     document.getElementById('ct-link-name').value = type.linkName || '';
-                    
-                    // 设置过期类型
-                    const expireRadio = document.querySelector(`input[name="ct-expire-type"][value="${type.expireType || 'permanent'}"]`);
-                    if (expireRadio) expireRadio.checked = true;
-                    
-                    if (type.expireType === 'fixed') {
-                        document.getElementById('ct-expire-fixed-input').style.display = 'block';
-                        document.getElementById('ct-expire-at').value = type.expireAt || '';
-                    } else if (type.expireType === 'relative') {
-                        document.getElementById('ct-expire-relative-input').style.display = 'block';
-                        document.getElementById('ct-expire-days').value = type.expireDays || '';
-                    }
                 }
             } else {
                 title.textContent = '新建卡种';
@@ -1080,9 +1071,6 @@
             const feishuUrl = document.getElementById('ct-feishu-url').value.trim();
             const password = document.getElementById('ct-password').value.trim();
             const linkName = document.getElementById('ct-link-name').value.trim();
-            const expireType = document.querySelector('input[name="ct-expire-type"]:checked').value;
-            const expireAt = document.getElementById('ct-expire-at').value;
-            const expireDays = parseInt(document.getElementById('ct-expire-days').value) || null;
             
             const data = getData();
             
@@ -1096,11 +1084,16 @@
                         feishuUrl,
                         feishuPassword: password,
                         linkName,
-                        expireType,
-                        expireAt,
-                        expireDays,
                         updatedAt: new Date().toISOString()
                     };
+                    // 更新关联卡密的链接信息
+                    data.cardKeys.forEach(key => {
+                        if (key.cardTypeId === id) {
+                            key.feishuUrl = feishuUrl;
+                            key.feishuPassword = password;
+                            key.linkName = linkName || name;
+                        }
+                    });
                 }
             } else {
                 // 新建
@@ -1110,9 +1103,6 @@
                     feishuUrl,
                     feishuPassword: password,
                     linkName,
-                    expireType,
-                    expireAt,
-                    expireDays,
                     createdAt: new Date().toISOString()
                 });
             }
@@ -1209,6 +1199,23 @@
             document.getElementById('ck-note').value = key.note || '';
             document.getElementById('ck-channel').value = key.salesChannel || '';
             
+            // 设置过期类型
+            const expireType = key.expireType || 'permanent';
+            const expireRadio = document.querySelector(`input[name="ck-expire-type"][value="${expireType}"]`);
+            if (expireRadio) expireRadio.checked = true;
+            
+            document.getElementById('ck-expire-fixed-input').style.display = 
+                expireType === 'fixed' ? 'block' : 'none';
+            document.getElementById('ck-expire-relative-input').style.display = 
+                expireType === 'relative' ? 'block' : 'none';
+            
+            if (key.expireAt) {
+                document.getElementById('ck-expire-at').value = key.expireAt;
+            }
+            if (key.expireDays) {
+                document.getElementById('ck-expire-days').value = key.expireDays;
+            }
+            
             document.getElementById('card-key-modal').classList.add('show');
         }
         
@@ -1234,6 +1241,9 @@
             const id = document.getElementById('ck-id').value;
             const status = parseInt(document.getElementById('ck-status').value);
             const saleStatus = document.getElementById('ck-sale-status').value;
+            const expireType = document.querySelector('input[name="ck-expire-type"]:checked')?.value || 'permanent';
+            const expireAt = document.getElementById('ck-expire-at').value || null;
+            const expireDays = parseInt(document.getElementById('ck-expire-days').value) || null;
             const note = document.getElementById('ck-note').value;
             const channel = document.getElementById('ck-channel').value;
             
@@ -1243,6 +1253,9 @@
             if (index > -1) {
                 data.cardKeys[index].status = status;
                 data.cardKeys[index].saleStatus = saleStatus;
+                data.cardKeys[index].expireType = expireType;
+                data.cardKeys[index].expireAt = expireType === 'fixed' ? expireAt : null;
+                data.cardKeys[index].expireDays = expireType === 'relative' ? expireDays : null;
                 data.cardKeys[index].note = note;
                 data.cardKeys[index].salesChannel = channel;
                 data.cardKeys[index].updatedAt = new Date().toISOString();
@@ -1362,7 +1375,7 @@
         
         function downloadCSV(keys, filename) {
             // CSV 表头（兼容飞书多维表格字段）
-            const headers = ['卡密', '状态', '文档链接', '访问密码', '链接名称', '过期类型', '过期时间', '有效天数', '销售状态', '备注', '销售渠道'];
+            const headers = ['卡密', '状态', '文档链接', '访问密码', '链接名称', '过期类型', '过期时间', '有效天数', '最大设备数', '销售状态', '备注', '销售渠道'];
             
             // CSV 数据行
             const rows = keys.map(k => {
@@ -1387,6 +1400,7 @@
                     expireTypeMap[k.expireType] || '永久',
                     k.expireAt || '',
                     k.expireDays || '',
+                    k.maxDevices || 5,
                     saleStatusMap[k.saleStatus] || '未售出',
                     k.note || '',
                     k.salesChannel || ''
