@@ -1,6 +1,6 @@
 # 卡密验证系统 - Dockerfile for 阿里云 FC
-# 使用腾讯云镜像加速器
-FROM ccr.ccs.tencentyun.com/library/python:3.12-slim
+# 使用 Docker Hub 镜像代理
+FROM docker.1panel.live/python:3.12-slim
 
 # 设置工作目录
 WORKDIR /app
