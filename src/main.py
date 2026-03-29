@@ -1346,12 +1346,12 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     
     # ==================== Step 1: 会话Token验证 ====================
     # 如果提供了会话Token，尝试验证（自动恢复会话）
-    if session_token:
-        valid, token_card_key, token_device_id = verify_session_token(session_token)
-        if valid and token_card_key:
-            logger.info(f"[Validate] 会话Token有效，自动验证: card_key={token_card_key[:8]}...")
-            # 使用Token中的卡密继续验证
-            card_key = token_card_key.upper()
+    if session_token and card_key:
+        # 验证Token有效性和卡密哈希匹配
+        valid, token_card_key, token_device_id = verify_session_token(session_token, card_key)
+        if valid:
+            logger.info(f"[Validate] 会话Token有效，自动验证: card_key={card_key[:8]}...")
+            # 使用传入的卡密继续验证（已验证哈希匹配）
             device_id = token_device_id or device_id
             # 标记为会话恢复，跳过验证码检查
             skip_captcha = True

@@ -21,6 +21,42 @@ from typing import Optional, Dict, Tuple
 from PIL import Image, ImageDraw, ImageFont
 import threading
 
+
+# ==================== 辅助函数 ====================
+
+def parse_datetime(dt_str: str) -> Optional[datetime]:
+    """
+    解析日期时间字符串（兼容多种格式）
+    
+    Args:
+        dt_str: 日期时间字符串
+    
+    Returns:
+        datetime对象，解析失败返回None
+    """
+    if not dt_str:
+        return None
+    
+    # 尝试多种格式
+    formats = [
+        "%Y-%m-%dT%H:%M:%S.%f%z",  # ISO格式带时区
+        "%Y-%m-%dT%H:%M:%S%z",      # ISO格式带时区（无毫秒）
+        "%Y-%m-%dT%H:%M:%S.%f",     # ISO格式无时区
+        "%Y-%m-%dT%H:%M:%S",        # ISO格式无时区（无毫秒）
+        "%Y-%m-%d %H:%M:%S",        # 常规格式
+    ]
+    
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(dt_str, fmt)
+            # 如果没有时区信息，假定为本地时间
+            return dt
+        except ValueError:
+            continue
+    
+    return None
+
+
 # ==================== 验证码存储 ====================
 
 # 验证码存储（内存字典，生产环境可替换为 Redis）
@@ -34,12 +70,23 @@ CAPTCHA_EXPIRE_SECONDS = 300  # 5分钟
 _captcha_triggers: Dict[str, dict] = {}  # {device_id: {failure_count, device_attempts, last_success_time, ...}}
 _trigger_lock = threading.Lock()
 
-# 会话Token存储
-_session_tokens: Dict[str, dict] = {}  # {token: {device_id, card_key, expire_at}}
-_session_lock = threading.Lock()
-
 # 会话Token有效期（天）
 SESSION_EXPIRE_DAYS = 30
+
+
+# ==================== 数据库客户端获取 ====================
+def _get_db_client():
+    """
+    获取数据库客户端（延迟导入，避免循环依赖）
+    """
+    try:
+        from storage.database.db_client import get_db_client
+        client, _ = get_db_client()
+        return client
+    except Exception as e:
+        import logging
+        logging.error(f"[SessionToken] 获取数据库客户端失败: {str(e)}")
+        return None
 
 
 # ==================== 验证码生成 ====================
@@ -288,9 +335,22 @@ def record_validation_attempt(device_id: str, card_key: str, success: bool):
 
 # ==================== 会话Token管理 ====================
 
+def _hash_card_key(card_key: str) -> str:
+    """
+    对卡密进行哈希处理（不存储明文）
+    
+    Args:
+        card_key: 卡密明文
+    
+    Returns:
+        哈希值（SHA256前32位）
+    """
+    return hashlib.sha256(card_key.encode()).hexdigest()[:32]
+
+
 def create_session_token(device_id: str, card_key: str) -> str:
     """
-    创建会话Token
+    创建会话Token（持久化到数据库）
     
     Args:
         device_id: 设备ID
@@ -300,63 +360,154 @@ def create_session_token(device_id: str, card_key: str) -> str:
         会话Token
     """
     import secrets
+    
     token = secrets.token_urlsafe(32)
-    
     expire_at = datetime.now() + timedelta(days=SESSION_EXPIRE_DAYS)
+    card_key_hash = _hash_card_key(card_key)
     
-    with _session_lock:
-        _session_tokens[token] = {
-            "device_id": device_id,
-            "card_key": card_key,
-            "expire_at": expire_at
-        }
+    # 存储到数据库
+    try:
+        client = _get_db_client()
+        if client:
+            client.table('session_tokens').insert({
+                "token": token,
+                "device_id": device_id,
+                "card_key_hash": card_key_hash,
+                "expire_at": expire_at.isoformat()
+            }).execute()
+        else:
+            # 数据库不可用时，回退到内存存储
+            logging.warning("[SessionToken] 数据库不可用，回退到内存存储")
+            global _session_tokens_fallback
+            if '_session_tokens_fallback' not in globals():
+                _session_tokens_fallback = {}
+            _session_tokens_fallback[token] = {
+                "device_id": device_id,
+                "card_key": card_key,
+                "expire_at": expire_at
+            }
+    except Exception as e:
+        import logging
+        logging.error(f"[SessionToken] 创建会话Token失败: {str(e)}")
     
     return token
 
 
-def verify_session_token(token: str) -> Tuple[bool, Optional[str], Optional[str]]:
+def verify_session_token(token: str, card_key: str = None) -> Tuple[bool, Optional[str], Optional[str]]:
     """
-    验证会话Token
+    验证会话Token（从数据库查询）
     
     Args:
         token: 会话Token
+        card_key: 可选，卡密明文（用于验证哈希）
     
     Returns:
         (是否有效, card_key, device_id)
+        
+    注意：
+        由于数据库只存储哈希值，无法返回完整的card_key。
+        如果需要验证卡密，请传入card_key参数进行哈希比对。
+        返回的card_key实际上是传入的card_key（如果验证通过）。
     """
     if not token:
         return False, None, None
     
-    with _session_lock:
-        # 检查Token是否存在
-        if token not in _session_tokens:
+    try:
+        client = _get_db_client()
+        if not client:
+            # 数据库不可用时，检查内存回退存储
+            global _session_tokens_fallback
+            if '_session_tokens_fallback' not in globals():
+                return False, None, None
+            
+            fallback = _session_tokens_fallback.get(token)
+            if not fallback:
+                return False, None, None
+            
+            if datetime.now() > fallback["expire_at"]:
+                del _session_tokens_fallback[token]
+                return False, None, None
+            
+            return True, fallback["card_key"], fallback["device_id"]
+        
+        # 从数据库查询
+        response = client.table('session_tokens').select('*').eq('token', token).execute()
+        
+        if not response.data:
             return False, None, None
         
-        session = _session_tokens[token]
+        session = response.data[0]
         
         # 检查是否过期
-        if datetime.now() > session["expire_at"]:
-            del _session_tokens[token]
-            return False, None, None
+        expire_at_str = session.get('expire_at')
+        if expire_at_str:
+            # 处理时区问题
+            expire_at = parse_datetime(expire_at_str)
+            if expire_at and datetime.now() > expire_at:
+                # 过期，删除记录
+                client.table('session_tokens').delete().eq('token', token).execute()
+                return False, None, None
         
-        return True, session["card_key"], session["device_id"]
+        device_id = session.get('device_id')
+        stored_hash = session.get('card_key_hash')
+        
+        # 如果提供了card_key，验证哈希
+        if card_key:
+            expected_hash = _hash_card_key(card_key)
+            if stored_hash != expected_hash:
+                return False, None, None
+            return True, card_key, device_id
+        
+        # 没有提供card_key，只返回device_id（兼容旧逻辑）
+        # 注意：这种情况下无法返回完整的card_key
+        return True, None, device_id
+        
+    except Exception as e:
+        import logging
+        logging.error(f"[SessionToken] 验证会话Token失败: {str(e)}")
+        return False, None, None
 
 
 def revoke_session_token(token: str):
-    """撤销会话Token"""
-    with _session_lock:
-        if token in _session_tokens:
-            del _session_tokens[token]
+    """撤销会话Token（从数据库删除）"""
+    try:
+        client = _get_db_client()
+        if client:
+            client.table('session_tokens').delete().eq('token', token).execute()
+        else:
+            # 内存回退存储
+            global _session_tokens_fallback
+            if '_session_tokens_fallback' in globals() and token in _session_tokens_fallback:
+                del _session_tokens_fallback[token]
+    except Exception as e:
+        import logging
+        logging.error(f"[SessionToken] 撤销会话Token失败: {str(e)}")
 
 
 def cleanup_expired_sessions():
-    """清理过期的会话Token"""
-    now = datetime.now()
-    with _session_lock:
-        expired_tokens = [k for k, v in _session_tokens.items() if now > v["expire_at"]]
-        for k in expired_tokens:
-            del _session_tokens[k]
-    return len(expired_tokens)
+    """清理过期的会话Token（从数据库删除）"""
+    try:
+        client = _get_db_client()
+        if not client:
+            # 内存回退存储
+            global _session_tokens_fallback
+            if '_session_tokens_fallback' not in globals():
+                return 0
+            now = datetime.now()
+            expired = [k for k, v in _session_tokens_fallback.items() if now > v["expire_at"]]
+            for k in expired:
+                del _session_tokens_fallback[k]
+            return len(expired)
+        
+        # 从数据库删除过期记录
+        now = datetime.now().isoformat()
+        response = client.table('session_tokens').delete().lt('expire_at', now).execute()
+        return len(response.data) if response.data else 0
+        
+    except Exception as e:
+        import logging
+        logging.error(f"[SessionToken] 清理过期会话失败: {str(e)}")
+        return 0
 
 
 # ==================== 统计信息 ====================
@@ -369,8 +520,21 @@ def get_captcha_stats() -> dict:
     with _trigger_lock:
         trigger_count = len(_captcha_triggers)
     
-    with _session_lock:
-        session_count = len(_session_tokens)
+    # 从数据库统计会话数量
+    session_count = 0
+    try:
+        client = _get_db_client()
+        if client:
+            response = client.table('session_tokens').select('id', count='exact').execute()
+            session_count = response.count if response.count else 0
+        else:
+            # 内存回退存储
+            global _session_tokens_fallback
+            if '_session_tokens_fallback' in globals():
+                session_count = len(_session_tokens_fallback)
+    except Exception as e:
+        import logging
+        logging.error(f"[SessionToken] 获取会话统计失败: {str(e)}")
     
     return {
         "captcha_count": captcha_count,
