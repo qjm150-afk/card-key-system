@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 # 设置环境变量
-os.environ['COZE_SUPABASE_URL'] = 'https://ktivyspgzpxrawjtmkckr.supabase.co'
+os.environ['COZE_SUPABASE_URL'] = 'https://ktivyspgzpxrawjtmkck.supabase.co'
 os.environ['COZE_SUPABASE_ANON_KEY'] = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt0aXZ5c3BnenB4cmF3anRta2NrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NzkwNzIsImV4cCI6MjA5MDM1NTA3Mn0.soWTMdRYmCvJTP7QbyFTniLLaY3P0XQu6bz37ItdZbA'
 
 # 添加项目根目录到 Python 路径

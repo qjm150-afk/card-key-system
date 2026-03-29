@@ -7,7 +7,8 @@
 - [x] 创建 Supabase 账号
 - [x] 创建新项目
 - [x] 记录 Project URL
-  - URL: https://ktivyspgzpxrawjtmkckr.supabase.co
+  - URL: https://ktivyspgzpxrawjtmkck.supabase.co
+  - Project ID: ktivyspgzpxrawjtmkck
 - [x] 记录 Anon Key
 - [x] 记录数据库连接字符串
 - [x] 执行 `supabase_schema.sql` 创建表结构
@@ -88,8 +89,8 @@ s deploy
 
 ### 4.1 基础功能
 
-- [ ] 首页可访问
-- [ ] 管理后台可登录
+- [x] 首页可访问
+- [x] 管理后台可登录
 - [ ] 卡密验证功能正常
 - [ ] 验证码功能正常
 
