@@ -4,12 +4,13 @@
 
 ### 1.1 Supabase 准备
 
-- [ ] 创建 Supabase 账号
-- [ ] 创建新项目
-- [ ] 记录 Project URL
-- [ ] 记录 Anon Key
-- [ ] 记录数据库连接字符串
-- [ ] 执行 `supabase_schema.sql` 创建表结构
+- [x] 创建 Supabase 账号
+- [x] 创建新项目
+- [x] 记录 Project URL
+  - URL: https://ktivyspgzpxrawjtmkckr.supabase.co
+- [x] 记录 Anon Key
+- [x] 记录数据库连接字符串
+- [x] 执行 `supabase_schema.sql` 创建表结构
 
 ### 1.2 阿里云准备
 
