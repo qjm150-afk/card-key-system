@@ -1,92 +1,58 @@
-node_modules
-dist
-.DS_Store
-*.swp
-.git/*
+# Python
 __pycache__/
-*.pyc
-.venv/*
-*.o
-*.a
-/vendor
-*.egg-info/
-/.env
-.env.local
-backups/*.json
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# 敏感文件
 .env
+.env.local
+.env.supabase
+*.pem
+*.key
 
-# JS/TS bundlers & build outputs
-.next
-.nuxt
-.turbo
-.vercel
-.parcel-cache
-.cache
-coverage
-storybook-static
-
-# Package manager artifacts
-pnpm-lock.yaml
-package-lock.json
-yarn.lock
-.pnp*
-.npm
-
-# Python tooling
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.tox/
-
-# Go tooling
-bin/
-*.test
-
-# Editor / IDE
-.vscode/
+# IDE
 .idea/
-*.iml
+.vscode/
+*.swp
+*.swo
 
-# OS / misc
+# 系统文件
+.DS_Store
 Thumbs.db
-ehthumbs.db
 
-# Logs
-output.log
+# 日志
 *.log
-*.log.*
 logs/
 
-# 视频文件
-*.mp4
-*.avi
-*.mov
-*.wmv
-*.flv
-*.mkv
-*.webm
-*.m4v
-*.mpeg
-*.mpg
-*.3gp
-*.f4v
-*.rmvb
-*.vob
+# 数据文件
+*.json
+!package.json
+backups/
+coze_data_export.json
+migration_export.json
 
-# 归档文件
-*.iso
-*.dmg
-*.rar
-*.zip
-*.gz
+# 临时文件
+*.tmp
+*.temp
+.cache/
 
-# 文档类也默认加入
-*.pdf
-*.docx
-*.doc
-*.xlsx
-*.xls
-*.ppt
-*.pptx
-*.xlsx
-*.csv
+# 数据库
+*.db
+*.sqlite
+*.sqlite3
+
+# 测试
+.pytest_cache/
+.coverage
+htmlcov/
+
+# 其他
+node_modules/
+.coze/
+.cozeproj/
