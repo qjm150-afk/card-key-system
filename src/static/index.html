@@ -1198,6 +1198,40 @@
                                 <p id="previewErrorText" class="error-text"></p>
                             </div>
 
+                            <!-- 验证码组件（预览页面） -->
+                            <div id="previewCaptchaContainer" class="captcha-container">
+                                <div class="captcha-box">
+                                    <div class="captcha-header">
+                                        <span class="captcha-title">🔐 安全验证</span>
+                                        <button type="button" id="previewCaptchaRefresh" class="captcha-refresh">
+                                            <span>🔄</span> 换一张
+                                        </button>
+                                    </div>
+                                    <div class="captcha-content">
+                                        <div class="captcha-image-wrapper">
+                                            <img id="previewCaptchaImage" class="captcha-image" src="" alt="验证码">
+                                            <div id="previewCaptchaLoading" class="captcha-image-loading" style="display: none;">
+                                                <div class="loading-spinner" style="width: 24px; height: 24px;"></div>
+                                            </div>
+                                        </div>
+                                        <div class="captcha-input-wrapper">
+                                            <input 
+                                                type="text" 
+                                                id="previewCaptchaInput" 
+                                                class="captcha-input" 
+                                                placeholder="输入验证码"
+                                                maxlength="4"
+                                                autocomplete="off"
+                                                autocorrect="off"
+                                                autocapitalize="characters"
+                                                spellcheck="false"
+                                            >
+                                        </div>
+                                    </div>
+                                    <p class="captcha-hint">看不清？点击图片或"换一张"刷新</p>
+                                </div>
+                            </div>
+
                             <button type="button" id="previewSubmitBtn" class="button" onclick="submitPreviewKey()">
                                 ⚡ 立即解锁 · 抢占先机
                             </button>
@@ -2235,6 +2269,11 @@
                     errorBox.style.display = 'flex';
                     submitBtn.disabled = false;
                     submitBtn.innerHTML = '⚡ 立即解锁 · 抢占先机';
+                    
+                    // 检查是否需要验证码
+                    if (result.captcha_required) {
+                        showPreviewCaptcha();
+                    }
                 }
             } catch (err) {
                 errorText.textContent = '验证失败，请稍后重试';
@@ -2242,6 +2281,57 @@
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '⚡ 立即解锁 · 抢占先机';
             }
+        }
+        
+        // ==================== 预览页面验证码相关 ====================
+        
+        let previewCaptchaRequired = false;
+        let previewCaptchaId = null;
+        
+        // 加载预览页面验证码
+        async function loadPreviewCaptcha() {
+            const captchaImage = document.getElementById('previewCaptchaImage');
+            const captchaLoading = document.getElementById('previewCaptchaLoading');
+            const refreshBtn = document.getElementById('previewCaptchaRefresh');
+            
+            captchaLoading.style.display = 'flex';
+            refreshBtn.classList.add('loading');
+            
+            try {
+                const response = await fetch('/api/captcha');
+                const data = await response.json();
+                
+                if (data.success) {
+                    previewCaptchaId = data.captcha_id;
+                    captchaImage.src = data.captcha_image;
+                    document.getElementById('previewCaptchaInput').value = '';
+                } else {
+                    const errorText = document.getElementById('previewErrorText');
+                    errorText.textContent = '加载验证码失败，请重试';
+                    document.getElementById('previewErrorBox').style.display = 'flex';
+                }
+            } catch (err) {
+                console.error('加载验证码失败:', err);
+            } finally {
+                captchaLoading.style.display = 'none';
+                refreshBtn.classList.remove('loading');
+            }
+        }
+        
+        // 显示预览页面验证码
+        function showPreviewCaptcha() {
+            const container = document.getElementById('previewCaptchaContainer');
+            container.classList.add('show');
+            previewCaptchaRequired = true;
+            loadPreviewCaptcha();
+        }
+        
+        // 隐藏预览页面验证码
+        function hidePreviewCaptcha() {
+            const container = document.getElementById('previewCaptchaContainer');
+            container.classList.remove('show');
+            previewCaptchaRequired = false;
+            previewCaptchaId = null;
         }
         
         // 检查URL参数中的预览模式
@@ -2514,10 +2604,22 @@
                 requestBody.session_token = sessionToken;
             }
             
+            // 检测当前是哪个页面（主验证页面 or 预览页面）
+            const isPreviewMode = previewPage && previewPage.style.display === 'block';
+            
             // 如果需要验证码，添加验证码信息
-            if (captchaRequired && currentCaptchaId) {
-                requestBody.captcha_id = currentCaptchaId;
-                requestBody.captcha_code = document.getElementById('captchaInput').value.trim();
+            if (isPreviewMode) {
+                // 预览页面的验证码
+                if (previewCaptchaRequired && previewCaptchaId) {
+                    requestBody.captcha_id = previewCaptchaId;
+                    requestBody.captcha_code = document.getElementById('previewCaptchaInput').value.trim();
+                }
+            } else {
+                // 主验证页面的验证码
+                if (captchaRequired && currentCaptchaId) {
+                    requestBody.captcha_id = currentCaptchaId;
+                    requestBody.captcha_code = document.getElementById('captchaInput').value.trim();
+                }
             }
             
             const response = await fetch('/api/validate', {
@@ -2532,9 +2634,17 @@
 
             // 检查是否需要验证码
             if (data.captcha_required) {
-                captchaRequired = true;
-                showCaptcha();
-                showError(data.msg || data.captcha_reason || '请完成验证码验证');
+                if (isPreviewMode) {
+                    previewCaptchaRequired = true;
+                    showPreviewCaptcha();
+                    const errorText = document.getElementById('previewErrorText');
+                    errorText.textContent = data.msg || data.captcha_reason || '请完成验证码验证';
+                    document.getElementById('previewErrorBox').style.display = 'flex';
+                } else {
+                    captchaRequired = true;
+                    showCaptcha();
+                    showError(data.msg || data.captcha_reason || '请完成验证码验证');
+                }
                 return { success: false, msg: data.msg, captcha_required: true };
             }
 
@@ -2550,8 +2660,13 @@
                 clearSession();
                 // 检查是否需要显示验证码
                 if (data.captcha_required) {
-                    captchaRequired = true;
-                    showCaptcha();
+                    if (isPreviewMode) {
+                        previewCaptchaRequired = true;
+                        showPreviewCaptcha();
+                    } else {
+                        captchaRequired = true;
+                        showCaptcha();
+                    }
                 }
                 return { success: false, msg: data.msg || '验证失败' };
             }
@@ -2639,6 +2754,26 @@
             const captchaInput = document.getElementById('captchaInput');
             if (captchaInput) {
                 captchaInput.addEventListener('input', function(e) {
+                    e.target.value = e.target.value.toUpperCase();
+                });
+            }
+            
+            // 预览页面验证码事件监听
+            const previewRefreshBtn = document.getElementById('previewCaptchaRefresh');
+            const previewCaptchaImage = document.getElementById('previewCaptchaImage');
+            
+            if (previewRefreshBtn) {
+                previewRefreshBtn.addEventListener('click', loadPreviewCaptcha);
+            }
+            
+            if (previewCaptchaImage) {
+                previewCaptchaImage.addEventListener('click', loadPreviewCaptcha);
+            }
+            
+            // 预览页面验证码输入框自动转大写
+            const previewCaptchaInput = document.getElementById('previewCaptchaInput');
+            if (previewCaptchaInput) {
+                previewCaptchaInput.addEventListener('input', function(e) {
                     e.target.value = e.target.value.toUpperCase();
                 });
             }
