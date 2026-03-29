@@ -1001,6 +1001,146 @@
             font-size: 18px;
             text-align: center;
         }
+
+        /* ==================== 验证码样式 ==================== */
+        .captcha-container {
+            display: none;
+            margin-bottom: 18px;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .captcha-container.show {
+            display: block;
+        }
+
+        .captcha-box {
+            background: linear-gradient(135deg, #FFFBF8 0%, #FFF7F2 100%);
+            border: 1.5px solid rgba(255, 138, 92, 0.2);
+            border-radius: 18px;
+            padding: 18px;
+        }
+
+        .captcha-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .captcha-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #5D4E37;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .captcha-refresh {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: #FF8A5C;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+
+        .captcha-refresh:hover {
+            background: rgba(255, 138, 92, 0.1);
+        }
+
+        .captcha-refresh.loading {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .captcha-content {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .captcha-image-wrapper {
+            flex-shrink: 0;
+            position: relative;
+        }
+
+        .captcha-image {
+            width: 120px;
+            height: 48px;
+            border-radius: 10px;
+            border: 1.5px solid #E8E8E8;
+            background: #FFF;
+            object-fit: contain;
+        }
+
+        .captcha-image-loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+        }
+
+        .captcha-input-wrapper {
+            flex: 1;
+        }
+
+        .captcha-input {
+            width: 100%;
+            height: 48px;
+            padding: 0 16px;
+            font-size: 18px;
+            font-weight: 600;
+            letter-spacing: 4px;
+            text-align: center;
+            text-transform: uppercase;
+            border: 1.5px solid #E8E8E8;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.2s;
+            background: #FFF;
+            color: #5D4E37;
+        }
+
+        .captcha-input:focus {
+            border-color: #FF8A5C;
+            box-shadow: 0 0 0 3px rgba(255, 138, 92, 0.15);
+        }
+
+        .captcha-input::placeholder {
+            color: #B8B8B8;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+
+        .captcha-hint {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #A8A090;
+            text-align: center;
+        }
     </style>
 </head>
 <body class="loading-mode">
@@ -1120,6 +1260,40 @@
                     <div id="errorBox" class="error-box" style="display: none;">
                         <span>⚠️</span>
                         <p id="errorText" class="error-text"></p>
+                    </div>
+
+                    <!-- 验证码组件 -->
+                    <div id="captchaContainer" class="captcha-container">
+                        <div class="captcha-box">
+                            <div class="captcha-header">
+                                <span class="captcha-title">🔐 安全验证</span>
+                                <button type="button" id="captchaRefresh" class="captcha-refresh">
+                                    <span>🔄</span> 换一张
+                                </button>
+                            </div>
+                            <div class="captcha-content">
+                                <div class="captcha-image-wrapper">
+                                    <img id="captchaImage" class="captcha-image" src="" alt="验证码">
+                                    <div id="captchaLoading" class="captcha-image-loading" style="display: none;">
+                                        <div class="loading-spinner" style="width: 24px; height: 24px;"></div>
+                                    </div>
+                                </div>
+                                <div class="captcha-input-wrapper">
+                                    <input 
+                                        type="text" 
+                                        id="captchaInput" 
+                                        class="captcha-input" 
+                                        placeholder="输入验证码"
+                                        maxlength="4"
+                                        autocomplete="off"
+                                        autocorrect="off"
+                                        autocapitalize="characters"
+                                        spellcheck="false"
+                                    >
+                                </div>
+                            </div>
+                            <p class="captcha-hint">看不清？点击图片或"换一张"刷新</p>
+                        </div>
                     </div>
 
                     <button type="submit" id="submitBtn" class="button">
@@ -1242,12 +1416,13 @@
         }
 
         // 保存会话到 localStorage
-        function saveSession(cardKey, url, password) {
+        function saveSession(cardKey, url, password, sessionToken = null) {
             const session = {
                 cardKey: cardKey,
                 url: url,
                 password: (password && password.trim() !== '') ? password : '',
                 deviceId: getDeviceId(),
+                sessionToken: sessionToken,  // 保存会话Token
                 expireAt: Date.now() + SESSION_EXPIRE_DAYS * 24 * 60 * 60 * 1000
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
@@ -2325,34 +2500,149 @@
         }
 
         // 验证卡密
-        async function validateCardKey(cardKey, saveSessionFlag = true) {
+        async function validateCardKey(cardKey, saveSessionFlag = true, sessionToken = null) {
             const deviceId = getDeviceId();
+            
+            // 构建请求体
+            const requestBody = { 
+                card_key: cardKey,
+                device_id: deviceId 
+            };
+            
+            // 如果有会话Token，添加到请求中
+            if (sessionToken) {
+                requestBody.session_token = sessionToken;
+            }
+            
+            // 如果需要验证码，添加验证码信息
+            if (captchaRequired && currentCaptchaId) {
+                requestBody.captcha_id = currentCaptchaId;
+                requestBody.captcha_code = document.getElementById('captchaInput').value.trim();
+            }
             
             const response = await fetch('/api/validate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    card_key: cardKey,
-                    device_id: deviceId 
-                }),
+                body: JSON.stringify(requestBody),
             });
 
             const data = await response.json();
 
+            // 检查是否需要验证码
+            if (data.captcha_required) {
+                captchaRequired = true;
+                showCaptcha();
+                showError(data.msg || data.captcha_reason || '请完成验证码验证');
+                return { success: false, msg: data.msg, captcha_required: true };
+            }
+
             if (data.can_access) {
                 if (saveSessionFlag) {
-                    saveSession(cardKey, data.url, data.password);
+                    // 保存会话，包含session_token
+                    saveSession(cardKey, data.url, data.password, data.session_token);
                 }
                 showSuccess(data.url, data.password);
                 return { success: true };
             } else {
                 // 验证失败，清除本地会话
                 clearSession();
+                // 检查是否需要显示验证码
+                if (data.captcha_required) {
+                    captchaRequired = true;
+                    showCaptcha();
+                }
                 return { success: false, msg: data.msg || '验证失败' };
             }
         }
+
+        // ==================== 验证码相关 ====================
+        
+        let captchaRequired = false;
+        let currentCaptchaId = null;
+        
+        // 检查是否需要验证码
+        async function checkCaptchaRequired() {
+            const deviceId = getDeviceId();
+            try {
+                const response = await fetch(`/api/captcha/check?device_id=${encodeURIComponent(deviceId)}`);
+                const data = await response.json();
+                if (data.success && data.required) {
+                    captchaRequired = true;
+                    showCaptcha();
+                }
+            } catch (err) {
+                console.error('检查验证码需求失败:', err);
+            }
+        }
+        
+        // 加载验证码
+        async function loadCaptcha() {
+            const captchaImage = document.getElementById('captchaImage');
+            const captchaLoading = document.getElementById('captchaLoading');
+            const refreshBtn = document.getElementById('captchaRefresh');
+            
+            // 显示加载状态
+            captchaLoading.style.display = 'flex';
+            refreshBtn.classList.add('loading');
+            
+            try {
+                const response = await fetch('/api/captcha');
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentCaptchaId = data.captcha_id;
+                    captchaImage.src = data.captcha_image;
+                    document.getElementById('captchaInput').value = '';
+                } else {
+                    showError('加载验证码失败，请重试');
+                }
+            } catch (err) {
+                console.error('加载验证码失败:', err);
+                showError('加载验证码失败，请检查网络');
+            } finally {
+                captchaLoading.style.display = 'none';
+                refreshBtn.classList.remove('loading');
+            }
+        }
+        
+        // 显示验证码
+        function showCaptcha() {
+            const container = document.getElementById('captchaContainer');
+            container.classList.add('show');
+            loadCaptcha();
+        }
+        
+        // 隐藏验证码
+        function hideCaptcha() {
+            const container = document.getElementById('captchaContainer');
+            container.classList.remove('show');
+            captchaRequired = false;
+            currentCaptchaId = null;
+        }
+        
+        // 刷新验证码
+        document.addEventListener('DOMContentLoaded', function() {
+            const refreshBtn = document.getElementById('captchaRefresh');
+            const captchaImage = document.getElementById('captchaImage');
+            
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', loadCaptcha);
+            }
+            
+            if (captchaImage) {
+                captchaImage.addEventListener('click', loadCaptcha);
+            }
+            
+            // 验证码输入框自动转大写
+            const captchaInput = document.getElementById('captchaInput');
+            if (captchaInput) {
+                captchaInput.addEventListener('input', function(e) {
+                    e.target.value = e.target.value.toUpperCase();
+                });
+            }
+        });
 
         // 页面加载时检查本地会话
         async function checkSession() {
@@ -2366,10 +2656,28 @@
             const session = getLocalSession();
             
             if (session) {
-                // 有本地会话，尝试验证
+                // 有本地会话，尝试使用 session_token 自动验证
                 try {
-                    const result = await validateCardKey(session.cardKey, false);
-                    if (!result.success) {
+                    // 如果有 session_token，使用它进行自动验证
+                    if (session.sessionToken) {
+                        const result = await validateCardKey(session.cardKey, false, session.sessionToken);
+                        if (result.success) {
+                            return; // 验证成功，已显示内容
+                        }
+                        // Token无效，继续正常验证流程
+                    } else {
+                        // 没有 session_token，使用旧的验证方式
+                        const result = await validateCardKey(session.cardKey, false);
+                        if (result.success) {
+                            return;
+                        }
+                    }
+                    
+                    // 验证失败，检查是否需要显示验证码
+                    if (captchaRequired) {
+                        showValidate();
+                        showCaptcha();
+                    } else {
                         // 卡密已失效，显示验证页面
                         showValidate();
                     }
@@ -2380,6 +2688,9 @@
             } else {
                 // 没有本地会话，显示验证页面
                 showValidate();
+                
+                // 检查是否需要验证码（新用户访问）
+                await checkCaptchaRequired();
             }
         }
 

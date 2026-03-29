@@ -49,6 +49,19 @@ from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, Pla
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# 导入验证码模块
+from captcha import (
+    create_captcha,
+    verify_captcha,
+    should_show_captcha,
+    record_validation_attempt,
+    create_session_token,
+    verify_session_token,
+    cleanup_expired_captchas,
+    cleanup_expired_sessions,
+    get_captcha_stats
+)
+
 # 北京时区 (UTC+8)
 BEIJING_TZ = timezone(timedelta(hours=8))
 
@@ -446,6 +459,9 @@ class ValidateRequest(BaseModel):
     """验证请求"""
     card_key: str
     device_id: Optional[str] = None  # 设备ID
+    captcha_id: Optional[str] = None  # 验证码ID
+    captcha_code: Optional[str] = None  # 验证码文本
+    session_token: Optional[str] = None  # 会话Token（自动验证时使用）
 
 
 class ValidateResponse(BaseModel):
@@ -454,6 +470,9 @@ class ValidateResponse(BaseModel):
     url: str = ""
     password: str = ""
     msg: str = ""
+    session_token: Optional[str] = None  # 会话Token（验证成功后返回）
+    captcha_required: Optional[bool] = None  # 是否需要验证码
+    captcha_reason: Optional[str] = None  # 需要验证码的原因
 
 
 class CardKeyCreate(BaseModel):
@@ -1213,20 +1232,135 @@ async def clear_all_devices(card_key: str):
         return {"success": False, "msg": str(e)}
 
 
+# ==================== 验证码 API ====================
+
+@app.get("/api/captcha")
+async def get_captcha():
+    """
+    获取验证码
+    
+    Returns:
+        {
+            "success": true,
+            "captcha_id": "xxx",
+            "captcha_image": "data:image/png;base64,..."
+        }
+    """
+    try:
+        captcha_id, captcha_image = create_captcha()
+        return {
+            "success": True,
+            "captcha_id": captcha_id,
+            "captcha_image": captcha_image
+        }
+    except Exception as e:
+        logger.error(f"[Captcha] 生成验证码失败: {str(e)}")
+        return {"success": False, "msg": "生成验证码失败"}
+
+
+@app.get("/api/captcha/check")
+async def check_captcha_required(device_id: Optional[str] = None):
+    """
+    检查是否需要验证码
+    
+    Args:
+        device_id: 设备ID
+    
+    Returns:
+        {
+            "success": true,
+            "required": bool,
+            "reason": str
+        }
+    """
+    try:
+        result = should_show_captcha(device_id or "anonymous", "")
+        return {
+            "success": True,
+            "required": result["required"],
+            "reason": result.get("reason", "")
+        }
+    except Exception as e:
+        logger.error(f"[Captcha] 检查验证码需求失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.get("/api/captcha/stats")
+async def get_captcha_statistics():
+    """
+    获取验证码统计信息（管理后台使用）
+    """
+    try:
+        stats = get_captcha_stats()
+        return {"success": True, "data": stats}
+    except Exception as e:
+        logger.error(f"[Captcha] 获取统计信息失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
+@app.post("/api/captcha/cleanup")
+async def cleanup_captcha_data():
+    """
+    清理过期的验证码和会话Token（定时任务调用）
+    """
+    try:
+        captcha_cleaned = cleanup_expired_captchas()
+        sessions_cleaned = cleanup_expired_sessions()
+        logger.info(f"[Captcha] 清理完成: 验证码={captcha_cleaned}, 会话={sessions_cleaned}")
+        return {
+            "success": True,
+            "captcha_cleaned": captcha_cleaned,
+            "sessions_cleaned": sessions_cleaned
+        }
+    except Exception as e:
+        logger.error(f"[Captcha] 清理失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+        logger.error(f"[ClearDevices] 清除设备绑定失败: {str(e)}")
+        return {"success": False, "msg": str(e)}
+
+
 @app.post("/api/validate", response_model=ValidateResponse)
 async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
     """
-    验证卡密 API
-    - 检查卡密是否存在
-    - 检查状态是否有效
-    - 检查是否过期
-    - 检查设备数量限制（最多5台）
-    - 记录访问日志（含行为数据）
+    验证卡密 API（集成验证码和会话Token）
+    
+    验证流程：
+    1. 如果有会话Token，先验证Token有效性
+    2. 检查是否需要验证码（智能触发策略）
+    3. 如果需要验证码，验证用户输入的验证码
+    4. 执行卡密验证逻辑
+    5. 验证成功后创建会话Token
+    
+    智能触发策略：
+    - 首次访问：不触发验证码
+    - 连续失败 >= 2次：触发验证码
+    - 同一设备验证次数 >= 3次：触发验证码
+    - 24小时内验证成功过：跳过验证码
     """
     client = None
-    card_key = request.card_key.strip().upper()
+    card_key = request.card_key.strip().upper() if request.card_key else ""
     device_id = request.device_id or "unknown"
-    # IP地址、User-Agent收集已禁用（合规要求）
+    session_token = request.session_token
+    captcha_id = request.captcha_id
+    captcha_code = request.captcha_code
+    
+    # ==================== Step 1: 会话Token验证 ====================
+    # 如果提供了会话Token，尝试验证（自动恢复会话）
+    if session_token:
+        valid, token_card_key, token_device_id = verify_session_token(session_token)
+        if valid and token_card_key:
+            logger.info(f"[Validate] 会话Token有效，自动验证: card_key={token_card_key[:8]}...")
+            # 使用Token中的卡密继续验证
+            card_key = token_card_key.upper()
+            device_id = token_device_id or device_id
+            # 标记为会话恢复，跳过验证码检查
+            skip_captcha = True
+        else:
+            # Token无效，继续正常验证流程
+            logger.info(f"[Validate] 会话Token无效或已过期")
+            skip_captcha = False
+    else:
+        skip_captcha = False
     
     try:
         if not card_key:
@@ -1234,12 +1368,46 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         logger.info(f"[Validate] 验证卡密: {card_key}, 设备: {device_id}")
 
+        # ==================== Step 2: 检查是否需要验证码 ====================
+        # 只有非会话恢复的情况下才检查验证码
+        if not skip_captcha:
+            captcha_check = should_show_captcha(device_id, card_key)
+            
+            if captcha_check["required"]:
+                # 需要验证码
+                logger.info(f"[Validate] 需要验证码: {captcha_check['reason']}")
+                
+                # 验证用户输入的验证码
+                if not captcha_id or not captcha_code:
+                    # 未提供验证码，返回提示
+                    return ValidateResponse(
+                        can_access=False,
+                        msg="请完成验证码验证",
+                        captcha_required=True,
+                        captcha_reason=captcha_check["reason"]
+                    )
+                
+                # 验证验证码
+                captcha_valid, captcha_error = verify_captcha(captcha_id, captcha_code)
+                if not captcha_valid:
+                    logger.warning(f"[Validate] 验证码验证失败: {captcha_error}")
+                    return ValidateResponse(
+                        can_access=False,
+                        msg=captcha_error,
+                        captcha_required=True,
+                        captcha_reason=captcha_check["reason"]
+                    )
+                
+                logger.info(f"[Validate] 验证码验证通过")
+
+        # ==================== Step 3: 数据库验证 ====================
         # 获取数据库客户端
         try:
             client = get_supabase_client()
             logger.info(f"[Validate] 数据库客户端类型: {type(client).__name__}")
         except Exception as db_err:
             logger.error(f"[Validate] 获取数据库客户端失败: {str(db_err)}")
+            record_validation_attempt(device_id, card_key, False)
             return ValidateResponse(can_access=False, msg="数据库连接失败")
 
         # 查询卡密
@@ -1249,7 +1417,12 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         if not response.data:
             log_access(client, None, card_key, False, "卡密不存在", device_id)
-            return ValidateResponse(can_access=False, msg="卡密不存在")
+            record_validation_attempt(device_id, card_key, False)
+            return ValidateResponse(
+                can_access=False,
+                msg="卡密不存在",
+                captcha_required=should_show_captcha(device_id, card_key)["required"]
+            )
 
         card_data = response.data[0]
         card_id = card_data.get('id')
@@ -1267,6 +1440,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         # 检查状态 (1=有效, 0=无效)
         if card_data.get('status') != 1:
             log_access(client, card_id, card_key, False, "卡密已失效", device_id, sales_channel, is_first_access)
+            record_validation_attempt(device_id, card_key, False)
             return ValidateResponse(can_access=False, msg="卡密已失效")
 
         # 检查过期时间（支持三种过期方式）
@@ -1306,6 +1480,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
         
         if is_expired:
             log_access(client, card_id, card_key, False, expire_reason, device_id, sales_channel, is_first_access)
+            record_validation_attempt(device_id, card_key, False)
             return ValidateResponse(can_access=False, msg=expire_reason)
 
         # 检查设备限制（最多5台设备）
@@ -1326,6 +1501,7 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             # 新设备，检查是否达到设备限制
             if len(bound_devices) >= max_devices:
                 log_access(client, card_id, card_key, False, f"设备数量已达上限({max_devices}台)", device_id, sales_channel, is_first_access)
+                record_validation_attempt(device_id, card_key, False)
                 return ValidateResponse(can_access=False, msg=f"该卡密已在{max_devices}台设备上使用，无法在新设备登录")
             
             # 添加新设备
@@ -1358,6 +1534,13 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
 
         # 记录成功日志（含行为数据）
         log_access(client, card_id, card_key, True, "验证成功", device_id, sales_channel, is_first_access)
+        
+        # ==================== Step 4: 记录验证成功 ====================
+        record_validation_attempt(device_id, card_key, True)
+        
+        # ==================== Step 5: 创建会话Token ====================
+        new_session_token = create_session_token(device_id, card_key)
+        logger.info(f"[Validate] 创建会话Token: {new_session_token[:16]}...")
 
         # 获取飞书链接和密码，确保不为 None（Pydantic 验证要求 str 类型）
         feishu_url = card_data.get('feishu_url') or ''
@@ -1373,12 +1556,18 @@ async def validate_card_key(request: ValidateRequest, fastapi_request: Request):
             can_access=True,
             url=feishu_url,
             password=feishu_password,
-            msg="验证成功"
+            msg="验证成功",
+            session_token=new_session_token
         )
 
     except Exception as e:
         import traceback
         logger.error(f"验证失败: {str(e)}")
+        logger.error(f"验证失败堆栈: {traceback.format_exc()}")
+        if client:
+            log_access(client, None, card_key, False, f"系统错误: {str(e)}", device_id)
+        record_validation_attempt(device_id, card_key, False)
+        return ValidateResponse(can_access=False, msg="系统错误，请稍后重试")
         logger.error(f"验证失败堆栈: {traceback.format_exc()}")
         if client:
             log_access(client, None, card_key, False, f"系统错误: {str(e)}", device_id)
