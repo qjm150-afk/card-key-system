@@ -30,24 +30,15 @@
 
 ## 二、数据迁移
 
-### 2.1 导出数据
-
-```bash
-# 设置扣子数据库环境变量
-export PGHOST=cp-magic-vapor-xxxxx.pg5.aidap-global.cn-beijing.volces.com
-export PGUSER=postgres
-export PGDATABASE=postgres
-
-# 执行迁移脚本
-./docs/migration/migrate_data.sh
-```
+### 2.1 数据创建方式
+- [x] 选择手动创建数据（不从扣子迁移）
+- [ ] 在管理后台添加卡种
+- [ ] 在管理后台添加卡密
 
 ### 2.2 验证数据
 
 - [ ] 检查 card_types 记录数
 - [ ] 检查 card_keys_table 记录数
-- [ ] 检查 access_logs 记录数
-- [ ] 抽样验证数据完整性
 
 ---
 
