@@ -9,12 +9,24 @@ venv/
 .venv/
 ENV/
 
-# 敏感文件
+# 敏感文件 - 不要推送
 .env
 .env.local
 .env.supabase
+.env.example.fc
 *.pem
 *.key
+
+# 数据文件 - 不要推送（包含卡密数据）
+coze_data_export.json
+data_export_for_production.json
+migration_export.json
+*.json
+!package.json
+!tsconfig.json
+
+# 备份文件
+backups/
 
 # IDE
 .idea/
@@ -30,13 +42,6 @@ Thumbs.db
 *.log
 logs/
 
-# 数据文件
-*.json
-!package.json
-backups/
-coze_data_export.json
-migration_export.json
-
 # 临时文件
 *.tmp
 *.temp
@@ -51,8 +56,34 @@ migration_export.json
 .pytest_cache/
 .coverage
 htmlcov/
+tests/
 
 # 其他
 node_modules/
 .coze/
 .cozeproj/
+
+# 文档 - 不要推送
+docs/
+AGENTS.md
+
+# 截图和资源文件 - 不要推送
+assets/
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# 迁移相关脚本 - 可能包含敏感信息
+scripts/migrate_from_coze.py
+scripts/migrate_from_coze_v2.py
+scripts/migrate_to_supabase.py
+scripts/test_supabase_connection.py
+scripts/start_with_supabase.sh
+scripts/backup_data.py
+scripts/import_data_to_production.py
+scripts/import_production_data.py
+scripts/restore_data.py
+s.yaml
+Dockerfile.fc
+deploy_fc.sh
