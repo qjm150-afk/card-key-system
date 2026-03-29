@@ -45,14 +45,24 @@ def get_db_client() -> Tuple["PostgresClient", bool]:
     
     注意：
         - is_sqlite 始终为 False（不再使用 SQLite）
-        - 扣子平台会自动注入 DATABASE_URL 环境变量
+        - 优先使用 Supabase（如果设置了 COZE_SUPABASE_URL）
+        - 否则使用扣子平台注入的数据库
     """
     global _db_client
     
     if _db_client is not None:
         return _db_client, False
     
-    # 导入 PostgreSQL 客户端
+    # 检查是否配置了 Supabase
+    supabase_url = os.getenv("COZE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+    
+    if supabase_url:
+        # 使用 Supabase 客户端
+        from .supabase_client import get_supabase_client
+        _db_client = get_supabase_client()
+        return _db_client, False
+    
+    # 使用 PostgreSQL 客户端（扣子平台数据库）
     from .postgres_client import get_postgres_client
     
     _db_client = get_postgres_client()
