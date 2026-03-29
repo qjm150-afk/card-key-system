@@ -7533,7 +7533,9 @@ async def serve_index():
     """服务首页"""
     index_path = os.path.join(STATIC_DIR, "index.html")
     if os.path.exists(index_path):
-        return FileResponse(index_path, media_type="text/html")
+        response = FileResponse(index_path, media_type="text/html")
+        response.headers["Content-Disposition"] = "inline"
+        return response
     raise HTTPException(status_code=404, detail="Index page not found")
 
 
@@ -7547,6 +7549,7 @@ async def serve_admin():
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+        response.headers["Content-Disposition"] = "inline"
         return response
     raise HTTPException(status_code=404, detail="Admin page not found")
 
