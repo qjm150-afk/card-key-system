@@ -45,7 +45,7 @@ from typing import Optional, List
 from urllib.parse import quote
 from fastapi import FastAPI, HTTPException, Query, Request, File, UploadFile, Form, Response
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse, PlainTextResponse, HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
