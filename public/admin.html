@@ -4638,26 +4638,48 @@
 
         // 修改密码（设置页面）
         async function handleChangePassword() {
-            const currentPassword = document.getElementById('currentPassword')?.value || '';
-            const newPassword = document.getElementById('newPassword')?.value || '';
-            const confirmPassword = document.getElementById('confirmPassword')?.value || '';
+            console.log('[修改密码] 函数被调用');
+            
+            const currentPasswordEl = document.getElementById('currentPassword');
+            const newPasswordEl = document.getElementById('newPassword');
+            const confirmPasswordEl = document.getElementById('confirmPassword');
+            
+            console.log('[修改密码] 元素:', {
+                currentPassword: currentPasswordEl,
+                newPassword: newPasswordEl,
+                confirmPassword: confirmPasswordEl
+            });
+            
+            const currentPassword = currentPasswordEl?.value || '';
+            const newPassword = newPasswordEl?.value || '';
+            const confirmPassword = confirmPasswordEl?.value || '';
+
+            console.log('[修改密码] 输入值:', {
+                currentPassword: currentPassword ? '(已输入)' : '(空)',
+                newPassword: newPassword ? '(已输入)' : '(空)',
+                confirmPassword: confirmPassword ? '(已输入)' : '(空)'
+            });
 
             // 验证
             if (!currentPassword || !newPassword || !confirmPassword) {
+                console.log('[修改密码] 验证失败: 字段为空');
                 showToast('请填写所有密码字段', 'error');
                 return;
             }
 
             if (newPassword.length < 4 || newPassword.length > 50) {
+                console.log('[修改密码] 验证失败: 密码长度不对');
                 showToast('新密码长度必须在4-50位之间', 'error');
                 return;
             }
 
             if (newPassword !== confirmPassword) {
+                console.log('[修改密码] 验证失败: 两次密码不一致');
                 showToast('两次输入的新密码不一致', 'error');
                 return;
             }
 
+            console.log('[修改密码] 开始调用 API...');
             try {
                 const response = await fetch('/api/admin/change-password', {
                     method: 'POST',
@@ -4669,6 +4691,8 @@
                 });
 
                 const data = await response.json();
+                console.log('[修改密码] API 响应:', data);
+                
                 if (data.success) {
                     showToast('密码修改成功', 'success');
                     // 清空表单
@@ -4679,6 +4703,7 @@
                     showToast(data.msg || '密码修改失败', 'error');
                 }
             } catch (error) {
+                console.error('[修改密码] 错误:', error);
                 showToast('密码修改失败，请稍后重试', 'error');
             }
         }
