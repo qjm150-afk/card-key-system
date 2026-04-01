@@ -399,20 +399,15 @@ class AdminAuthMiddleware(BaseHTTPMiddleware):
             if not token:
                 token = request.cookies.get("admin_token")
             
-            # 验证token
-            if not token or token not in VALID_TOKENS:
+            # 使用无状态 JWT 风格 token 验证
+            if not verify_token(token):
+                logger.warning(f"[AuthMiddleware] token 验证失败: {token[:20] if token else 'None'}...")
                 return JSONResponse(
                     status_code=401,
                     content={"success": False, "msg": "未授权访问，请先登录", "detail": "未授权访问，请先登录"}
                 )
             
-            # 检查token是否过期
-            if datetime.now() > VALID_TOKENS[token]:
-                del VALID_TOKENS[token]
-                return JSONResponse(
-                    status_code=401,
-                    content={"success": False, "msg": "登录已过期，请重新登录", "detail": "登录已过期，请重新登录"}
-                )
+            logger.info(f"[AuthMiddleware] token 验证成功: {token[:20]}...")
         
         return await call_next(request)
 
