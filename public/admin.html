@@ -4638,7 +4638,8 @@
 
         // 修改密码
         async function handleChangePassword() {
-            const currentPassword = document.getElementById('currentPassword').value;
+            // 支持两个表单：设置页面用 currentPassword，模态框用 oldPassword
+            const currentPassword = document.getElementById('currentPassword')?.value || document.getElementById('oldPassword')?.value || '';
             const newPassword = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
 
@@ -4671,8 +4672,11 @@
                 const data = await response.json();
                 if (data.success) {
                     showToast('密码修改成功', 'success');
-                    // 清空表单
-                    document.getElementById('currentPassword').value = '';
+                    // 清空表单（支持两个表单）
+                    const currentPwdInput = document.getElementById('currentPassword');
+                    const oldPwdInput = document.getElementById('oldPassword');
+                    if (currentPwdInput) currentPwdInput.value = '';
+                    if (oldPwdInput) oldPwdInput.value = '';
                     document.getElementById('newPassword').value = '';
                     document.getElementById('confirmPassword').value = '';
                 } else {
