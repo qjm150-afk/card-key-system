@@ -632,9 +632,12 @@ def get_admin_password() -> str:
         client = get_supabase_client()
         result = client.table('admin_settings').select('value').eq('key', 'admin_password').execute()
         if result.data and len(result.data) > 0:
-            return result.data[0]['value']
+            db_password = result.data[0]['value']
+            logger.info(f"[AdminAuth] 从数据库获取密码成功，长度={len(db_password)}")
+            return db_password
     except Exception as e:
-        logger.warning(f"获取数据库密码失败，使用环境变量密码: {str(e)}")
+        logger.warning(f"[AdminAuth] 获取数据库密码失败，使用环境变量密码: {str(e)}")
+    logger.info(f"[AdminAuth] 使用环境变量密码，长度={len(ADMIN_PASSWORD)}")
     return ADMIN_PASSWORD
 
 
@@ -5824,6 +5827,8 @@ async def clean_logs(request: CleanLogsRequest):
 async def admin_login(request: LoginRequest, response: Response):
     """管理员登录（带安全防护，合规：不收集 IP）"""
     
+    logger.info(f"[Login] 收到登录请求，密码长度={len(request.password)}")
+    
     # 检查是否被锁定
     is_locked, remaining_seconds = check_login_lockout()
     if is_locked:
@@ -5836,6 +5841,8 @@ async def admin_login(request: LoginRequest, response: Response):
         }
     
     current_password = get_admin_password()
+    logger.info(f"[Login] 当前密码长度={len(current_password)}, 输入密码长度={len(request.password)}")
+    
     if request.password != current_password:
         # 记录失败
         result = record_login_failure()
