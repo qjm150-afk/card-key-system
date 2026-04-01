@@ -3566,7 +3566,7 @@
                                 <label>确认新密码</label>
                                 <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码">
                             </div>
-                            <button class="btn btn-primary" onclick="doChangePassword()">确认修改</button>
+                            <button class="btn btn-primary" onclick="handleChangePassword()">确认修改</button>
                         </div>
                     </div>
                 </div>
@@ -4069,7 +4069,7 @@
                 <button class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="changePasswordForm" onsubmit="handleModalChangePasswordSubmit(event)">
+                <form id="changePasswordForm" onsubmit="handleModalChangePassword(event)">
                     <div class="form-group">
                         <label>旧密码</label>
                         <input type="password" class="form-input" id="modalOldPassword" placeholder="请输入当前密码" required>
@@ -4636,50 +4636,28 @@
             }
         }
 
-        // 修改密码（设置页面）- 使用新函数名避免缓存问题
-        async function doChangePassword() {
-            console.log('[修改密码] 函数被调用');
-            
-            const currentPasswordEl = document.getElementById('currentPassword');
-            const newPasswordEl = document.getElementById('newPassword');
-            const confirmPasswordEl = document.getElementById('confirmPassword');
-            
-            console.log('[修改密码] 元素:', {
-                currentPassword: currentPasswordEl,
-                newPassword: newPasswordEl,
-                confirmPassword: confirmPasswordEl
-            });
-            
-            const currentPassword = currentPasswordEl?.value || '';
-            const newPassword = newPasswordEl?.value || '';
-            const confirmPassword = confirmPasswordEl?.value || '';
-
-            console.log('[修改密码] 输入值:', {
-                currentPassword: currentPassword ? '(已输入)' : '(空)',
-                newPassword: newPassword ? '(已输入)' : '(空)',
-                confirmPassword: confirmPassword ? '(已输入)' : '(空)'
-            });
+        // 修改密码
+        async function handleChangePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
 
             // 验证
             if (!currentPassword || !newPassword || !confirmPassword) {
-                console.log('[修改密码] 验证失败: 字段为空');
                 showToast('请填写所有密码字段', 'error');
                 return;
             }
 
             if (newPassword.length < 4 || newPassword.length > 50) {
-                console.log('[修改密码] 验证失败: 密码长度不对');
                 showToast('新密码长度必须在4-50位之间', 'error');
                 return;
             }
 
             if (newPassword !== confirmPassword) {
-                console.log('[修改密码] 验证失败: 两次密码不一致');
                 showToast('两次输入的新密码不一致', 'error');
                 return;
             }
 
-            console.log('[修改密码] 开始调用 API...');
             try {
                 const response = await fetch('/api/admin/change-password', {
                     method: 'POST',
@@ -4691,64 +4669,12 @@
                 });
 
                 const data = await response.json();
-                console.log('[修改密码] API 响应:', data);
-                
                 if (data.success) {
                     showToast('密码修改成功', 'success');
                     // 清空表单
                     document.getElementById('currentPassword').value = '';
                     document.getElementById('newPassword').value = '';
                     document.getElementById('confirmPassword').value = '';
-                } else {
-                    showToast(data.msg || '密码修改失败', 'error');
-                }
-            } catch (error) {
-                console.error('[修改密码] 错误:', error);
-                showToast('密码修改失败，请稍后重试', 'error');
-            }
-        }
-
-        // 修改密码（模态框）
-        async function handleModalChangePassword() {
-            const currentPassword = document.getElementById('modalOldPassword')?.value || '';
-            const newPassword = document.getElementById('modalNewPassword')?.value || '';
-            const confirmPassword = document.getElementById('modalConfirmPassword')?.value || '';
-
-            // 验证
-            if (!currentPassword || !newPassword || !confirmPassword) {
-                showToast('请填写所有密码字段', 'error');
-                return;
-            }
-
-            if (newPassword.length < 4 || newPassword.length > 50) {
-                showToast('新密码长度必须在4-50位之间', 'error');
-                return;
-            }
-
-            if (newPassword !== confirmPassword) {
-                showToast('两次输入的新密码不一致', 'error');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/admin/change-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        old_password: currentPassword,
-                        new_password: newPassword
-                    })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    showToast('密码修改成功', 'success');
-                    // 清空模态框表单
-                    document.getElementById('modalOldPassword').value = '';
-                    document.getElementById('modalNewPassword').value = '';
-                    document.getElementById('modalConfirmPassword').value = '';
-                    // 关闭模态框
-                    closeChangePasswordModal();
                 } else {
                     showToast(data.msg || '密码修改失败', 'error');
                 }
@@ -6984,12 +6910,13 @@
             document.getElementById('changePasswordModalOverlay').classList.remove('active');
         }
 
-        async function handleModalChangePasswordSubmit(event) {
-            event.preventDefault();
+        // 模态框修改密码 - 使用独立函数名避免冲突
+        async function handleModalChangePassword(event) {
+            if (event) event.preventDefault();
             
-            const oldPassword = document.getElementById('modalOldPassword').value;
-            const newPassword = document.getElementById('modalNewPassword').value;
-            const confirmPassword = document.getElementById('modalConfirmPassword').value;
+            const oldPassword = document.getElementById('modalOldPassword')?.value || '';
+            const newPassword = document.getElementById('modalNewPassword')?.value || '';
+            const confirmPassword = document.getElementById('modalConfirmPassword')?.value || '';
             
             // 前端验证
             if (!oldPassword) {

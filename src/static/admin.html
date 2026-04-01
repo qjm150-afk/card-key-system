@@ -4069,24 +4069,24 @@
                 <button class="modal-close" onclick="closeChangePasswordModal()">&times;</button>
             </div>
             <div class="modal-body">
-                <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
+                <form id="changePasswordForm" onsubmit="handleModalChangePassword(event)">
                     <div class="form-group">
                         <label>旧密码</label>
-                        <input type="password" class="form-input" id="oldPassword" placeholder="请输入当前密码" required>
+                        <input type="password" class="form-input" id="modalOldPassword" placeholder="请输入当前密码" required>
                     </div>
                     <div class="form-group">
                         <label>新密码</label>
-                        <input type="password" class="form-input" id="newPassword" placeholder="请输入新密码（至少4位）" required minlength="4" maxlength="50">
+                        <input type="password" class="form-input" id="modalNewPassword" placeholder="请输入新密码（至少4位）" required minlength="4" maxlength="50">
                     </div>
                     <div class="form-group">
                         <label>确认新密码</label>
-                        <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码" required>
+                        <input type="password" class="form-input" id="modalConfirmPassword" placeholder="请再次输入新密码" required>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" type="button" onclick="closeChangePasswordModal()">取消</button>
-                <button class="btn btn-primary" type="button" onclick="handleChangePassword(event)">确认修改</button>
+                <button class="btn btn-primary" type="button" onclick="handleModalChangePassword(event)">确认修改</button>
             </div>
         </div>
     </div>
@@ -6910,12 +6910,13 @@
             document.getElementById('changePasswordModalOverlay').classList.remove('active');
         }
 
-        async function handleChangePassword(event) {
-            event.preventDefault();
+        // 模态框修改密码 - 使用独立函数名避免冲突
+        async function handleModalChangePassword(event) {
+            if (event) event.preventDefault();
             
-            const oldPassword = document.getElementById('oldPassword').value;
-            const newPassword = document.getElementById('newPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
+            const oldPassword = document.getElementById('modalOldPassword')?.value || '';
+            const newPassword = document.getElementById('modalNewPassword')?.value || '';
+            const confirmPassword = document.getElementById('modalConfirmPassword')?.value || '';
             
             // 前端验证
             if (!oldPassword) {
