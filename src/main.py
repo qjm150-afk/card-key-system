@@ -681,13 +681,21 @@ def set_admin_password(new_password: str) -> bool:
     try:
         client = get_supabase_client()
         # 先尝试更新
-        result = client.table('admin_settings').update({'value': new_password}).eq('key', 'admin_password').execute()
+        result = client.table('admin_settings').update({'value': new_password, 'updated_at': datetime.now().isoformat()}).eq('key', 'admin_password').execute()
         if not result.data:
             # 如果没有更新到，说明记录不存在，尝试插入
-            client.table('admin_settings').insert({'key': 'admin_password', 'value': new_password}).execute()
+            insert_data = {
+                'key': 'admin_password',
+                'value': new_password,
+                'description': '管理员密码'
+            }
+            client.table('admin_settings').insert(insert_data).execute()
+        logger.info("[AdminPassword] 密码保存成功")
         return True
     except Exception as e:
         logger.error(f"设置管理员密码失败: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return False
 
 
