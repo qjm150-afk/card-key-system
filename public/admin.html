@@ -3566,7 +3566,7 @@
                                 <label>确认新密码</label>
                                 <input type="password" class="form-input" id="confirmPassword" placeholder="请再次输入新密码">
                             </div>
-                            <button class="btn btn-primary" onclick="handleChangePassword()">确认修改</button>
+                            <button class="btn btn-primary" onclick="doChangePassword()">确认修改</button>
                         </div>
                     </div>
                 </div>
@@ -4636,8 +4636,8 @@
             }
         }
 
-        // 修改密码（设置页面）
-        async function handleChangePassword() {
+        // 修改密码（设置页面）- 使用新函数名避免缓存问题
+        async function doChangePassword() {
             console.log('[修改密码] 函数被调用');
             
             const currentPasswordEl = document.getElementById('currentPassword');
