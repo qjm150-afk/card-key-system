@@ -5827,7 +5827,10 @@ async def clean_logs(request: CleanLogsRequest):
 async def admin_login(request: LoginRequest, response: Response):
     """管理员登录（带安全防护，合规：不收集 IP）"""
     
-    logger.info(f"[Login] 收到登录请求，密码长度={len(request.password)}")
+    # 强制打印版本标识，确认代码已更新
+    logger.info("=" * 50)
+    logger.info("[Login] CODE VERSION: 2024-04-01-v3")
+    logger.info(f"[Login] 收到登录请求，密码={request.password!r}")
     
     # 检查是否被锁定
     is_locked, remaining_seconds = check_login_lockout()
@@ -5841,7 +5844,10 @@ async def admin_login(request: LoginRequest, response: Response):
         }
     
     current_password = get_admin_password()
-    logger.info(f"[Login] 当前密码长度={len(current_password)}, 输入密码长度={len(request.password)}")
+    logger.info(f"[Login] 数据库密码={current_password!r}")
+    logger.info(f"[Login] 输入密码={request.password!r}")
+    logger.info(f"[Login] 匹配结果={request.password == current_password}")
+    logger.info("=" * 50)
     
     if request.password != current_password:
         # 记录失败
@@ -7573,7 +7579,7 @@ async def serve_admin():
 @app.get("/health")
 async def health_check():
     """健康检查"""
-    return {"status": "ok"}
+    return {"status": "ok", "version": "2024-04-01-v2", "debug": "login-fix"}
 
 
 # 微信验证文件路由（放在具体路由之后）
