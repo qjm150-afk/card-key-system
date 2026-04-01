@@ -619,7 +619,47 @@ class BatchGenerateRequestV2(BaseModel):
 # 管理员密码（从环境变量读取，必须在部署时设置）
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
-# 存储有效的 token（生产环境应使用 Redis 等）
+# JWT 密钥（用于生成和验证 token）
+import hashlib
+import time
+
+def get_jwt_secret() -> str:
+    """获取 JWT 密钥（基于管理员密码生成）"""
+    return hashlib.sha256(f"card-key-system-{ADMIN_PASSWORD}".encode()).hexdigest()
+
+def create_token() -> str:
+    """创建 JWT 风格的 token（无需服务端存储）"""
+    secret = get_jwt_secret()
+    timestamp = str(int(time.time()))
+    # 简单的 token 格式：timestamp.signature
+    signature = hashlib.sha256(f"{timestamp}-{secret}".encode()).hexdigest()[:32]
+    return f"{timestamp}.{signature}"
+
+def verify_token(token: str) -> bool:
+    """验证 token（无需服务端存储）"""
+    if not token:
+        return False
+    
+    try:
+        parts = token.split(".")
+        if len(parts) != 2:
+            return False
+        
+        timestamp_str, signature = parts
+        timestamp = int(timestamp_str)
+        
+        # 检查是否过期（24小时）
+        if time.time() - timestamp > TOKEN_EXPIRE_HOURS * 3600:
+            return False
+        
+        # 验证签名
+        secret = get_jwt_secret()
+        expected_signature = hashlib.sha256(f"{timestamp_str}-{secret}".encode()).hexdigest()[:32]
+        return signature == expected_signature
+    except Exception:
+        return False
+
+# 保留旧的 VALID_TOKENS 用于兼容（但不再使用）
 VALID_TOKENS = {}
 
 # Token 有效期（24小时）
@@ -654,25 +694,6 @@ def set_admin_password(new_password: str) -> bool:
     except Exception as e:
         logger.error(f"设置管理员密码失败: {str(e)}")
         return False
-
-
-def create_token() -> str:
-    """创建 token"""
-    token = secrets.token_urlsafe(32)
-    VALID_TOKENS[token] = datetime.now() + timedelta(hours=TOKEN_EXPIRE_HOURS)
-    return token
-
-
-def verify_token(token: str) -> bool:
-    """验证 token"""
-    if not token:
-        return False
-    if token not in VALID_TOKENS:
-        return False
-    if datetime.now() > VALID_TOKENS[token]:
-        del VALID_TOKENS[token]
-        return False
-    return True
 
 
 def get_token_from_request(request: Request) -> str:
