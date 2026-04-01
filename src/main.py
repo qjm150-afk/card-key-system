@@ -703,7 +703,9 @@ def get_token_from_request(request: Request) -> str:
     if auth_header.startswith("Bearer "):
         return auth_header[7:]
     # 从 cookie 获取
-    return request.cookies.get("admin_token", "")
+    token = request.cookies.get("admin_token", "")
+    logger.info(f"[Token] 从 cookie 获取: {token[:20] if token else 'None'}...")
+    return token
 
 
 from fastapi import Depends
@@ -5893,17 +5895,24 @@ async def admin_login(request: LoginRequest, response: Response):
     clear_login_failures()
     
     token = create_token()
-    logger.info(f"[Login] 管理员登录成功, token={token[:10]}...")
+    logger.info(f"[Login] 管理员登录成功, token={token[:20]}...")
     
     # 设置 cookie
-    # 生产环境 HTTPS 需要 secure=True
-    is_production = os.environ.get("COZE_PROJECT_ENV") == "PROD"
+    # Vercel 和扣子生产环境都使用 HTTPS，需要 secure=True
+    # 检测是否是 HTTPS 环境（通过请求头或环境变量）
+    is_https = (
+        os.environ.get("COZE_PROJECT_ENV") == "PROD" or
+        os.environ.get("VERCEL") == "1" or
+        os.environ.get("VERCEL_ENV") == "production"
+    )
+    logger.info(f"[Login] HTTPS环境检测: {is_https}")
+    
     response.set_cookie(
         key="admin_token",
         value=token,
         max_age=TOKEN_EXPIRE_HOURS * 3600,
         httponly=True,
-        secure=is_production,  # 生产环境启用 secure
+        secure=is_https,  # HTTPS 环境启用 secure
         samesite="lax",
         path="/"  # 确保 cookie 在所有路径下都可用
     )
@@ -7470,6 +7479,8 @@ async def get_analytics_channels(
 async def check_auth(request: Request):
     """检查登录状态"""
     token = get_token_from_request(request)
+    logger.info(f"[CheckAuth] 收到的 token: {token[:20] if token else 'None'}...")
+    logger.info(f"[CheckAuth] token 验证结果: {verify_token(token)}")
     if verify_token(token):
         return {"authenticated": True}
     return {"authenticated": False}
