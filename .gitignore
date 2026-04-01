@@ -69,10 +69,15 @@ AGENTS.md
 
 # 截图和资源文件 - 不要推送
 assets/
-*.png
-*.jpg
-*.jpeg
-*.gif
+# 但允许 public 目录下的静态资源
+!public/*.png
+!public/*.jpg
+!public/*.jpeg
+!public/*.gif
+!public/*.html
+
+# 允许 Vercel 配置文件
+!vercel.json
 
 # 迁移相关脚本 - 可能包含敏感信息
 scripts/migrate_from_coze.py
