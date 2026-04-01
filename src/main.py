@@ -616,8 +616,8 @@ class BatchGenerateRequestV2(BaseModel):
 
 # ==================== 管理员认证 ====================
 
-# 管理员密码（从环境变量读取，默认为 QJM150）
-ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "QJM150")
+# 管理员密码（从环境变量读取，必须在部署时设置）
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 
 # 存储有效的 token（生产环境应使用 Redis 等）
 VALID_TOKENS = {}
