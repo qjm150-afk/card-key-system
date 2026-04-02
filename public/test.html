@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>卡密系统测试页面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #eee;
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+        input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.2s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .result {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .api-select {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .api-btn {
+            flex: 1;
+            padding: 10px;
+            background: #f0f0f0;
+            color: #333;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .api-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        .info {
+            background: #e7f3ff;
+            border: 1px solid #b6d4fe;
+            color: #084298;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .tab {
+            flex: 1;
+            padding: 12px;
+            background: #f5f5f5;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 卡密系统测试页面</h1>
+        
+        <!-- API 地址选择 -->
+        <div class="card">
+            <h2>📡 选择 API 环境</h2>
+            <div class="api-select">
+                <button class="api-btn active" onclick="setApiBase('aliyun')" id="api-aliyun">
+                    阿里云 FC (国内)
+                </button>
+                <button class="api-btn" onclick="setApiBase('vercel')" id="api-vercel">
+                    Vercel (海外)
+                </button>
+            </div>
+            <div class="info">
+                当前 API: <strong id="currentApi">https://card-key-api-tqnnpckgbm.cn-hangzhou.fcapp.run</strong>
+            </div>
+        </div>
+
+        <!-- 功能测试 -->
+        <div class="card">
+            <h2>🔐 功能测试</h2>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('login')">后台登录</button>
+                <button class="tab" onclick="switchTab('validate')">卡密验证</button>
+            </div>
+
+            <!-- 后台登录 -->
+            <div id="loginTab" class="tab-content active">
+                <div class="form-group">
+                    <label>管理员密码</label>
+                    <input type="password" id="adminPassword" placeholder="请输入管理员密码">
+                </div>
+                <button onclick="testLogin()">登录测试</button>
+                <div id="loginResult" class="result" style="display:none;"></div>
+            </div>
+
+            <!-- 卡密验证 -->
+            <div id="validateTab" class="tab-content">
+                <div class="form-group">
+                    <label>卡密</label>
+                    <input type="text" id="cardKey" placeholder="请输入卡密">
+                </div>
+                <div class="form-group">
+                    <label>设备ID (可选)</label>
+                    <input type="text" id="deviceId" placeholder="默认自动生成">
+                </div>
+                <button onclick="testValidate()">验证测试</button>
+                <div id="validateResult" class="result" style="display:none;"></div>
+            </div>
+        </div>
+
+        <!-- 健康检查 -->
+        <div class="card">
+            <h2>💚 服务状态</h2>
+            <button onclick="checkHealth()">健康检查</button>
+            <div id="healthResult" class="result" style="display:none;"></div>
+        </div>
+    </div>
+
+    <script>
+        // API 基础地址
+        const API_BASE = {
+            aliyun: 'https://card-key-api-tqnnpckgbm.cn-hangzhou.fcapp.run',
+            vercel: 'https://your-project.vercel.app' // 请替换为你的 Vercel 地址
+        };
+        let currentApiBase = API_BASE.aliyun;
+
+        // 设置 API 环境
+        function setApiBase(env) {
+            currentApiBase = API_BASE[env];
+            document.getElementById('currentApi').textContent = currentApiBase;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.api-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('api-' + env).classList.add('active');
+        }
+
+        // 切换标签页
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + 'Tab').classList.add('active');
+        }
+
+        // 显示结果
+        function showResult(elementId, data, isError = false) {
+            const el = document.getElementById(elementId);
+            el.style.display = 'block';
+            el.className = 'result ' + (isError ? 'error' : 'success');
+            el.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // 后台登录测试
+        async function testLogin() {
+            const password = document.getElementById('adminPassword').value;
+            if (!password) {
+                alert('请输入密码');
+                return;
+            }
+
+            try {
+                const response = await fetch(currentApiBase + '/api/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                const data = await response.json();
+                showResult('loginResult', data, !data.success);
+            } catch (err) {
+                showResult('loginResult', { error: err.message }, true);
+            }
+        }
+
+        // 卡密验证测试
+        async function testValidate() {
+            const cardKey = document.getElementById('cardKey').value;
+            if (!cardKey) {
+                alert('请输入卡密');
+                return;
+            }
+
+            const deviceId = document.getElementById('deviceId').value || 'test-device-' + Date.now();
+
+            try {
+                const response = await fetch(currentApiBase + '/api/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ card_key: cardKey, device_id: deviceId })
+                });
+                const data = await response.json();
+                showResult('validateResult', data, !data.can_access);
+            } catch (err) {
+                showResult('validateResult', { error: err.message }, true);
+            }
+        }
+
+        // 健康检查
+        async function checkHealth() {
+            try {
+                const response = await fetch(currentApiBase + '/health');
+                const data = await response.json();
+                showResult('healthResult', data, false);
+            } catch (err) {
+                showResult('healthResult', { error: err.message }, true);
+            }
+        }
+    </script>
+</body>
+</html>
