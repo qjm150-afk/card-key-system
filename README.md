@@ -1,6 +1,6 @@
 # 卡密验证系统
 
-一个基于 FastAPI + Supabase 的卡密验证系统，支持 Vercel Serverless 部署。
+一个基于 FastAPI + Supabase 的卡密验证系统，支持 Vercel Serverless 和阿里云 FC 双区域部署。
 
 ## 功能
 
@@ -19,6 +19,13 @@
 | 数据库 | Supabase PostgreSQL |
 | 部署平台 | Vercel (海外) / 阿里云 FC (国内) |
 | 运行时 | Python 3.12 |
+
+## 代码仓库
+
+| 平台 | 地址 | 用途 |
+|------|------|------|
+| GitHub | https://github.com/qjm150-afk/card-key-system | 主仓库，CI/CD |
+| Gitee | https://gitee.com/julienqjm/card-key-system | 国内备份 |
 
 ## 快速开始
 
@@ -73,7 +80,10 @@ vercel --prod
 
 ### 阿里云 FC（国内访问）
 
-> 待部署
+✅ **已部署成功**
+
+- API 地址: `https://card-key-api-tqnnpckgbm.cn-hangzhou.fcapp.run`
+- 限制: 默认域名会下载 HTML，需绑定自定义域名
 
 详见：[阿里云 FC 部署指南](docs/deploy/aliyun-fc-deploy.md)
 
