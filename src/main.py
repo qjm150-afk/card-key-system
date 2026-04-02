@@ -7671,6 +7671,7 @@ WECHAT_VERIFY_FILES = {
 }
 
 @app.get("/")
+@app.head("/")
 async def serve_index():
     """服务首页"""
     index_path = os.path.join(STATIC_DIR, "index.html")
@@ -7679,12 +7680,16 @@ async def serve_index():
             html_content = f.read()
         return HTMLResponse(
             content=html_content,
-            headers={"Content-Disposition": "inline"}
+            headers={
+                "Content-Type": "text/html; charset=utf-8",
+                "Content-Disposition": "inline; filename=index.html"
+            }
         )
     raise HTTPException(status_code=404, detail="Index page not found")
 
 
 @app.get("/admin")
+@app.head("/admin")
 async def serve_admin():
     """服务管理后台"""
     admin_path = os.path.join(STATIC_DIR, "admin.html")
@@ -7694,7 +7699,8 @@ async def serve_admin():
         return HTMLResponse(
             content=html_content,
             headers={
-                "Content-Disposition": "inline",
+                "Content-Type": "text/html; charset=utf-8",
+                "Content-Disposition": "inline; filename=admin.html",
                 "Cache-Control": "no-cache, no-store, must-revalidate",
                 "Pragma": "no-cache",
                 "Expires": "0"
