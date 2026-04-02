@@ -678,23 +678,31 @@ def get_admin_password() -> str:
 
 def set_admin_password(new_password: str) -> bool:
     """设置管理员密码到数据库"""
+    import os
+    
+    # 检查环境变量
+    database_url = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
+    supabase_url = os.getenv("COZE_SUPABASE_URL") or os.getenv("SUPABASE_URL")
+    
+    logger.info(f"[AdminPassword] DATABASE_URL 存在: {bool(database_url)}")
+    logger.info(f"[AdminPassword] SUPABASE_URL 存在: {bool(supabase_url)}")
+    
     try:
-        import os
-        # 优先使用 DATABASE_URL 直接连接数据库
-        database_url = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
-        
         if database_url:
             # 使用 psycopg2 直接连接
             import psycopg2
-            from urllib.parse import urlparse
+            from urllib.parse import urlparse, unquote
+            
+            logger.info("[AdminPassword] 尝试使用 PostgreSQL 直接连接...")
             
             result = urlparse(database_url)
             conn = psycopg2.connect(
                 host=result.hostname,
                 port=result.port or 5432,
                 database=result.path[1:],
-                user=result.username,
-                password=result.password
+                user=unquote(result.username) if result.username else None,
+                password=unquote(result.password) if result.password else None,
+                connect_timeout=10
             )
             cursor = conn.cursor()
             
@@ -707,23 +715,26 @@ def set_admin_password(new_password: str) -> bool:
                     "UPDATE admin_settings SET value = %s, updated_at = NOW() WHERE key = 'admin_password'",
                     (new_password,)
                 )
+                logger.info(f"[AdminPassword] 更新了 {cursor.rowcount} 行")
             else:
                 cursor.execute(
                     "INSERT INTO admin_settings (key, value, description, created_at, updated_at) VALUES (%s, %s, '管理员密码', NOW(), NOW())",
                     ('admin_password', new_password)
                 )
+                logger.info(f"[AdminPassword] 插入了 {cursor.rowcount} 行")
             
             conn.commit()
             cursor.close()
             conn.close()
             logger.info("[AdminPassword] 通过 PostgreSQL 直接连接保存成功")
             return True
-        else:
-            # 回退到 Supabase 客户端
-            client = get_supabase_client()
-            logger.info(f"[AdminPassword] 使用 Supabase 客户端...")
             
-            # 直接使用 upsert 操作
+        elif supabase_url:
+            # 回退到 Supabase 客户端
+            logger.info("[AdminPassword] 使用 Supabase 客户端...")
+            client = get_supabase_client()
+            
+            # 使用 upsert 操作
             result = client.table('admin_settings').upsert({
                 'key': 'admin_password',
                 'value': new_password,
@@ -731,18 +742,17 @@ def set_admin_password(new_password: str) -> bool:
             }, on_conflict='key').execute()
             
             logger.info(f"[AdminPassword] Upsert 结果: {result}")
+            logger.info(f"[AdminPassword] Upsert data: {result.data if hasattr(result, 'data') else 'no data'}")
             
-            if hasattr(result, 'data') and result.data:
-                logger.info("[AdminPassword] 保存成功")
-                return True
-            else:
-                logger.warning(f"[AdminPassword] Upsert 可能失败")
-                return False
+            return True
+        else:
+            logger.error("[AdminPassword] 没有可用的数据库连接")
+            return False
                 
     except Exception as e:
-        logger.error(f"设置管理员密码失败: {str(e)}")
+        logger.error(f"[AdminPassword] 保存失败: {str(e)}")
         import traceback
-        traceback.print_exc()
+        logger.error(traceback.format_exc())
         return False
 
 
