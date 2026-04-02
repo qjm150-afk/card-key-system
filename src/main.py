@@ -7683,6 +7683,66 @@ async def health_check():
     return {"status": "ok", "version": "2024-04-01-v2", "debug": "login-fix"}
 
 
+@app.get("/api/test/db")
+async def test_db_connection():
+    """测试数据库连接"""
+    import os
+    result = {
+        "env_check": {
+            "DATABASE_URL": "set" if os.getenv("DATABASE_URL") else "not set",
+            "COZE_SUPABASE_URL": "set" if os.getenv("COZE_SUPABASE_URL") else "not set",
+            "COZE_SUPABASE_ANON_KEY": "set" if os.getenv("COZE_SUPABASE_ANON_KEY") else "not set",
+        }
+    }
+    
+    # 测试 Supabase 客户端
+    try:
+        client = get_supabase_client()
+        test_result = client.table('admin_settings').select('*').eq('key', 'admin_password').execute()
+        result["supabase_test"] = {
+            "status": "success",
+            "data": test_result.data
+        }
+    except Exception as e:
+        result["supabase_test"] = {
+            "status": "error",
+            "error": str(e)
+        }
+    
+    # 测试直接 PostgreSQL 连接
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        try:
+            import psycopg2
+            from urllib.parse import urlparse, unquote
+            
+            parsed = urlparse(database_url)
+            conn = psycopg2.connect(
+                host=parsed.hostname,
+                port=parsed.port or 5432,
+                database=parsed.path[1:],
+                user=unquote(parsed.username) if parsed.username else None,
+                password=unquote(parsed.password) if parsed.password else None,
+                connect_timeout=5
+            )
+            cursor = conn.cursor()
+            cursor.execute("SELECT value FROM admin_settings WHERE key = 'admin_password'")
+            row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            result["postgres_test"] = {
+                "status": "success",
+                "password_value": row[0] if row else None
+            }
+        except Exception as e:
+            result["postgres_test"] = {
+                "status": "error",
+                "error": str(e)
+            }
+    
+    return result
+
+
 # 微信验证文件路由（放在具体路由之后）
 @app.get("/{verify_file}")
 async def serve_wechat_verify(verify_file: str):
