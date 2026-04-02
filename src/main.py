@@ -688,10 +688,14 @@ def set_admin_password(new_password: str) -> bool:
             'updated_at': datetime.now().isoformat()
         }).eq('key', 'admin_password').execute()
         
+        logger.info(f"[AdminPassword] 更新结果类型: {type(result)}")
         logger.info(f"[AdminPassword] 更新结果: {result}")
         logger.info(f"[AdminPassword] 更新数据: {result.data}")
         
-        if not result.data:
+        # 检查更新是否成功
+        if result.data and len(result.data) > 0:
+            logger.info("[AdminPassword] 更新成功")
+        else:
             # 如果没有更新到，说明记录不存在，尝试插入
             logger.info("[AdminPassword] 记录不存在，尝试插入...")
             insert_data = {
@@ -701,8 +705,11 @@ def set_admin_password(new_password: str) -> bool:
             }
             insert_result = client.table('admin_settings').insert(insert_data).execute()
             logger.info(f"[AdminPassword] 插入结果: {insert_result}")
+            if insert_result.data and len(insert_result.data) > 0:
+                logger.info("[AdminPassword] 插入成功")
+            else:
+                logger.warning("[AdminPassword] 插入可能失败，data 为空")
         
-        logger.info("[AdminPassword] 密码保存成功")
         return True
     except Exception as e:
         logger.error(f"设置管理员密码失败: {str(e)}")
@@ -5945,14 +5952,21 @@ async def admin_logout(response: Response):
 @app.post("/api/admin/change-password")
 async def change_password(request: ChangePasswordRequest, req: Request):
     """修改管理员密码"""
+    logger.info(f"[ChangePassword] 收到修改密码请求")
+    
     # 验证是否已登录
     token = get_token_from_request(req)
     if not verify_token(token):
+        logger.warning("[ChangePassword] 未登录或会话已过期")
         return {"success": False, "msg": "未登录或会话已过期"}
     
     # 验证旧密码
     current_password = get_admin_password()
+    logger.info(f"[ChangePassword] 当前密码长度: {len(current_password) if current_password else 0}")
+    logger.info(f"[ChangePassword] 输入的旧密码长度: {len(request.old_password) if request.old_password else 0}")
+    
     if request.old_password != current_password:
+        logger.warning("[ChangePassword] 旧密码错误")
         return {"success": False, "msg": "旧密码错误"}
     
     # 验证新密码
@@ -5962,11 +5976,13 @@ async def change_password(request: ChangePasswordRequest, req: Request):
     if len(request.new_password) > 50:
         return {"success": False, "msg": "新密码长度不能超过50位"}
     
+    logger.info(f"[ChangePassword] 开始保存新密码...")
     # 保存新密码
     if set_admin_password(request.new_password):
-        logger.info("管理员密码修改成功")
+        logger.info("[ChangePassword] 管理员密码修改成功")
         return {"success": True, "msg": "密码修改成功"}
     else:
+        logger.error("[ChangePassword] 密码保存失败")
         return {"success": False, "msg": "密码保存失败，请稍后重试"}
 
 
