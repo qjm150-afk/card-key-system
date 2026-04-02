@@ -679,38 +679,66 @@ def get_admin_password() -> str:
 def set_admin_password(new_password: str) -> bool:
     """设置管理员密码到数据库"""
     try:
-        client = get_supabase_client()
-        logger.info(f"[AdminPassword] 尝试更新密码...")
+        import os
+        # 优先使用 DATABASE_URL 直接连接数据库
+        database_url = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
         
-        # 先尝试更新
-        result = client.table('admin_settings').update({
-            'value': new_password, 
-            'updated_at': datetime.now().isoformat()
-        }).eq('key', 'admin_password').execute()
-        
-        logger.info(f"[AdminPassword] 更新结果类型: {type(result)}")
-        logger.info(f"[AdminPassword] 更新结果: {result}")
-        logger.info(f"[AdminPassword] 更新数据: {result.data}")
-        
-        # 检查更新是否成功
-        if result.data and len(result.data) > 0:
-            logger.info("[AdminPassword] 更新成功")
+        if database_url:
+            # 使用 psycopg2 直接连接
+            import psycopg2
+            from urllib.parse import urlparse
+            
+            result = urlparse(database_url)
+            conn = psycopg2.connect(
+                host=result.hostname,
+                port=result.port or 5432,
+                database=result.path[1:],
+                user=result.username,
+                password=result.password
+            )
+            cursor = conn.cursor()
+            
+            # 先检查是否存在
+            cursor.execute("SELECT id FROM admin_settings WHERE key = 'admin_password'")
+            exists = cursor.fetchone()
+            
+            if exists:
+                cursor.execute(
+                    "UPDATE admin_settings SET value = %s, updated_at = NOW() WHERE key = 'admin_password'",
+                    (new_password,)
+                )
+            else:
+                cursor.execute(
+                    "INSERT INTO admin_settings (key, value, description, created_at, updated_at) VALUES (%s, %s, '管理员密码', NOW(), NOW())",
+                    ('admin_password', new_password)
+                )
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            logger.info("[AdminPassword] 通过 PostgreSQL 直接连接保存成功")
+            return True
         else:
-            # 如果没有更新到，说明记录不存在，尝试插入
-            logger.info("[AdminPassword] 记录不存在，尝试插入...")
-            insert_data = {
+            # 回退到 Supabase 客户端
+            client = get_supabase_client()
+            logger.info(f"[AdminPassword] 使用 Supabase 客户端...")
+            
+            # 直接使用 upsert 操作
+            result = client.table('admin_settings').upsert({
                 'key': 'admin_password',
                 'value': new_password,
                 'description': '管理员密码'
-            }
-            insert_result = client.table('admin_settings').insert(insert_data).execute()
-            logger.info(f"[AdminPassword] 插入结果: {insert_result}")
-            if insert_result.data and len(insert_result.data) > 0:
-                logger.info("[AdminPassword] 插入成功")
+            }, on_conflict='key').execute()
+            
+            logger.info(f"[AdminPassword] Upsert 结果: {result}")
+            
+            if hasattr(result, 'data') and result.data:
+                logger.info("[AdminPassword] 保存成功")
+                return True
             else:
-                logger.warning("[AdminPassword] 插入可能失败，data 为空")
-        
-        return True
+                logger.warning(f"[AdminPassword] Upsert 可能失败")
+                return False
+                
     except Exception as e:
         logger.error(f"设置管理员密码失败: {str(e)}")
         import traceback
