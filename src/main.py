@@ -5990,21 +5990,17 @@ async def admin_logout(response: Response):
 @app.post("/api/admin/change-password")
 async def change_password(request: ChangePasswordRequest, req: Request):
     """修改管理员密码"""
-    logger.info(f"[ChangePassword] 收到修改密码请求")
+    import os
     
     # 验证是否已登录
     token = get_token_from_request(req)
     if not verify_token(token):
-        logger.warning("[ChangePassword] 未登录或会话已过期")
         return {"success": False, "msg": "未登录或会话已过期"}
     
     # 验证旧密码
     current_password = get_admin_password()
-    logger.info(f"[ChangePassword] 当前密码长度: {len(current_password) if current_password else 0}")
-    logger.info(f"[ChangePassword] 输入的旧密码长度: {len(request.old_password) if request.old_password else 0}")
     
     if request.old_password != current_password:
-        logger.warning("[ChangePassword] 旧密码错误")
         return {"success": False, "msg": "旧密码错误"}
     
     # 验证新密码
@@ -6014,14 +6010,46 @@ async def change_password(request: ChangePasswordRequest, req: Request):
     if len(request.new_password) > 50:
         return {"success": False, "msg": "新密码长度不能超过50位"}
     
-    logger.info(f"[ChangePassword] 开始保存新密码...")
-    # 保存新密码
-    if set_admin_password(request.new_password):
-        logger.info("[ChangePassword] 管理员密码修改成功")
-        return {"success": True, "msg": "密码修改成功"}
-    else:
-        logger.error("[ChangePassword] 密码保存失败")
-        return {"success": False, "msg": "密码保存失败，请稍后重试"}
+    # 保存新密码 - 直接在这里处理，返回详细错误
+    try:
+        database_url = os.getenv("DATABASE_URL") or os.getenv("PGDATABASE_URL")
+        
+        if not database_url:
+            return {"success": False, "msg": "数据库连接未配置 (DATABASE_URL 不存在)"}
+        
+        # 使用 psycopg2 直接连接
+        import psycopg2
+        from urllib.parse import urlparse, unquote
+        
+        result = urlparse(database_url)
+        conn = psycopg2.connect(
+            host=result.hostname,
+            port=result.port or 5432,
+            database=result.path[1:],
+            user=unquote(result.username) if result.username else None,
+            password=unquote(result.password) if result.password else None,
+            connect_timeout=10
+        )
+        cursor = conn.cursor()
+        
+        # 更新密码
+        cursor.execute(
+            "UPDATE admin_settings SET value = %s, updated_at = NOW() WHERE key = 'admin_password'",
+            (request.new_password,)
+        )
+        
+        affected = cursor.rowcount
+        conn.commit()
+        cursor.close()
+        conn.close()
+        
+        if affected > 0:
+            return {"success": True, "msg": "密码修改成功"}
+        else:
+            return {"success": False, "msg": "密码记录不存在，请先在数据库中添加 admin_password 行"}
+            
+    except Exception as e:
+        return {"success": False, "msg": f"数据库错误: {str(e)}"}
 
 
 # ==================== 系统设置 API ====================
